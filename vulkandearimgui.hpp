@@ -49,6 +49,7 @@ struct VulkanDearImGui
     void render(VulkanSurface& surface);
     void render_frame(VulkanSurface& surface);
     void build_imgui_command_buffers(VulkanSurface& surface);
+    void build_imgui_command_buffers(VulkanSurface& surface, std::uint32_t index);
     void build_imgui_command_buffer(VkCommandBuffer);
 
     VkInstance       mInstance        = VK_NULL_HANDLE;

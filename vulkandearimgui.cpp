@@ -522,30 +522,6 @@ void VulkanDearImGui::setup_shaders()
 
 void VulkanDearImGui::setup_render_pass(VkFormat color_format, VkFormat depth_format)
 {
-    const VkAttachmentDescription attachments[2] = {
-        VkAttachmentDescription{
-            .flags          = 0,
-            .format         = color_format,
-            .samples        = VK_SAMPLE_COUNT_1_BIT,
-            .loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR,
-            .storeOp        = VK_ATTACHMENT_STORE_OP_STORE,
-            .stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            .initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED,
-            .finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-        },
-        VkAttachmentDescription{
-            .flags          = 0,
-            .format         = depth_format,
-            .samples        = VK_SAMPLE_COUNT_1_BIT,
-            .loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR,
-            .storeOp        = VK_ATTACHMENT_STORE_OP_STORE,
-            .stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_CLEAR,
-            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            .initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED,
-            .finalLayout    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-        },
-    };
     const VkAttachmentReference reference_color{
         .attachment = 0,
         .layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
@@ -570,6 +546,7 @@ void VulkanDearImGui::setup_render_pass(VkFormat color_format, VkFormat depth_fo
         VkSubpassDependency{
             .srcSubpass      = VK_SUBPASS_EXTERNAL,
             .dstSubpass      = 0,
+            // .srcStageMask needs to be a part of pWaitDstStageMask in the WSI semaphore.
             .srcStageMask    = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
             .dstStageMask    = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
             .srcAccessMask   = VK_ACCESS_MEMORY_READ_BIT,
@@ -584,6 +561,32 @@ void VulkanDearImGui::setup_render_pass(VkFormat color_format, VkFormat depth_fo
             .srcAccessMask   = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
             .dstAccessMask   = VK_ACCESS_MEMORY_READ_BIT,
             .dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT,
+        },
+    };
+    const VkAttachmentDescription attachments[2] = {
+        VkAttachmentDescription{
+            .flags          = 0,
+            .format         = color_format,
+            .samples        = VK_SAMPLE_COUNT_1_BIT,
+            .loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp        = VK_ATTACHMENT_STORE_OP_STORE,
+            .stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+            // The image will automatically be transitioned from UNDEFINED to COLOR_ATTACHMENT_OPTIMAL for rendering, then out to PRESENT_SRC_KHR at the end.
+            .initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED,
+            // Presenting images in Vulkan requires a special layout.
+            .finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+        },
+        VkAttachmentDescription{
+            .flags          = 0,
+            .format         = depth_format,
+            .samples        = VK_SAMPLE_COUNT_1_BIT,
+            .loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp        = VK_ATTACHMENT_STORE_OP_STORE,
+            .stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+            .initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED,
+            .finalLayout    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
         },
     };
     const VkRenderPassCreateInfo info_renderpass{
@@ -602,6 +605,9 @@ void VulkanDearImGui::setup_render_pass(VkFormat color_format, VkFormat depth_fo
 
 void VulkanDearImGui::setup_framebuffers(const VkExtent2D& dimension, const std::vector<VkImageView>& views)
 {
+    assert(mRenderPass != VK_NULL_HANDLE);
+    assert(mDepth.view != VK_NULL_HANDLE);
+
     VkImageView attachments[2];
 
     // Same depth/stencil for all framebuffer
@@ -622,13 +628,14 @@ void VulkanDearImGui::setup_framebuffers(const VkExtent2D& dimension, const std:
 
     for (std::uint32_t idx = 0u, count = mFrameBuffers.size(); idx < count; ++idx)
     {
-        attachments[0] = views.at(0);
+        attachments[0] = views.at(idx);
         CHECK(vkCreateFramebuffer(mDevice, &info, nullptr, &mFrameBuffers.at(idx)));
     }
 }
 
 void VulkanDearImGui::setup_graphics_pipeline(const VkExtent2D& dimension)
 {
+    assert(mRenderPass != VK_NULL_HANDLE);
     {// IO
         ImGuiIO& io = ImGui::GetIO();
         io.DisplaySize = ImVec2(dimension.width, dimension.height);
@@ -968,6 +975,125 @@ void VulkanDearImGui::build_imgui_command_buffers(VulkanSurface& surface)
     }
 }
 
+void VulkanDearImGui::build_imgui_command_buffers(VulkanSurface& surface, std::uint32_t idx)
+{
+    const VkCommandBufferBeginInfo info_cmdbuffer{
+        .sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .pNext            = nullptr,
+        .flags            = 0,
+        .pInheritanceInfo = nullptr,
+    };
+
+    const VkClearValue clear_values[] = {
+        VkClearValue{
+            .color = VkClearColorValue{
+                .float32 = { 0.2f, 0.2f, 0.2f, 1.0f }
+            }
+        },
+        VkClearValue{
+            .depthStencil = VkClearDepthStencilValue{
+                .depth   = 1.0f,
+                .stencil = 0u
+            }
+        }
+    };
+
+    VkRenderPassBeginInfo info_renderpassbegin{
+        .sType            = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+        .pNext            = nullptr,
+        .renderPass       = mRenderPass,
+        .framebuffer      = VK_NULL_HANDLE,
+        .renderArea       = VkRect2D{
+            .offset = VkOffset2D{
+                .x = 0,
+                .y = 0,
+            },
+            .extent = surface.mResolution
+        },
+        .clearValueCount  = sizeof(clear_values) / sizeof(clear_values[0]),
+        .pClearValues     = clear_values,
+    };
+
+    const VkViewport viewport{
+        .x        = 0.0f,
+        .y        = 0.0f,
+        .width    = static_cast<float>(surface.mResolution.width),
+        .height   = static_cast<float>(surface.mResolution.height),
+        .minDepth = 0.0f,
+        .maxDepth = 1.0f,
+    };
+
+    const VkRect2D scissor{
+        .offset   = VkOffset2D{
+            .x = 0,
+            .y = 0,
+        },
+        .extent   = surface.mResolution,
+    };
+
+    // TODO cf. ImGui::buildCommandBuffers
+
+    new_frame(mBenchmark.frame_counter == 0);
+    update_imgui_draw_data();
+
+    {
+        VkFramebuffer   framebuffer = mFrameBuffers.at(idx);
+        VkCommandBuffer cmdbuffer   = surface.mCommandBuffers.at(idx);
+
+        info_renderpassbegin.framebuffer = framebuffer;
+
+        CHECK(vkBeginCommandBuffer(cmdbuffer, &info_cmdbuffer));
+
+        vkCmdBeginRenderPass(cmdbuffer, &info_renderpassbegin, VK_SUBPASS_CONTENTS_INLINE);
+
+        vkCmdSetViewport(cmdbuffer, 0, 1, &viewport);
+        vkCmdSetScissor(cmdbuffer, 0, 1, &scissor);
+
+        vkCmdBindDescriptorSets(
+            cmdbuffer,
+            VK_PIPELINE_BIND_POINT_GRAPHICS,
+            mPipelineLayout,
+            0, 1, &mDescriptorSet,
+            0, nullptr
+        );
+        vkCmdBindPipeline(cmdbuffer,
+            VK_PIPELINE_BIND_POINT_GRAPHICS,
+            mPipeline
+        );
+
+        constexpr const VkDeviceSize offset = 0;
+        // TODO
+        // if (mUI.background)
+        // {
+        //     vkCmdBindVertexBuffers(cmdbuffer, 0, 1, &mModels.background.vertices.mBuffer, &offset);
+        //     vkCmdBindIndexBuffer(cmdbuffer, &mModels.background.indices.mBuffer, 0, VK_INDEX_TYPE_UINT32);
+        //     vkCmdDrawIndexed(cmdbuffer, &mModels.background.indexCount, 1, 0, 0, 0);
+        // }
+
+        // TODO
+        // if (mUI.models)
+        // {
+        //     vkCmdBindVertexBuffers(cmdbuffer, 0, 1, &mModels.models.vertices.mBuffer, &offset);
+        //     vkCmdBindIndexBuffer(cmdbuffer, &mModels.models.indices.mBuffer, 0, VK_INDEX_TYPE_UINT32);
+        //     vkCmdDrawIndexed(cmdbuffer, &mModels.models.indexCount, 1, 0, 0, 0);
+        // }
+
+        // TODO
+        // if (mUI.logos)
+        // {
+        //     vkCmdBindVertexBuffers(cmdbuffer, 0, 1, &mModels.logos.vertices.mBuffer, &offset);
+        //     vkCmdBindIndexBuffer(cmdbuffer, &mModels.logos.indices.mBuffer, 0, VK_INDEX_TYPE_UINT32);
+        //     vkCmdDrawIndexed(cmdbuffer, &mModels.logos.indexCount, 1, 0, 0, 0);
+        // }
+
+        build_imgui_command_buffer(cmdbuffer);
+
+        vkCmdEndRenderPass(cmdbuffer);
+
+        CHECK(vkEndCommandBuffer(cmdbuffer));
+    }
+}
+
 void VulkanDearImGui::build_imgui_command_buffer(VkCommandBuffer cmdbuffer)
 {
     ImGuiIO& io = ImGui::GetIO();
@@ -1200,10 +1326,20 @@ void VulkanDearImGui::render(VulkanSurface& surface)
     // io.MouseDown[0] = mMouse.buttons.left;
     // io.MouseDown[1] = mMouse.buttons.right;
 
+    // NOTE
+    //  - [ ] the application must use a synchronization primitive to ensure that the presentation engine has finished reading from the image
+    //  - [ ] The application can then transition the image’s layout
+    //  - [ ] queue rendering commands to it
+    //  - [ ] etc
+    //  - [ ] Finally, the application presents the image with vkQueuePresentKHR, which releases the acquisition of the image.
+    //  cf. https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/html/vkspec.html#_wsi_swapchain
+
+    // TODO Use a scope object to bound vkAcquireNextImageKHR / vkQueuePresentKHR
     std::uint32_t idx_buffer = surface.next_index();
 
     // NOTE Done after in case, Swap Chain re-generated
-    build_imgui_command_buffers(surface);
+    build_imgui_command_buffers(surface, idx_buffer);
+    // build_imgui_command_buffers(surface);
 
     surface.submit(idx_buffer);
     surface.present(idx_buffer);

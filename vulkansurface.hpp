@@ -40,7 +40,6 @@ struct VulkanSurface
     VkCommandPool                mCommandPool;
     VkSemaphore                  mSemaphorePresentComplete = VK_NULL_HANDLE;
     VkSemaphore                  mSemaphoreRenderComplete  = VK_NULL_HANDLE;
-    VkPipelineStageFlags         mPipelineStageSubmission  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
     VkExtent2D                   mResolution;
     VkQueue                      mQueue     = VK_NULL_HANDLE;

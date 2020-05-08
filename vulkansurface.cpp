@@ -300,13 +300,14 @@ std::uint32_t VulkanSurface::next_index()
 
 void VulkanSurface::submit(std::uint32_t idx)
 {
+    VkPipelineStageFlags waitDstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     VkCommandBuffer& cmdbuffer = mCommandBuffers.at(idx);
     const VkSubmitInfo info{
         .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
         .pNext                = nullptr,
         .waitSemaphoreCount   = 1,
         .pWaitSemaphores      = &mSemaphorePresentComplete,
-        .pWaitDstStageMask    = &mPipelineStageSubmission,
+        .pWaitDstStageMask    = &waitDstStageMask,
         .commandBufferCount   = 1,
         .pCommandBuffers      = &cmdbuffer,
         .signalSemaphoreCount = 1,
