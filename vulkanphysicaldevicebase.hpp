@@ -5,6 +5,7 @@
 #include <cinttypes>
 
 #include <vector>
+#include <cassert>
 #include <string_view>
 
 struct VulkanPhysicalDeviceBase

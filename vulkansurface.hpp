@@ -16,10 +16,11 @@ struct VulkanSurface
         const VkInstance& instance,
         const VkPhysicalDevice& physical_device,
         const VkDevice& device,
-        const VkSurfaceKHR& surface);
+        const VkSurfaceKHR& surface,
+        const VkExtent2D& resolution);
     ~VulkanSurface();
 
-    VkExtent2D generate_swapchain(const VkExtent2D& dimension, bool vsync);
+    void generate_swapchain(bool vsync);
 
     VkInstance                   mInstance;
     VkPhysicalDevice             mPhysicalDevice;
@@ -30,7 +31,12 @@ struct VulkanSurface
     VkFormat                     mColorFormat;
     VkColorSpaceKHR              mColorSpace;
     VkCommandPool                mCommandPool;
+    VkSemaphore                  mSemaphorePresentComplete = VK_NULL_HANDLE;
+    VkSemaphore                  mSemaphoreRenderComplete  = VK_NULL_HANDLE;
+    VkPipelineStageFlags         mPipelineStageSubmission  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    VkSubmitInfo                 mInfoSubmission;
 
+    VkExtent2D                   mResolution;
     VkSwapchainKHR               mSwapChain = VK_NULL_HANDLE;
 
     struct Buffer {

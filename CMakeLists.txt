@@ -90,6 +90,8 @@ target_sources(sample-imgui
         vulkandevice.cpp
         vulkansurface.hpp
         vulkansurface.cpp
+        vulkanbuffer.hpp
+        vulkanbuffer.cpp
         vulkandearimgui.hpp
         vulkandearimgui.cpp
         "${CMAKE_BINARY_DIR}/ui.vertex.hpp"
@@ -151,6 +153,7 @@ target_compile_definitions(sample-imgui
             NOMINMAX
             NOCOMM
         >
+        IMGUI_DISABLE_OBSOLETE_FUNCTIONS
 )
 
 target_link_libraries(sample-imgui

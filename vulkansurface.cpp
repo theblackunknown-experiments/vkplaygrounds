@@ -13,13 +13,15 @@ VulkanSurface::VulkanSurface(
         const VkInstance& instance,
         const VkPhysicalDevice& physical_device,
         const VkDevice& device,
-        const VkSurfaceKHR& surface)
+        const VkSurfaceKHR& surface,
+        const VkExtent2D& resolution)
     : VulkanSurfaceBase(surface)
     , VulkanSurfaceMixin()
     , mInstance(instance)
     , mPhysicalDevice(physical_device)
     , mDevice(device)
     , mSurface(surface)
+    , mResolution(resolution)
 {
     {// Queue Family
         std::uint32_t count;
@@ -106,9 +108,31 @@ VulkanSurface::VulkanSurface(
         };
         CHECK(vkCreateCommandPool(mDevice, &info_pool, nullptr, &mCommandPool));
     }
+    {
+        VkSemaphoreCreateInfo info_semaphore{
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+        };
+        CHECK(vkCreateSemaphore(mDevice, &info_semaphore, nullptr, &mSemaphorePresentComplete));
+        CHECK(vkCreateSemaphore(mDevice, &info_semaphore, nullptr, &mSemaphoreRenderComplete));
+    }
+    {
+        mInfoSubmission = VkSubmitInfo{
+            .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .pNext                = nullptr,
+            .waitSemaphoreCount   = 1,
+            .pWaitSemaphores      = &mSemaphorePresentComplete,
+            .pWaitDstStageMask    = &mPipelineStageSubmission,
+            .commandBufferCount   = 0,
+            .pCommandBuffers      = nullptr,
+            .signalSemaphoreCount = 1,
+            .pSignalSemaphores    = &mSemaphoreRenderComplete,
+        };
+    }
 }
 
-VkExtent2D VulkanSurface::generate_swapchain(const VkExtent2D& dimension, bool vsync)
+void VulkanSurface::generate_swapchain(bool vsync)
 {
     VkSwapchainKHR previous_swap_chain = mSwapChain;
 
@@ -116,8 +140,8 @@ VkExtent2D VulkanSurface::generate_swapchain(const VkExtent2D& dimension, bool v
     VkSurfaceCapabilitiesKHR capabilities;
     CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(mPhysicalDevice, mSurface, &capabilities));
 
-    const VkExtent2D swap_chain_dimension = (capabilities.currentExtent.width == static_cast<std::uint32_t>(0xFFFFFFFF))
-        ? dimension
+    mResolution = (capabilities.currentExtent.width == static_cast<std::uint32_t>(0xFFFFFFFF))
+        ? mResolution
         : capabilities.currentExtent;
 
     { // Swap Chain
@@ -187,7 +211,7 @@ VkExtent2D VulkanSurface::generate_swapchain(const VkExtent2D& dimension, bool v
             .minImageCount         = image_count,
             .imageFormat           = mColorFormat,
             .imageColorSpace       = mColorSpace,
-            .imageExtent           = swap_chain_dimension,
+            .imageExtent           = mResolution,
             .imageArrayLayers      = 1,
             .imageUsage            = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
             .imageSharingMode      = VK_SHARING_MODE_EXCLUSIVE,
@@ -273,7 +297,6 @@ VkExtent2D VulkanSurface::generate_swapchain(const VkExtent2D& dimension, bool v
         for(VkFence& fence : mWaitFences)
             CHECK(vkCreateFence(mDevice, &info_fence, nullptr, &fence));
     }
-    return swap_chain_dimension;
 }
 
 VulkanSurface::~VulkanSurface()
@@ -294,4 +317,7 @@ VulkanSurface::~VulkanSurface()
     vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
 
     vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
+
+    vkDestroySemaphore(mDevice, mSemaphorePresentComplete, nullptr);
+    vkDestroySemaphore(mDevice, mSemaphoreRenderComplete, nullptr);
 }

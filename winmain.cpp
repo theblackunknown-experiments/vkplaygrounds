@@ -5,6 +5,8 @@
 
 #include <cassert>
 
+#include <chrono>
+
 #include <vector>
 #include <string>
 
@@ -298,13 +300,13 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     }
     assert(vksurface != VK_NULL_HANDLE);
 
-    VulkanSurface surface(app.mInstance, vkphysicaldevice, vkdevice, vksurface);
+    VulkanSurface surface(app.mInstance, vkphysicaldevice, vkdevice, vksurface, kDimension);
 
     VulkanDearImGui imgui(app.mInstance, vkphysicaldevice, vkdevice);
 
     VkFormat framebuffer_color_format = surface.mColorFormat;
 
-    resolution = surface.generate_swapchain(resolution, false);
+    surface.generate_swapchain(false);
 
     // Depth Format
     auto optional_format = imgui.select_best_depth_format();
@@ -312,18 +314,22 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     VkFormat depth_format = optional_format.value();
 
     imgui.setup_render_pass(surface.mColorFormat, depth_format);
+    imgui.setup_depth(surface.mResolution, depth_format);
 
-    std::vector<VkImageView> color_views(surface.mBuffers.size());
+    std::vector<VkImageView> color_views;
+    color_views.reserve(surface.mBuffers.size());
     for (auto&& buffer : surface.mBuffers)
         color_views.push_back(buffer.view);
-    imgui.setup_framebuffers(resolution, color_views);
+    imgui.setup_framebuffers(surface.mResolution, color_views);
 
+    // TODO Store the Graphics queue into the surface object
     imgui.setup_queues(queue_family_index);
-    imgui.setup_depth(resolution, depth_format);
     imgui.setup_font();
     imgui.setup_shaders();
     imgui.setup_descriptors();
-    imgui.setup_graphics_pipeline(resolution);
+    imgui.setup_graphics_pipeline(surface.mResolution);
+
+    imgui.mBenchmark.frame_tick = std::chrono::high_resolution_clock::now();
 
     MSG msg = { };
     while (msg.message != WM_QUIT)
@@ -335,7 +341,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         }
         else if(!IsIconic(window_handle))
         {
-            imgui.render_frame();
+            imgui.render_frame(surface);
         }
     }
 
