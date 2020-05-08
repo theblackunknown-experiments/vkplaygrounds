@@ -78,6 +78,13 @@ VulkanApplication::VulkanApplication()
             .engineVersion      = VK_MAKE_VERSION(0,0,0),
             .apiVersion         = VK_MAKE_VERSION(mVersion.major,mVersion.minor,mVersion.patch),
         };
+        // NOTE
+        //  - https://www.lunarg.com/new-tutorial-for-vulkan-debug-utilities-extension/
+        //  - https://www.lunarg.com/wp-content/uploads/2018/05/Vulkan-Debug-Utils_05_18_v1.pdf
+        //  - https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VK_EXT_debug_utils.html
+        //  - https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VK_EXT_debug_report.html
+        // TODO VK_EXT_debug_report -> VK_EXT_debug_utils
+        //  - https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VkDebugUtilsMessengerCreateInfoEXT.html
         const VkInstanceCreateInfo info_instance{
             .sType                   = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
             .pNext                   = &info_debug,
