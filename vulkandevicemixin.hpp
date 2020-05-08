@@ -13,7 +13,7 @@
 template<typename Base>
 struct VulkanDeviceMixin
 {
-    VkCommandBuffer create_command_buffer(VkCommandBufferLevel level)
+    VkCommandBuffer create_command_buffer(VkCommandPool cmdpool, VkCommandBufferLevel level)
     {
         const Base& that = static_cast<const Base&>(*this);
 
@@ -21,7 +21,7 @@ struct VulkanDeviceMixin
         const VkCommandBufferAllocateInfo info{
             .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
             .pNext              = nullptr,
-            .commandPool        = that.mCommandPool,
+            .commandPool        = cmdpool,
             .level              = level,
             .commandBufferCount = 1,
         };
@@ -29,12 +29,42 @@ struct VulkanDeviceMixin
         return command_buffer;
     }
 
-    void destroy_command_buffer(VkCommandBuffer command_buffer)
+    void destroy_command_buffer(VkCommandPool cmdpool, VkCommandBuffer command_buffer)
     {
         const Base& that = static_cast<const Base&>(*this);
-        vkFreeCommandBuffers(that.mDevice, that.mCommandPool, 1, &command_buffer);
+        vkFreeCommandBuffers(that.mDevice, cmdpool, 1, &command_buffer);
     }
 
+    VkResult submit_command_buffer(VkQueue queue, VkCommandBuffer command_buffer)
+    {
+        const Base& that = static_cast<const Base&>(*this);
+        const VkSubmitInfo info_submit{
+            .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .pNext                = nullptr,
+            .waitSemaphoreCount   = 0,
+            .pWaitSemaphores      = nullptr,
+            .pWaitDstStageMask    = nullptr,
+            .commandBufferCount   = 1,
+            .pCommandBuffers      = &command_buffer,
+            .signalSemaphoreCount = 0,
+            .pSignalSemaphores    = nullptr,
+        };
+        const VkFenceCreateInfo info_fence{
+            .sType              = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+            .pNext              = nullptr,
+            .flags              = 0,
+        };
+
+        VkFence fence;
+        CHECK(vkCreateFence(that.mDevice, &info_fence, nullptr, &fence));
+
+        VkResult result = vkQueueSubmit(queue, 1, &info_submit, fence);
+
+        CHECK(vkWaitForFences(that.mDevice, 1, &fence, VK_TRUE, 10e9));
+        vkDestroyFence(that.mDevice, fence, nullptr);
+
+        return result;
+    }
     VkShaderModule load_shader(const std::filesystem::path& filepath)
     {
         const Base& that = static_cast<const Base&>(*this);

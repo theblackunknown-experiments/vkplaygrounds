@@ -7,9 +7,13 @@
 
 #include "vulkansurfacebase.hpp"
 #include "vulkansurfacemixin.hpp"
+#include "vulkanphysicaldevicebase.hpp"
+#include "vulkanphysicaldevicemixin.hpp"
 
 struct VulkanSurface
-    : public VulkanSurfaceBase
+    : public VulkanPhysicalDeviceBase
+    , public VulkanPhysicalDeviceMixin<VulkanSurface>
+    , public VulkanSurfaceBase
     , public VulkanSurfaceMixin<VulkanSurface>
 {
     explicit VulkanSurface(
@@ -21,6 +25,9 @@ struct VulkanSurface
     ~VulkanSurface();
 
     void generate_swapchain(bool vsync);
+    std::uint32_t next_index();
+    void submit(std::uint32_t idx);
+    void present(std::uint32_t idx);
 
     VkInstance                   mInstance;
     VkPhysicalDevice             mPhysicalDevice;
@@ -34,9 +41,9 @@ struct VulkanSurface
     VkSemaphore                  mSemaphorePresentComplete = VK_NULL_HANDLE;
     VkSemaphore                  mSemaphoreRenderComplete  = VK_NULL_HANDLE;
     VkPipelineStageFlags         mPipelineStageSubmission  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    VkSubmitInfo                 mInfoSubmission;
 
     VkExtent2D                   mResolution;
+    VkQueue                      mQueue     = VK_NULL_HANDLE;
     VkSwapchainKHR               mSwapChain = VK_NULL_HANDLE;
 
     struct Buffer {
@@ -44,7 +51,7 @@ struct VulkanSurface
         VkImageView view;
     };
 
-    std::uint32_t                mImageCount;
+    std::uint32_t                mCount;
     std::vector<VkImage>         mImages;
     std::vector<Buffer>          mBuffers;
     std::vector<VkCommandBuffer> mCommandBuffers;

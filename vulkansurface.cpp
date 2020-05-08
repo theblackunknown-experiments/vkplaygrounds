@@ -1,7 +1,9 @@
 #include <vulkan/vulkan.h>
 
 #include <cassert>
+
 #include <vector>
+#include <limits>
 #include <optional>
 #include <algorithm>
 
@@ -15,7 +17,8 @@ VulkanSurface::VulkanSurface(
         const VkDevice& device,
         const VkSurfaceKHR& surface,
         const VkExtent2D& resolution)
-    : VulkanSurfaceBase(surface)
+    : VulkanPhysicalDeviceBase(physical_device)
+    , VulkanSurfaceBase(surface)
     , VulkanSurfaceMixin()
     , mInstance(instance)
     , mPhysicalDevice(physical_device)
@@ -24,43 +27,9 @@ VulkanSurface::VulkanSurface(
     , mResolution(resolution)
 {
     {// Queue Family
-        std::uint32_t count;
-        vkGetPhysicalDeviceQueueFamilyProperties(mPhysicalDevice, &count, nullptr);
-        assert(count > 0);
-
-        std::vector<VkQueueFamilyProperties> queue_families(count);
-        vkGetPhysicalDeviceQueueFamilyProperties(mPhysicalDevice, &count, queue_families.data());
-
-        std::vector<VkBool32> supporteds(count);
-        std::optional<std::uint32_t> selected_queue;
-        for(std::uint32_t idx = 0; idx < count; ++idx)
-        {
-            VkBool32 supported;
-            CHECK(vkGetPhysicalDeviceSurfaceSupportKHR(mPhysicalDevice, idx, mSurface, &supported));
-            supporteds.at(idx) = supported;
-
-            const VkQueueFamilyProperties& p = queue_families.at(idx);
-            if((p.queueFlags & VK_QUEUE_GRAPHICS_BIT) && (supported == VK_TRUE))
-            {
-                selected_queue = idx;
-                break;
-            }
-        }
-        if(!selected_queue.has_value())
-        {
-            for(std::uint32_t idx = 0; idx < count; ++idx)
-            {
-                const VkBool32& supported = supporteds.at(idx);
-                if(supported == VK_TRUE)
-                {
-                    selected_queue = idx;
-                    break;
-                }
-            }
-        }
-        assert(selected_queue.has_value());
-
-        mQueueFamilyIndex = selected_queue.value();
+        auto index = select_surface_queue_family_index(mSurface);
+        assert(index.has_value());
+        mQueueFamilyIndex = *index;
     }
     {// Formats
         std::uint32_t count;
@@ -99,6 +68,9 @@ VulkanSurface::VulkanSurface(
             }
         }
     }
+    {// Queue
+        vkGetDeviceQueue(mDevice, mQueueFamilyIndex, 0, &mQueue);
+    }
     {// Command Pool
         VkCommandPoolCreateInfo info_pool{
             .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -117,19 +89,29 @@ VulkanSurface::VulkanSurface(
         CHECK(vkCreateSemaphore(mDevice, &info_semaphore, nullptr, &mSemaphorePresentComplete));
         CHECK(vkCreateSemaphore(mDevice, &info_semaphore, nullptr, &mSemaphoreRenderComplete));
     }
+}
+
+VulkanSurface::~VulkanSurface()
+{
+    for (VkFence& fence : mWaitFences)
     {
-        mInfoSubmission = VkSubmitInfo{
-            .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-            .pNext                = nullptr,
-            .waitSemaphoreCount   = 1,
-            .pWaitSemaphores      = &mSemaphorePresentComplete,
-            .pWaitDstStageMask    = &mPipelineStageSubmission,
-            .commandBufferCount   = 0,
-            .pCommandBuffers      = nullptr,
-            .signalSemaphoreCount = 1,
-            .pSignalSemaphores    = &mSemaphoreRenderComplete,
-        };
+        vkDestroyFence(mDevice, fence, nullptr);
     }
+
+    vkFreeCommandBuffers(mDevice, mCommandPool, static_cast<uint32_t>(mCommandBuffers.size()), mCommandBuffers.data());
+
+    for (Buffer& buffer : mBuffers)
+    {
+        vkDestroyImageView(mDevice, buffer.view, nullptr);
+    }
+
+    vkDestroySwapchainKHR(mDevice, mSwapChain, nullptr);
+    vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
+
+    vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
+
+    vkDestroySemaphore(mDevice, mSemaphorePresentComplete, nullptr);
+    vkDestroySemaphore(mDevice, mSemaphoreRenderComplete, nullptr);
 }
 
 void VulkanSurface::generate_swapchain(bool vsync)
@@ -235,19 +217,19 @@ void VulkanSurface::generate_swapchain(bool vsync)
 
     if (previous_swap_chain != VK_NULL_HANDLE)
     {
-        for(auto idx = 0u, size = mImageCount; idx < size; ++idx)
+        for(auto idx = 0u, size = mCount; idx < size; ++idx)
             vkDestroyImageView(mDevice, mBuffers.at(idx).view, nullptr);
         vkDestroySwapchainKHR(mDevice, previous_swap_chain, nullptr);
     }
 
     {// Views
-        CHECK(vkGetSwapchainImagesKHR(mDevice, mSwapChain, &mImageCount, nullptr));
-        mImages.resize(mImageCount);
-        CHECK(vkGetSwapchainImagesKHR(mDevice, mSwapChain, &mImageCount, mImages.data()));
+        CHECK(vkGetSwapchainImagesKHR(mDevice, mSwapChain, &mCount, nullptr));
+        mImages.resize(mCount);
+        CHECK(vkGetSwapchainImagesKHR(mDevice, mSwapChain, &mCount, mImages.data()));
 
-        mBuffers.resize(mImageCount);
+        mBuffers.resize(mCount);
 
-        for (auto idx = 0u, size = mImageCount; idx < size; ++idx)
+        for (auto idx = 0u, size = mCount; idx < size; ++idx)
         {
             mBuffers.at(idx).image = mImages.at(idx);
             const VkImageViewCreateInfo info_view{
@@ -275,19 +257,19 @@ void VulkanSurface::generate_swapchain(bool vsync)
         }
     }
     {// Command Buffers
-        mCommandBuffers.resize(mImageCount);
+        mCommandBuffers.resize(mCount);
 
         const VkCommandBufferAllocateInfo info_allocation{
             .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
             .pNext              = nullptr,
             .commandPool        = mCommandPool,
             .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-            .commandBufferCount = mImageCount,
+            .commandBufferCount = mCount,
         };
         CHECK(vkAllocateCommandBuffers(mDevice, &info_allocation, mCommandBuffers.data()));
     }
     {// Fences
-        mWaitFences.resize(mImageCount);
+        mWaitFences.resize(mCount);
 
         const VkFenceCreateInfo info_fence{
             .sType              = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
@@ -299,25 +281,56 @@ void VulkanSurface::generate_swapchain(bool vsync)
     }
 }
 
-VulkanSurface::~VulkanSurface()
+std::uint32_t VulkanSurface::next_index()
 {
-    for (VkFence& fence : mWaitFences)
-    {
-        vkDestroyFence(mDevice, fence, nullptr);
-    }
+    // TODO Handle VK_ERROR_OUT_OF_DATE_KHR
+    // TODO Handle VK_SUBOPTIMAL_KHR
+    std::uint32_t idx = 0;
+    CHECK(vkAcquireNextImageKHR(
+        mDevice,
+        mSwapChain,
+        std::numeric_limits<std::uint64_t>::max(),
+        mSemaphorePresentComplete,
+        VK_NULL_HANDLE,
+        &idx
+    ));
 
-    vkFreeCommandBuffers(mDevice, mCommandPool, static_cast<uint32_t>(mCommandBuffers.size()), mCommandBuffers.data());
+    return idx;
+}
 
-    for (Buffer& buffer : mBuffers)
-    {
-        vkDestroyImageView(mDevice, buffer.view, nullptr);
-    }
+void VulkanSurface::submit(std::uint32_t idx)
+{
+    VkCommandBuffer& cmdbuffer = mCommandBuffers.at(idx);
+    const VkSubmitInfo info{
+        .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .pNext                = nullptr,
+        .waitSemaphoreCount   = 1,
+        .pWaitSemaphores      = &mSemaphorePresentComplete,
+        .pWaitDstStageMask    = &mPipelineStageSubmission,
+        .commandBufferCount   = 1,
+        .pCommandBuffers      = &cmdbuffer,
+        .signalSemaphoreCount = 1,
+        .pSignalSemaphores    = &mSemaphoreRenderComplete,
+    };
+    CHECK(vkQueueSubmit(mQueue, 1, &info, VK_NULL_HANDLE));
+}
 
-    vkDestroySwapchainKHR(mDevice, mSwapChain, nullptr);
-    vkDestroySurfaceKHR(mInstance, mSurface, nullptr);
+void VulkanSurface::present(std::uint32_t idx)
+{
+    const VkPresentInfoKHR info{
+        .sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+        .pNext              = nullptr,
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores    = &mSemaphoreRenderComplete,
+        .swapchainCount     = 1,
+        .pSwapchains        = &mSwapChain,
+        .pImageIndices      = &idx,
+        .pResults           = nullptr,
+    };
+    // TODO Handle VK_ERROR_OUT_OF_DATE_KHR
+    // TODO Handle VK_SUBOPTIMAL_KHR
+    CHECK(vkQueuePresentKHR(mQueue, &info));
 
-    vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
-
-    vkDestroySemaphore(mDevice, mSemaphorePresentComplete, nullptr);
-    vkDestroySemaphore(mDevice, mSemaphoreRenderComplete, nullptr);
+    // NOTE Can we avoid blocking ?
+    CHECK(vkQueueWaitIdle(mQueue));
 }

@@ -89,6 +89,41 @@ struct VulkanPhysicalDeviceMixin
         }
     }
 
+    std::optional<std::uint32_t> select_surface_queue_family_index(VkSurfaceKHR surface) const
+    {
+        const Base& that = static_cast<const Base&>(*this);
+
+        std::uint32_t count = that.mQueueFamilies.size();
+        std::vector<VkBool32> supporteds(count);
+        std::optional<std::uint32_t> selected_queue;
+        for(std::uint32_t idx = 0; idx < count; ++idx)
+        {
+            VkBool32 supported;
+            CHECK(vkGetPhysicalDeviceSurfaceSupportKHR(that.mPhysicalDevice, idx, surface, &supported));
+            supporteds.at(idx) = supported;
+
+            const VkQueueFamilyProperties& p = that.mQueueFamilies.at(idx);
+            if((p.queueFlags & VK_QUEUE_GRAPHICS_BIT) && (supported == VK_TRUE))
+            {
+                selected_queue = idx;
+                break;
+            }
+        }
+        if(!selected_queue.has_value())
+        {
+            for(std::uint32_t idx = 0; idx < count; ++idx)
+            {
+                const VkBool32& supported = supporteds.at(idx);
+                if(supported == VK_TRUE)
+                {
+                    selected_queue = idx;
+                    break;
+                }
+            }
+        }
+        return selected_queue;
+    }
+
     std::optional<VkFormat> select_best_depth_format() const
     {
         const Base& that = static_cast<const Base&>(*this);

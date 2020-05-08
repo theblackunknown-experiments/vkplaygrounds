@@ -302,6 +302,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
     VulkanSurface surface(app.mInstance, vkphysicaldevice, vkdevice, vksurface, kDimension);
 
+    // TODO Current limitation because we use a single device for now
+    assert(queue_family_index == surface.mQueueFamilyIndex);
+
     VulkanDearImGui imgui(app.mInstance, vkphysicaldevice, vkdevice);
 
     VkFormat framebuffer_color_format = surface.mColorFormat;

@@ -287,7 +287,7 @@ void VulkanDearImGui::setup_font()
                 std::copy(data, std::next(data, size), mapping.mMappedMemory);
             }
             {// Transfer / Copy / Shader Read
-                VkCommandBuffer command_buffer = create_command_buffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+                VkCommandBuffer command_buffer = create_command_buffer(mCommandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
 
                 const VkCommandBufferBeginInfo info{
                     .sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -384,9 +384,9 @@ void VulkanDearImGui::setup_font()
 
                 CHECK(vkEndCommandBuffer(command_buffer));
 
-                submit_command_buffer(command_buffer);
+                submit_command_buffer(mQueue, command_buffer);
 
-                destroy_command_buffer(command_buffer);
+                destroy_command_buffer(mCommandPool, command_buffer);
             }
         }
     }
@@ -1200,44 +1200,13 @@ void VulkanDearImGui::render(VulkanSurface& surface)
     // io.MouseDown[0] = mMouse.buttons.left;
     // io.MouseDown[1] = mMouse.buttons.right;
 
-    std::uint32_t idx_buffer = 0;
-    // TODO Handle VK_ERROR_OUT_OF_DATE_KHR
-    // TODO Handle VK_SUBOPTIMAL_KHR
-    CHECK(vkAcquireNextImageKHR(
-        mDevice,
-        surface.mSwapChain,
-        std::numeric_limits<std::uint64_t>::max(),
-        surface.mSemaphorePresentComplete,
-        VK_NULL_HANDLE,
-        &idx_buffer
-    ));
-    surface.mInfoSubmission.commandBufferCount = 1;
-    surface.mInfoSubmission.pCommandBuffers = &surface.mCommandBuffers[idx_buffer];
+    std::uint32_t idx_buffer = surface.next_index();
 
     // NOTE Done after in case, Swap Chain re-generated
     build_imgui_command_buffers(surface);
 
-    // TODO Allocate a dedicated GRAPHICS queue in VulkanSurface
-    CHECK(vkQueueSubmit(mQueue, 1, &surface.mInfoSubmission, VK_NULL_HANDLE));
-
-    {
-        const VkPresentInfoKHR info{
-            .sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-            .pNext              = nullptr,
-            .waitSemaphoreCount = 1,
-            .pWaitSemaphores    = &surface.mSemaphoreRenderComplete,
-            .swapchainCount     = 1,
-            .pSwapchains        = &surface.mSwapChain,
-            .pImageIndices      = &idx_buffer,
-            .pResults           = nullptr,
-        };
-        // TODO Handle VK_ERROR_OUT_OF_DATE_KHR
-        // TODO Handle VK_SUBOPTIMAL_KHR
-        CHECK(vkQueuePresentKHR(mQueue, &info));
-    }
-    CHECK(vkQueueWaitIdle(mQueue));
-
-    // TODO Submit Frame
+    surface.submit(idx_buffer);
+    surface.present(idx_buffer);
 
     // TODO Animated Lights
     // if (mUI.animated_lights)
