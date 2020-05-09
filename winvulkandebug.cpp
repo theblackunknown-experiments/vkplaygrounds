@@ -4,6 +4,8 @@
 
 #include <cassert>
 
+#include <sstream>
+
 #include "vulkandebug.hpp"
 
 void CHECK(const VkResult& v)
@@ -13,4 +15,31 @@ void CHECK(const VkResult& v)
         DebugBreak();
     }
     assert(v == VK_SUCCESS);
+}
+
+VkBool32 DebuggerCallback(
+    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+    VkDebugUtilsMessageTypeFlagsEXT messageType,
+    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+    void* pUserData)
+{
+    std::ostringstream stream;
+    auto status = OutputStreamDebugCallback(
+        messageSeverity,
+        messageType,
+        pCallbackData,
+        pUserData,
+        stream
+    );
+    OutputDebugString(stream.str().c_str());
+
+    if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
+    {
+        DebugBreak();
+    }
+    else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
+    {
+        DebugBreak();
+    }
+    return status;
 }

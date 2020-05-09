@@ -64,7 +64,7 @@ add_custom_command(OUTPUT
         "Compiling GLSL shaders into SPIR-V headers..."
 )
 
-file(READ "CascadiaMono.ttf" FILE_CASCADIA HEX)
+file(READ "CascadiaPL.ttf" FILE_CASCADIA HEX)
 
 string(REGEX MATCHALL ".." ARRAY_CASCADIA "${FILE_CASCADIA}")
 string(REGEX REPLACE  ";" ", 0x" CONTENT_ARRAY_CASCADIA "${ARRAY_CASCADIA}")
@@ -76,8 +76,8 @@ file(GENERATE
 
 #include <cstddef>
 
-constexpr const char          kFontName[]     = \"Cascadia Mono\";
-constexpr const float         kFontSizePixels = 14.0f;
+constexpr const char          kFontName[]     = \"Cascadia w/ Powerline symbols\";
+constexpr const float         kFontSizePixels = 16.0f;
 constexpr const unsigned char kFont[]    = {
     0x${CONTENT_ARRAY_CASCADIA}
 };
@@ -88,6 +88,7 @@ target_sources(sample-imgui
     PRIVATE
         $<$<PLATFORM_ID:Windows>:winmain.cpp>
         vulkandebug.hpp
+        vulkandebug.cpp
         $<$<PLATFORM_ID:Windows>:winvulkandebug.cpp>
 
         vulkanapplicationbase.hpp

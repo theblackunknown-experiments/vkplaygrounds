@@ -106,7 +106,6 @@ VulkanDearImGui::~VulkanDearImGui()
     vkDestroyShaderModule(mDevice, mShaderModuleUIFragment, nullptr);
     vkDestroyShaderModule(mDevice, mShaderModuleUIVertex, nullptr);
 
-    vkFreeDescriptorSets(mDevice, mDescriptorPool, 1, &mDescriptorSet);
     vkDestroyDescriptorSetLayout(mDevice, mDescriptorSetLayout, nullptr);
     vkDestroyDescriptorPool(mDevice, mDescriptorPool, nullptr);
 
@@ -219,10 +218,9 @@ void VulkanDearImGui::setup_font()
 
         int width = 0, height = 0;
         unsigned char* data = nullptr;
-        // TODO GetTexDataAsAlpha8
-        io.Fonts->GetTexDataAsRGBA32(&data, &width, &height);
+        io.Fonts->GetTexDataAsAlpha8(&data, &width, &height);
 
-        VkDeviceSize size = width * height * 4 * sizeof(unsigned char);
+        VkDeviceSize size = width * height * sizeof(unsigned char);
 
         {// Image
             const VkImageCreateInfo info{
@@ -230,7 +228,7 @@ void VulkanDearImGui::setup_font()
                 .pNext                 = nullptr,
                 .flags                 = 0,
                 .imageType             = VK_IMAGE_TYPE_2D,
-                .format                = VK_FORMAT_R8G8B8A8_UNORM,
+                .format                = VK_FORMAT_R8_UNORM,
                 .extent                = VkExtent3D{
                     .width  = static_cast<std::uint32_t>(width),
                     .height = static_cast<std::uint32_t>(height),
@@ -271,7 +269,7 @@ void VulkanDearImGui::setup_font()
                 .flags            = 0,
                 .image            = mFont.image,
                 .viewType         = VK_IMAGE_VIEW_TYPE_2D,
-                .format           = VK_FORMAT_R8G8B8A8_UNORM,
+                .format           = VK_FORMAT_R8_UNORM,
                 .components       = VkComponentMapping{
                     .r = VK_COMPONENT_SWIZZLE_IDENTITY,
                     .g = VK_COMPONENT_SWIZZLE_IDENTITY,

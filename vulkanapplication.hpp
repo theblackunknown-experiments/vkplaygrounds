@@ -13,4 +13,7 @@ struct VulkanApplication
     ~VulkanApplication();
 
     VkInstance mInstance;
+
+    VkDebugUtilsMessengerEXT mDebuggerMessenger;
+    VkDebugUtilsMessengerEXT mStandardErrorMessenger;
 };
