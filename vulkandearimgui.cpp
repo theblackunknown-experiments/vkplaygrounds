@@ -2,6 +2,8 @@
 
 #include <imgui.h>
 
+#include <cstring>
+
 #include <chrono>
 #include <limits>
 #include <iterator>
@@ -11,17 +13,19 @@
 
 #include <type_traits>
 
-#include "ui.vertex.hpp"
-#include "ui.fragment.hpp"
+#include "./ui.vertex.hpp"
+#include "./ui.fragment.hpp"
 
-#include "vulkandebug.hpp"
+#include "./font.hpp"
 
-#include "vulkanbuffer.hpp"
-#include "vulkansurface.hpp"
-#include "vulkanapplication.hpp"
-#include "vulkanscopedbuffermapping.hpp"
+#include "./vulkandebug.hpp"
 
-#include "vulkandearimgui.hpp"
+#include "./vulkanbuffer.hpp"
+#include "./vulkansurface.hpp"
+#include "./vulkanapplication.hpp"
+#include "./vulkanscopedbuffermapping.hpp"
+
+#include "./vulkandearimgui.hpp"
 
 using namespace std::literals::chrono_literals;
 
@@ -201,6 +205,17 @@ void VulkanDearImGui::setup_font()
 {
     {// Font
         ImGuiIO& io = ImGui::GetIO();
+
+        {
+            ImFontConfig config;
+            std::strncpy(config.Name, kFontName, (sizeof(config.Name) / sizeof(config.Name[0])) - 1);
+            config.FontDataOwnedByAtlas = false;
+            io.Fonts->AddFontFromMemoryTTF(
+                const_cast<unsigned char*>(&kFont[0]), sizeof(kFont),
+                kFontSizePixels,
+                &config
+            );
+        }
 
         int width = 0, height = 0;
         unsigned char* data = nullptr;
@@ -413,6 +428,7 @@ void VulkanDearImGui::setup_font()
         };
         CHECK(vkCreateSampler(mDevice, &info, nullptr, &mFont.sampler));
     }
+    // TODO ImFontAtlas::SetTexID
 }
 
 void VulkanDearImGui::setup_queues(std::uint32_t family_index)
@@ -1221,8 +1237,6 @@ void VulkanDearImGui::update_imgui_draw_data()
     VkDeviceSize vertex_buffer_size = draw_data->TotalVtxCount * sizeof(ImDrawVert);
     VkDeviceSize index_buffer_size  = draw_data->TotalIdxCount * sizeof(ImDrawIdx);
 
-    assert(vertex_buffer_size != 0);
-    assert(index_buffer_size != 0);
     if ((vertex_buffer_size == 0) || (index_buffer_size == 0))
         return;
 

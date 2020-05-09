@@ -64,6 +64,25 @@ add_custom_command(OUTPUT
         "Compiling GLSL shaders into SPIR-V headers..."
 )
 
+file(READ "CascadiaMono.ttf" FILE_CASCADIA HEX)
+
+string(REGEX MATCHALL ".." ARRAY_CASCADIA "${FILE_CASCADIA}")
+string(REGEX REPLACE  ";" ", 0x" CONTENT_ARRAY_CASCADIA "${ARRAY_CASCADIA}")
+
+file(GENERATE
+    OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/font.hpp"
+    CONTENT "
+#pragma once
+
+#include <cstddef>
+
+constexpr const char          kFontName[]     = \"Cascadia Mono\";
+constexpr const float         kFontSizePixels = 14.0f;
+constexpr const unsigned char kFont[]    = {
+    0x${CONTENT_ARRAY_CASCADIA}
+};
+")
+
 add_executable(sample-imgui WIN32)
 target_sources(sample-imgui
     PRIVATE
@@ -96,6 +115,7 @@ target_sources(sample-imgui
         vulkandearimgui.cpp
         "${CMAKE_BINARY_DIR}/ui.vertex.hpp"
         "${CMAKE_BINARY_DIR}/ui.fragment.hpp"
+        "${CMAKE_CURRENT_BINARY_DIR}/font.hpp"
 )
 
 target_include_directories(sample-imgui
