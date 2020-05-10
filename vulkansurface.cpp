@@ -256,7 +256,16 @@ void VulkanSurface::generate_swapchain(bool vsync)
             CHECK(vkCreateImageView(mDevice, &info_view, nullptr, &mBuffers.at(idx).view));
         }
     }
+    if(mCount != mCommandBuffers.size())
     {// Command Buffers
+        if (!mCommandBuffers.empty())
+            vkFreeCommandBuffers(
+                mDevice,
+                mCommandPool,
+                static_cast<uint32_t>(mCommandBuffers.size()),
+                mCommandBuffers.data()
+            );
+
         mCommandBuffers.resize(mCount);
 
         const VkCommandBufferAllocateInfo info_allocation{
@@ -268,7 +277,12 @@ void VulkanSurface::generate_swapchain(bool vsync)
         };
         CHECK(vkAllocateCommandBuffers(mDevice, &info_allocation, mCommandBuffers.data()));
     }
+    if(mCount != mWaitFences.size())
     {// Fences
+        for (VkFence& fence : mWaitFences)
+        {
+            vkDestroyFence(mDevice, fence, nullptr);
+        }
         mWaitFences.resize(mCount);
 
         const VkFenceCreateInfo info_fence{
@@ -279,23 +293,6 @@ void VulkanSurface::generate_swapchain(bool vsync)
         for(VkFence& fence : mWaitFences)
             CHECK(vkCreateFence(mDevice, &info_fence, nullptr, &fence));
     }
-}
-
-std::uint32_t VulkanSurface::next_index()
-{
-    // TODO Handle VK_ERROR_OUT_OF_DATE_KHR
-    // TODO Handle VK_SUBOPTIMAL_KHR
-    std::uint32_t idx = 0;
-    CHECK(vkAcquireNextImageKHR(
-        mDevice,
-        mSwapChain,
-        std::numeric_limits<std::uint64_t>::max(),
-        mSemaphorePresentComplete,
-        VK_NULL_HANDLE,
-        &idx
-    ));
-
-    return idx;
 }
 
 void VulkanSurface::submit(std::uint32_t idx)
@@ -316,22 +313,3 @@ void VulkanSurface::submit(std::uint32_t idx)
     CHECK(vkQueueSubmit(mQueue, 1, &info, VK_NULL_HANDLE));
 }
 
-void VulkanSurface::present(std::uint32_t idx)
-{
-    const VkPresentInfoKHR info{
-        .sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-        .pNext              = nullptr,
-        .waitSemaphoreCount = 1,
-        .pWaitSemaphores    = &mSemaphoreRenderComplete,
-        .swapchainCount     = 1,
-        .pSwapchains        = &mSwapChain,
-        .pImageIndices      = &idx,
-        .pResults           = nullptr,
-    };
-    // TODO Handle VK_ERROR_OUT_OF_DATE_KHR
-    // TODO Handle VK_SUBOPTIMAL_KHR
-    CHECK(vkQueuePresentKHR(mQueue, &info));
-
-    // NOTE Can we avoid blocking ?
-    CHECK(vkQueueWaitIdle(mQueue));
-}

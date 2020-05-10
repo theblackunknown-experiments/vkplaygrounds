@@ -24,6 +24,7 @@
 #include "./vulkansurface.hpp"
 #include "./vulkanapplication.hpp"
 #include "./vulkanscopedbuffermapping.hpp"
+#include "./vulkanscopedpresentableimage.hpp"
 
 #include "./vulkandearimgui.hpp"
 
@@ -35,7 +36,6 @@ namespace
         float scale    [2];
         float translate[2];
     };
-
 }
 
 VulkanDearImGui::VulkanDearImGui(
@@ -132,6 +132,7 @@ VulkanDearImGui::~VulkanDearImGui()
 
 void VulkanDearImGui::setup_depth(const VkExtent2D& dimension, VkFormat depth_format)
 {
+    mDepth.format = depth_format;
     {// Image
         const VkImageCreateInfo info_image{
             .sType                 = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
@@ -1346,17 +1347,76 @@ void VulkanDearImGui::render(VulkanSurface& surface)
     //  - [ ] Finally, the application presents the image with vkQueuePresentKHR, which releases the acquisition of the image.
     //  cf. https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/html/vkspec.html#_wsi_swapchain
 
-    // TODO Use a scope object to bound vkAcquireNextImageKHR / vkQueuePresentKHR
-    std::uint32_t idx_buffer = surface.next_index();
+    VkResult result_acquire = VK_SUCCESS;
+    VkResult result_present = VK_SUCCESS;
+    {
+        const ScopedPresentableImage scoped_presentable_image(surface, result_acquire, result_present);
+        if (result_acquire == VK_ERROR_OUT_OF_DATE_KHR)
+        {
+            invalidate_surface(surface);
+        }
+        else if (result_acquire == VK_SUBOPTIMAL_KHR)
+        {
+            invalidate_surface(surface);
+        }
+        else
+        {
+            CHECK(result_acquire);
+        }
 
-    // NOTE Done after in case, Swap Chain re-generated
-    build_imgui_command_buffers(surface, idx_buffer);
-    // build_imgui_command_buffers(surface);
+        // NOTE Done after in case, Swap Chain re-generated
+        build_imgui_command_buffers(surface, scoped_presentable_image.mIndex);
+        // build_imgui_command_buffers(surface);
 
-    surface.submit(idx_buffer);
-    surface.present(idx_buffer);
+        surface.submit(scoped_presentable_image.mIndex);
+    }
+    CHECK(result_present);
+    if (result_present == VK_ERROR_OUT_OF_DATE_KHR)
+    {
+        invalidate_surface(surface);
+    }
+    else if (result_present == VK_SUBOPTIMAL_KHR)
+    {
+        invalidate_surface(surface);
+    }
+    else
+    {
+        CHECK(result_present);
+    }
+
+    // NOTE Can we avoid blocking ?
+    CHECK(vkQueueWaitIdle(surface.mQueue));
 
     // TODO Animated Lights
     // if (mUI.animated_lights)
     //     (void);
+}
+
+void VulkanDearImGui::invalidate_surface(VulkanSurface& surface)
+{
+    // Ensure all operations on the device have been finished before destroying resources
+    vkDeviceWaitIdle(mDevice);
+
+    // Recreate swap chain
+    surface.generate_swapchain(false);
+
+    // Recreate Depth
+    vkDestroyImageView(mDevice, mDepth.view, nullptr);
+    vkDestroyImage(mDevice, mDepth.image, nullptr);
+    vkFreeMemory(mDevice, mDepth.memory, nullptr);
+    setup_depth(surface.mResolution, mDepth.format);
+
+    // Recreate Framebuffers
+    for (auto&& framebuffer : mFrameBuffers)
+        vkDestroyFramebuffer(mDevice, framebuffer, nullptr);
+    {
+        std::vector<VkImageView> color_views;
+        color_views.reserve(surface.mBuffers.size());
+        for (auto&& buffer : surface.mBuffers)
+            color_views.push_back(buffer.view);
+        setup_framebuffers(surface.mResolution, color_views);
+    }
+
+    // Ensure all operations have completed before going further
+    vkDeviceWaitIdle(mDevice);
 }

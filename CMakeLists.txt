@@ -102,6 +102,9 @@ target_sources(sample-imgui
         vulkansurfacemixin.hpp
         vulkanqueuemixin.hpp
 
+        vulkanscopedbuffermapping.hpp
+        vulkanscopedpresentableimage.hpp
+
         vulkanapplication.hpp
         vulkanapplication.cpp
         vulkanphysicaldevice.hpp

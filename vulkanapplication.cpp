@@ -91,20 +91,20 @@ VulkanApplication::VulkanApplication()
             };
             CHECK(vkCreateDebugUtilsMessengerEXT(mInstance, &info, nullptr, &mDebuggerMessenger));
         }
-        {
-            const VkDebugUtilsMessengerCreateInfoEXT info{
-                .sType           = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
-                .pNext           = nullptr,
-                .flags           = 0,
-                .messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT,
-                .messageType     = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
-                    | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
-                    | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
-                .pfnUserCallback = StandardErrorDebugCallback,
-                .pUserData       = nullptr,
-            };
-            CHECK(vkCreateDebugUtilsMessengerEXT(mInstance, &info, nullptr, &mStandardErrorMessenger));
-        }
+        // {
+        //     const VkDebugUtilsMessengerCreateInfoEXT info{
+        //         .sType           = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+        //         .pNext           = nullptr,
+        //         .flags           = 0,
+        //         .messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT,
+        //         .messageType     = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
+        //             | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
+        //             | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
+        //         .pfnUserCallback = StandardErrorDebugCallback,
+        //         .pUserData       = nullptr,
+        //     };
+        //     CHECK(vkCreateDebugUtilsMessengerEXT(mInstance, &info, nullptr, &mStandardErrorMessenger));
+        // }
     }
 }
 
@@ -112,7 +112,7 @@ VulkanApplication::~VulkanApplication()
 {
     {
         auto vkDestroyDebugUtilsMessengerEXT = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(mInstance, "vkDestroyDebugUtilsMessengerEXT"));
-        vkDestroyDebugUtilsMessengerEXT(mInstance, mStandardErrorMessenger, nullptr);
+        // vkDestroyDebugUtilsMessengerEXT(mInstance, mStandardErrorMessenger, nullptr);
         vkDestroyDebugUtilsMessengerEXT(mInstance, mDebuggerMessenger, nullptr);
     }
     vkDestroyInstance(mInstance, nullptr);

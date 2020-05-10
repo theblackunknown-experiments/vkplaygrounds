@@ -25,6 +25,11 @@
 namespace
 {
     constexpr const VkExtent2D kDimension = { 512, 512 };
+    constexpr const bool       kVSync = false;
+
+    bool sResizing = false;
+    VulkanSurface* sSurface = nullptr;
+    VulkanDearImGui* sDearImGui = nullptr;
 
     LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
@@ -131,17 +136,30 @@ namespace
         //     handleMouseMove(LOWORD(lParam), HIWORD(lParam));
         //     break;
         // }
-        // case WM_SIZE:
-        //     if ((prepared) && (wParam != SIZE_MINIMIZED))
-        //     {
-        //         if ((resizing) || ((wParam == SIZE_MAXIMIZED) || (wParam == SIZE_RESTORED)))
-        //         {
-        //             destWidth = LOWORD(lParam);
-        //             destHeight = HIWORD(lParam);
-        //             windowResize();
-        //         }
-        //     }
-        //     break;
+        case WM_SIZE:
+            if (wParam != SIZE_MINIMIZED)
+            {
+                if ((sResizing) || ((wParam == SIZE_MAXIMIZED) || (wParam == SIZE_RESTORED)))
+                {
+                    // TODO Update Camera
+                    if (sSurface)
+                    {
+                        sSurface->mResolution = VkExtent2D{
+                            .width  = LOWORD(lParam),
+                            .height = HIWORD(lParam)
+                        };
+                        if (sDearImGui)
+                        {
+                            sDearImGui->invalidate_surface(*sSurface);
+                        }
+                        else
+                        {
+                            sSurface->generate_swapchain(kVSync);
+                        }
+                    }
+                }
+            }
+            break;
         // case WM_GETMINMAXINFO:
         // {
         //     LPMINMAXINFO minMaxInfo = (LPMINMAXINFO)lParam;
@@ -149,12 +167,12 @@ namespace
         //     minMaxInfo->ptMinTrackSize.y = 64;
         //     break;
         // }
-        // case WM_ENTERSIZEMOVE:
-        //     resizing = true;
-        //     break;
-        // case WM_EXITSIZEMOVE:
-        //     resizing = false;
-        //     break;
+        case WM_ENTERSIZEMOVE:
+            sResizing = true;
+            break;
+        case WM_EXITSIZEMOVE:
+            sResizing = false;
+            break;
         }
         return DefWindowProc(hWnd, uMsg, wParam, lParam);
     }
@@ -301,15 +319,17 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     assert(vksurface != VK_NULL_HANDLE);
 
     VulkanSurface surface(app.mInstance, vkphysicaldevice, vkdevice, vksurface, kDimension);
+    sSurface = &surface;
 
     // TODO Current limitation because we use a single device for now
     assert(queue_family_index == surface.mQueueFamilyIndex);
 
     VulkanDearImGui imgui(app.mInstance, vkphysicaldevice, vkdevice);
+    sDearImGui = &imgui;
 
     VkFormat framebuffer_color_format = surface.mColorFormat;
 
-    surface.generate_swapchain(false);
+    surface.generate_swapchain(kVSync);
 
     // Depth Format
     auto optional_format = imgui.select_best_depth_format();

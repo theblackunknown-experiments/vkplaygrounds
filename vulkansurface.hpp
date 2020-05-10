@@ -25,9 +25,7 @@ struct VulkanSurface
     ~VulkanSurface();
 
     void generate_swapchain(bool vsync);
-    std::uint32_t next_index();
     void submit(std::uint32_t idx);
-    void present(std::uint32_t idx);
 
     VkInstance                   mInstance;
     VkPhysicalDevice             mPhysicalDevice;

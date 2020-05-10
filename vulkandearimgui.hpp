@@ -42,6 +42,8 @@ struct VulkanDearImGui
     void setup_framebuffers(const VkExtent2D& dimension, const std::vector<VkImageView>& views);
     void setup_graphics_pipeline(const VkExtent2D& dimension);
 
+    void invalidate_surface(VulkanSurface& surface);
+
     void update_imgui_draw_data();
 
     void new_frame(bool update_frame_times = false);
@@ -62,6 +64,7 @@ struct VulkanDearImGui
 
     struct
     {
+        VkFormat       format = VK_FORMAT_UNDEFINED;
         VkImage        image  = VK_NULL_HANDLE;
         VkDeviceMemory memory = VK_NULL_HANDLE;
         VkImageView    view   = VK_NULL_HANDLE;
