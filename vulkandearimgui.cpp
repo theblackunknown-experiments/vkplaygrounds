@@ -10,6 +10,7 @@
 #include <algorithm>
 
 #include <filesystem>
+// #include <iostream>
 
 #include <type_traits>
 
@@ -66,8 +67,14 @@ VulkanDearImGui::VulkanDearImGui(
         )
     }
 {
+    IMGUI_CHECKVERSION();
     {// Style
         ImGuiStyle& style = ImGui::GetStyle();
+
+        // ImGui::StyleColorsDark(&style);
+        //ImGui::StyleColorsClassic(&style);
+        //ImGui::StyleColorsLight(&style);
+
         style.Colors[ImGuiCol_TitleBg         ] = ImVec4(1.0f, 0.0f, 0.0f, 0.6f);
         style.Colors[ImGuiCol_TitleBgActive   ] = ImVec4(1.0f, 0.0f, 0.0f, 0.8f);
         style.Colors[ImGuiCol_TitleBgCollapsed] = ImVec4(1.0f, 0.0f, 0.0f, 0.1f);
@@ -94,6 +101,9 @@ VulkanDearImGui::VulkanDearImGui(
     {// IO
         ImGuiIO& io = ImGui::GetIO();
         io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
+        io.BackendFlags |= ImGuiBackendFlags_HasSetMousePos;
+        io.BackendPlatformName = "Win32";
+        io.BackendRendererName = "vktheblackunknown";
     }
 }
 
@@ -870,125 +880,6 @@ void VulkanDearImGui::setup_graphics_pipeline(const VkExtent2D& dimension)
     }
 }
 
-void VulkanDearImGui::build_imgui_command_buffers(VulkanSurface& surface)
-{
-    const VkCommandBufferBeginInfo info_cmdbuffer{
-        .sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .pNext            = nullptr,
-        .flags            = 0,
-        .pInheritanceInfo = nullptr,
-    };
-
-    const VkClearValue clear_values[] = {
-        VkClearValue{
-            .color = VkClearColorValue{
-                .float32 = { 0.2f, 0.2f, 0.2f, 1.0f }
-            }
-        },
-        VkClearValue{
-            .depthStencil = VkClearDepthStencilValue{
-                .depth   = 1.0f,
-                .stencil = 0u
-            }
-        }
-    };
-
-    VkRenderPassBeginInfo info_renderpassbegin{
-        .sType            = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-        .pNext            = nullptr,
-        .renderPass       = mRenderPass,
-        .framebuffer      = VK_NULL_HANDLE,
-        .renderArea       = VkRect2D{
-            .offset = VkOffset2D{
-                .x = 0,
-                .y = 0,
-            },
-            .extent = surface.mResolution
-        },
-        .clearValueCount  = sizeof(clear_values) / sizeof(clear_values[0]),
-        .pClearValues     = clear_values,
-    };
-
-    const VkViewport viewport{
-        .x        = 0.0f,
-        .y        = 0.0f,
-        .width    = static_cast<float>(surface.mResolution.width),
-        .height   = static_cast<float>(surface.mResolution.height),
-        .minDepth = 0.0f,
-        .maxDepth = 1.0f,
-    };
-
-    const VkRect2D scissor{
-        .offset   = VkOffset2D{
-            .x = 0,
-            .y = 0,
-        },
-        .extent   = surface.mResolution,
-    };
-
-    // TODO cf. ImGui::buildCommandBuffers
-
-    new_frame(mBenchmark.frame_counter == 0);
-    update_imgui_draw_data();
-
-    for (std::uint32_t idx = 0u, count = surface.mCommandBuffers.size(); idx < count; ++idx)
-    {
-        VkFramebuffer   framebuffer = mFrameBuffers.at(idx);
-        VkCommandBuffer cmdbuffer   = surface.mCommandBuffers.at(idx);
-
-        info_renderpassbegin.framebuffer = framebuffer;
-
-        CHECK(vkBeginCommandBuffer(cmdbuffer, &info_cmdbuffer));
-
-        vkCmdBeginRenderPass(cmdbuffer, &info_renderpassbegin, VK_SUBPASS_CONTENTS_INLINE);
-
-        vkCmdSetViewport(cmdbuffer, 0, 1, &viewport);
-        vkCmdSetScissor(cmdbuffer, 0, 1, &scissor);
-
-        vkCmdBindDescriptorSets(
-            cmdbuffer,
-            VK_PIPELINE_BIND_POINT_GRAPHICS,
-            mPipelineLayout,
-            0, 1, &mDescriptorSet,
-            0, nullptr
-        );
-        vkCmdBindPipeline(cmdbuffer,
-            VK_PIPELINE_BIND_POINT_GRAPHICS,
-            mPipeline
-        );
-
-        constexpr const VkDeviceSize offset = 0;
-        // TODO
-        // if (mUI.background)
-        // {
-        //     vkCmdBindVertexBuffers(cmdbuffer, 0, 1, &mModels.background.vertices.mBuffer, &offset);
-        //     vkCmdBindIndexBuffer(cmdbuffer, &mModels.background.indices.mBuffer, 0, VK_INDEX_TYPE_UINT32);
-        //     vkCmdDrawIndexed(cmdbuffer, &mModels.background.indexCount, 1, 0, 0, 0);
-        // }
-
-        // TODO
-        // if (mUI.models)
-        // {
-        //     vkCmdBindVertexBuffers(cmdbuffer, 0, 1, &mModels.models.vertices.mBuffer, &offset);
-        //     vkCmdBindIndexBuffer(cmdbuffer, &mModels.models.indices.mBuffer, 0, VK_INDEX_TYPE_UINT32);
-        //     vkCmdDrawIndexed(cmdbuffer, &mModels.models.indexCount, 1, 0, 0, 0);
-        // }
-
-        // TODO
-        // if (mUI.logos)
-        // {
-        //     vkCmdBindVertexBuffers(cmdbuffer, 0, 1, &mModels.logos.vertices.mBuffer, &offset);
-        //     vkCmdBindIndexBuffer(cmdbuffer, &mModels.logos.indices.mBuffer, 0, VK_INDEX_TYPE_UINT32);
-        //     vkCmdDrawIndexed(cmdbuffer, &mModels.logos.indexCount, 1, 0, 0, 0);
-        // }
-
-        build_imgui_command_buffer(cmdbuffer);
-
-        vkCmdEndRenderPass(cmdbuffer);
-
-        CHECK(vkEndCommandBuffer(cmdbuffer));
-    }
-}
 
 void VulkanDearImGui::build_imgui_command_buffers(VulkanSurface& surface, std::uint32_t idx)
 {
@@ -1116,11 +1007,13 @@ void VulkanDearImGui::build_imgui_command_buffer(VkCommandBuffer cmdbuffer)
     const VkViewport viewport{
         .x        = 0.0f,
         .y        = 0.0f,
-        .width    = io.DisplaySize.x,
-        .height   = io.DisplaySize.y,
+        .width    = io.DisplaySize.x * io.DisplayFramebufferScale.x,
+        .height   = io.DisplaySize.y * io.DisplayFramebufferScale.y,
         .minDepth = 0.0f,
         .maxDepth = 1.0f,
     };
+    assert(viewport.width > 0);
+    assert(viewport.height > 0);
 
     const Constants constants{
         .scale     = { 2.0f / io.DisplaySize.x, 2.0f / io.DisplaySize.y },
@@ -1150,6 +1043,7 @@ void VulkanDearImGui::build_imgui_command_buffer(VkCommandBuffer cmdbuffer)
             for (auto idx_buffer = 0, count_buffer = list->CmdBuffer.Size; idx_buffer < count_buffer; ++idx_buffer)
             {
                 const ImDrawCmd& command = list->CmdBuffer[idx_buffer];
+                assert(command.UserCallback == nullptr);
 
                 const VkRect2D scissors{
                     .offset = VkOffset2D{
@@ -1174,6 +1068,13 @@ void VulkanDearImGui::build_imgui_command_buffer(VkCommandBuffer cmdbuffer)
 
 void VulkanDearImGui::new_frame(bool update_frame_times)
 {
+    ImGuiIO& io = ImGui::GetIO();
+
+    io.MousePos     = ImVec2(mMouse.offset.x, mMouse.offset.y);
+    io.MouseDown[0] = mMouse.buttons.left;
+    io.MouseDown[1] = mMouse.buttons.right;
+    io.MouseDown[2] = mMouse.buttons.middle;
+
     auto clear_color = ImColor(114, 144, 154);
 
     ImGui::NewFrame();
@@ -1191,6 +1092,12 @@ void VulkanDearImGui::new_frame(bool update_frame_times)
 
         float frame_time = 1e3 / (mBenchmark.frame_timer * 1e3);
         mUI.frame_times.back() = frame_time;
+        // std::cout << "Frame times: ";
+        // std::copy(
+        //     std::begin(mUI.frame_times), std::end(mUI.frame_times),
+        //     std::ostream_iterator<float>(std::cout, ", ")
+        // );
+        // std::cout << std::endl;
         if (frame_time < mUI.frame_time_min)
             mUI.frame_time_min = frame_time;
         if (frame_time > mUI.frame_time_max)
@@ -1322,6 +1229,7 @@ void VulkanDearImGui::render_frame(VulkanSurface& surface)
     if (fps_timer > 1e3f)
     {
         mBenchmark.frame_per_seconds = static_cast<std::uint32_t>(mBenchmark.frame_counter * (1000.f / fps_timer));
+        // std::cout << "FPS update: " << mBenchmark.frame_per_seconds << std::endl;
         mBenchmark.frame_counter = 0;
         mBenchmark.frame_tick = tick_end;
     }
@@ -1333,11 +1241,6 @@ void VulkanDearImGui::render(VulkanSurface& surface)
 
     io.DisplaySize = ImVec2(surface.mResolution.width, surface.mResolution.height);
     io.DeltaTime   = mBenchmark.frame_timer;
-
-    // TODO Mouse
-    // io.MousePos     = ImVec2(mMouse.offset.x, mMouse.offset.y);
-    // io.MouseDown[0] = mMouse.buttons.left;
-    // io.MouseDown[1] = mMouse.buttons.right;
 
     // NOTE
     //  - [ ] the application must use a synchronization primitive to ensure that the presentation engine has finished reading from the image
@@ -1398,7 +1301,7 @@ void VulkanDearImGui::invalidate_surface(VulkanSurface& surface)
     vkDeviceWaitIdle(mDevice);
 
     // Recreate swap chain
-    surface.generate_swapchain(false);
+    surface.generate_swapchain();
 
     // Recreate Depth
     vkDestroyImageView(mDevice, mDepth.view, nullptr);

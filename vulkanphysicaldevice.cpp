@@ -103,6 +103,7 @@ std::tuple<std::uint32_t, VkDevice> VulkanPhysicalDevice::create_device(VkQueueF
         .inheritedQueries                        = VK_FALSE,
     };
     std::vector<const char*> enable_extensions{};
+    // TODO Make this optional
     if(swap_chain)
     {
         assert(has_extension(VK_KHR_SWAPCHAIN_EXTENSION_NAME));

@@ -50,7 +50,6 @@ struct VulkanDearImGui
 
     void render(VulkanSurface& surface);
     void render_frame(VulkanSurface& surface);
-    void build_imgui_command_buffers(VulkanSurface& surface);
     void build_imgui_command_buffers(VulkanSurface& surface, std::uint32_t index);
     void build_imgui_command_buffer(VkCommandBuffer);
 
@@ -114,8 +113,22 @@ struct VulkanDearImGui
         float                 light_timer     = 0.0f;
         float                 frame_time_min  = 9999.0f;
         float                 frame_time_max  = 0.0f;
-        std::array<float, 50> frame_times;
+        std::array<float, 10> frame_times     = {};
     } mUI;
+
+    struct Mouse {
+        struct Buttons
+        {
+            bool left   = false;
+            bool middle = false;
+            bool right  = false;
+        } buttons;
+        struct Positions
+        {
+            float x = 0.0f;
+            float y = 0.0f;
+        } offset;
+    } mMouse;
 
     struct Camera {
         float position[3];

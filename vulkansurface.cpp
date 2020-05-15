@@ -16,7 +16,8 @@ VulkanSurface::VulkanSurface(
         const VkPhysicalDevice& physical_device,
         const VkDevice& device,
         const VkSurfaceKHR& surface,
-        const VkExtent2D& resolution)
+        const VkExtent2D& resolution,
+        bool vsync)
     : VulkanPhysicalDeviceBase(physical_device)
     , VulkanSurfaceBase(surface)
     , VulkanSurfaceMixin()
@@ -30,6 +31,11 @@ VulkanSurface::VulkanSurface(
         auto index = select_surface_queue_family_index(mSurface);
         assert(index.has_value());
         mQueueFamilyIndex = *index;
+    }
+    {// Support
+        VkBool32 supported;
+        CHECK(vkGetPhysicalDeviceSurfaceSupportKHR(mPhysicalDevice, mQueueFamilyIndex, mSurface, &supported));
+        assert(supported == VK_TRUE);
     }
     {// Formats
         std::uint32_t count;
@@ -67,6 +73,46 @@ VulkanSurface::VulkanSurface(
                 mColorSpace  = formats.front().colorSpace;
             }
         }
+    }
+    {// Present modes
+        std::uint32_t count;
+        CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(mPhysicalDevice, mSurface, &count, nullptr));
+        assert(count > 0);
+
+        std::vector<VkPresentModeKHR> present_modes(count);
+        CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(mPhysicalDevice, mSurface, &count, present_modes.data()));
+
+        auto finder_present_mode = std::end(present_modes);
+
+        if(vsync)
+        {
+            finder_present_mode = std::find(
+                std::begin(present_modes), std::end(present_modes),
+                VK_PRESENT_MODE_FIFO_KHR
+            );
+            assert(finder_present_mode != std::end(present_modes));
+        }
+        else
+        {
+            constexpr const auto kPreferredPresentModes = {
+                VK_PRESENT_MODE_MAILBOX_KHR,
+                VK_PRESENT_MODE_IMMEDIATE_KHR,
+                VK_PRESENT_MODE_FIFO_KHR,
+            };
+            for (auto&& preferred : kPreferredPresentModes)
+            {
+                finder_present_mode = std::find(
+                    std::begin(present_modes), std::end(present_modes),
+                    preferred
+                );
+
+                if (finder_present_mode != std::end(present_modes))
+                    break;
+            }
+        }
+        assert(finder_present_mode != std::end(present_modes));
+
+        mPresentMode = *finder_present_mode;
     }
     {// Queue
         vkGetDeviceQueue(mDevice, mQueueFamilyIndex, 0, &mQueue);
@@ -114,7 +160,7 @@ VulkanSurface::~VulkanSurface()
     vkDestroySemaphore(mDevice, mSemaphoreRenderComplete, nullptr);
 }
 
-void VulkanSurface::generate_swapchain(bool vsync)
+void VulkanSurface::generate_swapchain()
 {
     VkSwapchainKHR previous_swap_chain = mSwapChain;
 
@@ -127,40 +173,6 @@ void VulkanSurface::generate_swapchain(bool vsync)
         : capabilities.currentExtent;
 
     { // Swap Chain
-        // Present modes
-        std::uint32_t count;
-        CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(mPhysicalDevice, mSurface, &count, nullptr));
-        assert(count > 0);
-
-        std::vector<VkPresentModeKHR> present_modes(count);
-        CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(mPhysicalDevice, mSurface, &count, present_modes.data()));
-
-        auto finder_present_mode = std::find(std::begin(present_modes), std::end(present_modes), VK_PRESENT_MODE_FIFO_KHR);
-        assert(finder_present_mode != std::end(present_modes));
-
-        if(!vsync)
-        {
-            auto finder_present_mode_better = std::find(
-                std::begin(present_modes), std::end(present_modes),
-                VK_PRESENT_MODE_MAILBOX_KHR
-            );
-            if (finder_present_mode_better == std::end(present_modes))
-            {
-                finder_present_mode_better = std::find(
-                    std::begin(present_modes), std::end(present_modes),
-                    VK_PRESENT_MODE_IMMEDIATE_KHR
-                );
-            }
-
-            if (finder_present_mode_better != std::end(present_modes))
-            {
-                finder_present_mode = finder_present_mode_better;
-            }
-        }
-        assert(finder_present_mode != std::end(present_modes));
-
-        VkPresentModeKHR present_mode = *finder_present_mode;
-
         std::uint32_t image_count = (capabilities.maxImageCount > 0)
             ? std::min(capabilities.minImageCount + 1, capabilities.maxImageCount)
             : capabilities.minImageCount + 1;
@@ -201,7 +213,7 @@ void VulkanSurface::generate_swapchain(bool vsync)
             .pQueueFamilyIndices   = nullptr,
             .preTransform          = transform,
             .compositeAlpha        = composite_alpha,
-            .presentMode           = present_mode,
+            .presentMode           = mPresentMode,
             .clipped               = VK_TRUE,
             .oldSwapchain          = previous_swap_chain,
         };

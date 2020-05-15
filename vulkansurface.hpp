@@ -21,10 +21,11 @@ struct VulkanSurface
         const VkPhysicalDevice& physical_device,
         const VkDevice& device,
         const VkSurfaceKHR& surface,
-        const VkExtent2D& resolution);
+        const VkExtent2D& resolution,
+        bool vsync);
     ~VulkanSurface();
 
-    void generate_swapchain(bool vsync);
+    void generate_swapchain();
     void submit(std::uint32_t idx);
 
     VkInstance                   mInstance;
@@ -35,6 +36,7 @@ struct VulkanSurface
     std::uint32_t                mQueueFamilyIndex;
     VkFormat                     mColorFormat;
     VkColorSpaceKHR              mColorSpace;
+    VkPresentModeKHR             mPresentMode;
     VkCommandPool                mCommandPool;
     VkSemaphore                  mSemaphorePresentComplete = VK_NULL_HANDLE;
     VkSemaphore                  mSemaphoreRenderComplete  = VK_NULL_HANDLE;

@@ -3,6 +3,8 @@
 #include <windows.h>
 #include <shellapi.h>
 
+#include <imgui.h>
+
 #include <cassert>
 
 #include <chrono>
@@ -15,16 +17,16 @@
 
 #include <iostream>
 
-#include "vulkandebug.hpp"
-#include "vulkanapplication.hpp"
-#include "vulkanphysicaldevice.hpp"
-#include "vulkandevice.hpp"
-#include "vulkansurface.hpp"
-#include "vulkandearimgui.hpp"
+#include "./vulkandebug.hpp"
+#include "./vulkanapplication.hpp"
+#include "./vulkanphysicaldevice.hpp"
+#include "./vulkandevice.hpp"
+#include "./vulkansurface.hpp"
+#include "./vulkandearimgui.hpp"
 
 namespace
 {
-    constexpr const VkExtent2D kDimension = { 512, 512 };
+    constexpr const VkExtent2D kDimension = { 1280, 720 };
     constexpr const bool       kVSync = false;
 
     bool sResizing = false;
@@ -102,27 +104,48 @@ namespace
         //         }
         //     }
         //     break;
-        // case WM_LBUTTONDOWN:
-        //     mousePos = glm::vec2((float)LOWORD(lParam), (float)HIWORD(lParam));
-        //     mouseButtons.left = true;
-        //     break;
-        // case WM_RBUTTONDOWN:
-        //     mousePos = glm::vec2((float)LOWORD(lParam), (float)HIWORD(lParam));
-        //     mouseButtons.right = true;
-        //     break;
-        // case WM_MBUTTONDOWN:
-        //     mousePos = glm::vec2((float)LOWORD(lParam), (float)HIWORD(lParam));
-        //     mouseButtons.middle = true;
-        //     break;
-        // case WM_LBUTTONUP:
-        //     mouseButtons.left = false;
-        //     break;
-        // case WM_RBUTTONUP:
-        //     mouseButtons.right = false;
-        //     break;
-        // case WM_MBUTTONUP:
-        //     mouseButtons.middle = false;
-        //     break;
+        case WM_LBUTTONDOWN:
+            if (!sDearImGui)
+                break;
+
+            sDearImGui->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
+            sDearImGui->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
+            sDearImGui->mMouse.buttons.left = true;
+            break;
+        case WM_RBUTTONDOWN:
+            if (!sDearImGui)
+                break;
+
+            sDearImGui->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
+            sDearImGui->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
+            sDearImGui->mMouse.buttons.right = true;
+            break;
+        case WM_MBUTTONDOWN:
+            if (!sDearImGui)
+                break;
+
+            sDearImGui->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
+            sDearImGui->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
+            sDearImGui->mMouse.buttons.middle = true;
+            break;
+        case WM_LBUTTONUP:
+            if (!sDearImGui)
+                break;
+
+            sDearImGui->mMouse.buttons.left = false;
+            break;
+        case WM_RBUTTONUP:
+            if (!sDearImGui)
+                break;
+
+            sDearImGui->mMouse.buttons.right = false;
+            break;
+        case WM_MBUTTONUP:
+            if (!sDearImGui)
+                break;
+
+            sDearImGui->mMouse.buttons.middle = false;
+            break;
         // case WM_MOUSEWHEEL:
         // {
         //     short wheelDelta = GET_WHEEL_DELTA_WPARAM(wParam);
@@ -154,7 +177,7 @@ namespace
                         }
                         else
                         {
-                            sSurface->generate_swapchain(kVSync);
+                            sSurface->generate_swapchain();
                         }
                     }
                 }
@@ -318,18 +341,19 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     }
     assert(vksurface != VK_NULL_HANDLE);
 
-    VulkanSurface surface(app.mInstance, vkphysicaldevice, vkdevice, vksurface, kDimension);
+    VulkanSurface surface(app.mInstance, vkphysicaldevice, vkdevice, vksurface, kDimension, kVSync);
     sSurface = &surface;
 
     // TODO Current limitation because we use a single device for now
     assert(queue_family_index == surface.mQueueFamilyIndex);
 
     VulkanDearImGui imgui(app.mInstance, vkphysicaldevice, vkdevice);
+    ImGui::GetIO().ImeWindowHandle = window_handle;
     sDearImGui = &imgui;
 
     VkFormat framebuffer_color_format = surface.mColorFormat;
 
-    surface.generate_swapchain(kVSync);
+    surface.generate_swapchain();
 
     // Depth Format
     auto optional_format = imgui.select_best_depth_format();
@@ -363,6 +387,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
             DispatchMessage(&msg);
         }
         else if(!IsIconic(window_handle))
+        // if(!IsIconic(window_handle))
         {
             imgui.render_frame(surface);
         }
