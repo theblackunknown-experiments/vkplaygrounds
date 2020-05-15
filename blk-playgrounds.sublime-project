@@ -3,7 +3,7 @@
 	[
 		{
 			"file_regex": "^[ ]*(.+?)\\(([0-9]+)\\): (.*)$",
-			"name": "blk-imgui",
+			"name": "blk-playgrounds (All)",
 
 			"cmd":
 			[
@@ -89,7 +89,7 @@
 					"__VSCMD_PREINIT_PATH": "C:\\Users\\andre\\cmder_mini\\bin;C:\\VulkanSDK\\1.0.65.1\\Bin;C:\\Program Files\\ImageMagick-7.0.4-Q16-HDRI;C:\\Program Files (x86)\\Intel\\iCLS Client\\;C:\\Program Files\\Intel\\iCLS Client\\;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\;C:\\Program Files (x86)\\Intel\\Intel(R) Management Engine Components\\DAL;C:\\Program Files\\Intel\\Intel(R) Management Engine Components\\DAL;C:\\Program Files (x86)\\Intel\\Intel(R) Management Engine Components\\IPT;C:\\Program Files\\Intel\\Intel(R) Management Engine Components\\IPT;C:\\WINDOWS\\system32;C:\\WINDOWS;C:\\WINDOWS\\System32\\Wbem;C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\;C:\\Program Files (x86)\\GtkSharp\\2.12\\bin;C:\\WINDOWS\\System32\\OpenSSH\\;C:\\Program Files\\Git LFS;D:\\Program Files\\CMake\\bin;C:\\Program Files\\doxygen\\bin;C:\\Program Files\\Common Files\\Autodesk Shared\\;C:\\ProgramData\\chocolatey\\bin;C:\\Program Files\\Microsoft SQL Server\\110\\Tools\\Binn\\;C:\\tools\\lxrunoffline;C:\\Program Files\\Intel\\WiFi\\bin\\;C:\\Program Files\\Common Files\\Intel\\WirelessCommon\\;C:\\Program Files (x86)\\NVIDIA Corporation\\PhysX\\Common;C:\\Program Files\\NVIDIA Corporation\\NVIDIA NvDLISR;C:\\Program Files\\Microsoft SQL Server\\130\\Tools\\Binn\\;C:\\WINDOWS\\system32;C:\\WINDOWS;C:\\WINDOWS\\System32\\Wbem;C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\;C:\\WINDOWS\\System32\\OpenSSH\\;C:\\Program Files\\TortoiseGit\\bin;C:\\Program Files\\dotnet\\;C:\\Program Files\\Calibre2\\;C:\\Program Files\\Git\\cmd;C:\\Ruby25-x64\\bin;C:\\Users\\andre\\bin;C:\\Users\\andre\\AppData\\Local\\Microsoft\\WindowsApps;C:\\Users\\andre\\AppData\\Local\\GitHubDesktop\\bin;C:\\Users\\andre\\AppData\\Local\\Microsoft\\WindowsApps;C:\\Program Files\\R\\R-3.4.3\\bin\\x64;C:\\Users\\andre\\cmder_mini\\;C:\\Users\\andre\\Arnold-5.2.0.0-windows\\bin;C:\\Users\\andre\\AppData\\Local\\Google\\Cloud SDK\\google-cloud-sdk\\bin;D:\\Program Files\\Allegorithmic\\Substance Automation Toolkit;D:\\Git\\depot_tools;C:\\Users\\andre\\cvs-1-11-22;C:\\devel\\vcpkg;D:\\devel\\dotfiles\\scripts;C:\\Users\\andre\\AppData\\Local\\Programs\\Python\\Python37\\Scripts;C:\\Program Files\\Git\\usr\\bin;D:\\Program Files\\LLVM\\bin;C:\\Users\\andre\\AppData\\Local\\hyper\\app-3.0.2\\resources\\bin;C:\\Users\\andre\\Dependencies_x64_Release - v1.10;C:\\Program Files (x86)\\GitHub CLI\\;C:\\Program Files\\Shotgun\\RV-7.7.0\\bin;C:\\Program Files\\Git\\usr\\bin;C:\\Program Files\\Git\\usr\\share\\vim\\vim74;C:\\Users\\andre\\cmder_mini\\"
 				}
 			},
-			"working_dir": "C:/builds/blk-imgui"
+			"working_dir": "C:/builds/blk-playgrounds"
 		}
 	],
 	"folders":
@@ -98,7 +98,7 @@
 			"path": "."
 		},
 		{
-			"path": "C:/builds/blk-imgui"
+			"path": "C:/builds/blk-playgrounds"
 		},
 		{
 			"path": "C:/devel/vcpkg/installed/x64-windows"
