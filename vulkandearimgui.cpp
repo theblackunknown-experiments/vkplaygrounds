@@ -2,16 +2,7 @@
 
 #include <imgui.h>
 
-#include <cstring>
-
-#include <chrono>
-#include <limits>
-#include <iterator>
 #include <algorithm>
-
-#include <filesystem>
-// #include <iostream>
-
 #include <type_traits>
 
 #include "./ui.vertex.hpp"
@@ -22,14 +13,9 @@
 #include "./vulkandebug.hpp"
 
 #include "./vulkanbuffer.hpp"
-#include "./vulkansurface.hpp"
-#include "./vulkanapplication.hpp"
 #include "./vulkanscopedbuffermapping.hpp"
-#include "./vulkanscopedpresentableimage.hpp"
 
 #include "./vulkandearimgui.hpp"
-
-using namespace std::literals::chrono_literals;
 
 namespace
 {
@@ -71,37 +57,15 @@ VulkanDearImGui::VulkanDearImGui(
     {// Style
         ImGuiStyle& style = ImGui::GetStyle();
 
-        // ImGui::StyleColorsDark(&style);
+        ImGui::StyleColorsDark(&style);
         //ImGui::StyleColorsClassic(&style);
         //ImGui::StyleColorsLight(&style);
-
-        style.Colors[ImGuiCol_TitleBg         ] = ImVec4(1.0f, 0.0f, 0.0f, 0.6f);
-        style.Colors[ImGuiCol_TitleBgActive   ] = ImVec4(1.0f, 0.0f, 0.0f, 0.8f);
-        style.Colors[ImGuiCol_TitleBgCollapsed] = ImVec4(1.0f, 0.0f, 0.0f, 0.1f);
-
-        style.Colors[ImGuiCol_MenuBarBg       ] = ImVec4(1.0f, 0.0f, 0.0f, 0.4f);
-
-        style.Colors[ImGuiCol_Header          ] = ImVec4(0.8f, 0.0f, 0.0f, 0.4f);
-        style.Colors[ImGuiCol_HeaderActive    ] = ImVec4(1.0f, 0.0f, 0.0f, 0.4f);
-        style.Colors[ImGuiCol_HeaderHovered   ] = ImVec4(1.0f, 0.0f, 0.0f, 0.4f);
-
-        style.Colors[ImGuiCol_FrameBg         ] = ImVec4(0.0f, 0.0f, 0.0f, 0.8f);
-        style.Colors[ImGuiCol_FrameBgHovered  ] = ImVec4(1.0f, 1.0f, 1.0f, 0.1f);
-        style.Colors[ImGuiCol_FrameBgActive   ] = ImVec4(1.0f, 1.0f, 1.0f, 0.2f);
-
-        style.Colors[ImGuiCol_CheckMark       ] = ImVec4(1.0f, 0.0f, 0.0f, 0.8f);
-
-        style.Colors[ImGuiCol_SliderGrab      ] = ImVec4(1.0f, 0.0f, 0.0f, 0.4f);
-        style.Colors[ImGuiCol_SliderGrabActive] = ImVec4(1.0f, 0.0f, 0.0f, 0.8f);
-
-        style.Colors[ImGuiCol_Button          ] = ImVec4(1.0f, 0.0f, 0.0f, 0.4f);
-        style.Colors[ImGuiCol_ButtonHovered   ] = ImVec4(1.0f, 0.0f, 0.0f, 0.6f);
-        style.Colors[ImGuiCol_ButtonActive    ] = ImVec4(1.0f, 0.0f, 0.0f, 0.8f);
     }
     {// IO
         ImGuiIO& io = ImGui::GetIO();
         io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
         io.BackendFlags |= ImGuiBackendFlags_HasSetMousePos;
+        io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
         io.BackendPlatformName = "Win32";
         io.BackendRendererName = "vktheblackunknown";
     }
@@ -309,6 +273,15 @@ void VulkanDearImGui::setup_font()
             {// Memory Mapping
                 ScopedBufferMapping<std::remove_pointer_t<decltype(data)>> mapping(staging);
                 std::copy(data, std::next(data, size), mapping.mMappedMemory);
+
+                const VkMappedMemoryRange range{
+                    .sType  = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
+                    .pNext  = nullptr,
+                    .memory = staging.mMemory,
+                    .offset = 0,
+                    .size   = VK_WHOLE_SIZE
+                };
+                CHECK(vkFlushMappedMemoryRanges(mDevice, 1, &range));
             }
             {// Transfer / Copy / Shader Read
                 VkCommandBuffer command_buffer = create_command_buffer(mCommandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY);
@@ -430,12 +403,16 @@ void VulkanDearImGui::setup_font()
             .maxAnisotropy           = 1.0f,
             .compareEnable           = VK_FALSE,
             .compareOp               = VK_COMPARE_OP_NEVER,
-            .minLod                  = 0.0f,
-            .maxLod                  = 0.0f,
+            .minLod                  = -1000.0f,
+            .maxLod                  = +1000.0f,
             .borderColor             = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE,
             .unnormalizedCoordinates = VK_FALSE,
         };
         CHECK(vkCreateSampler(mDevice, &info, nullptr, &mFont.sampler));
+    }
+    {
+        ImGuiIO& io = ImGui::GetIO();
+        io.Fonts->TexID = reinterpret_cast<ImTextureID>(mFont.image);
     }
     // TODO ImFontAtlas::SetTexID
 }
@@ -477,8 +454,7 @@ void VulkanDearImGui::setup_descriptors()
             .descriptorType     = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
             .descriptorCount    = 1,
             .stageFlags         = VK_SHADER_STAGE_FRAGMENT_BIT,
-            // TODO ?
-            .pImmutableSamplers = nullptr,
+            .pImmutableSamplers = &mFont.sampler,
         };
         const VkDescriptorSetLayoutCreateInfo info{
             .sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
@@ -722,20 +698,20 @@ void VulkanDearImGui::setup_graphics_pipeline(const VkExtent2D& dimension)
         const VkVertexInputAttributeDescription vertex_input_attributes[] = {
             VkVertexInputAttributeDescription{
                 .location = 0u,
-                .binding  = 0u,
+                .binding  = vertex_input_bindings.binding,
                 .format   = VK_FORMAT_R32G32_SFLOAT,
                 .offset   = offsetof(ImDrawVert, pos),
             },
             VkVertexInputAttributeDescription{
                 .location = 1u,
-                .binding  = 0u,
+                .binding  = vertex_input_bindings.binding,
                 .format   = VK_FORMAT_R32G32_SFLOAT,
                 .offset   = offsetof(ImDrawVert, uv),
             },
             VkVertexInputAttributeDescription{
                 .location = 2u,
-                .binding  = 0u,
-                .format   = VK_FORMAT_R8G8B8_UNORM,
+                .binding  = vertex_input_bindings.binding,
+                .format   = VK_FORMAT_R8G8B8A8_UNORM,
                 .offset   = offsetof(ImDrawVert, col),
             },
         };
@@ -877,449 +853,7 @@ void VulkanDearImGui::setup_graphics_pipeline(const VkExtent2D& dimension)
             .basePipelineIndex   = -1,
         };
         CHECK(vkCreateGraphicsPipelines(mDevice, mPipelineCache, 1, &info, nullptr, &mPipeline));
+
+        // TODO Destroy shaders
     }
-}
-
-
-void VulkanDearImGui::build_imgui_command_buffers(VulkanSurface& surface, std::uint32_t idx)
-{
-    const VkCommandBufferBeginInfo info_cmdbuffer{
-        .sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .pNext            = nullptr,
-        .flags            = 0,
-        .pInheritanceInfo = nullptr,
-    };
-
-    const VkClearValue clear_values[] = {
-        VkClearValue{
-            .color = VkClearColorValue{
-                .float32 = { 0.2f, 0.2f, 0.2f, 1.0f }
-            }
-        },
-        VkClearValue{
-            .depthStencil = VkClearDepthStencilValue{
-                .depth   = 1.0f,
-                .stencil = 0u
-            }
-        }
-    };
-
-    VkRenderPassBeginInfo info_renderpassbegin{
-        .sType            = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-        .pNext            = nullptr,
-        .renderPass       = mRenderPass,
-        .framebuffer      = VK_NULL_HANDLE,
-        .renderArea       = VkRect2D{
-            .offset = VkOffset2D{
-                .x = 0,
-                .y = 0,
-            },
-            .extent = surface.mResolution
-        },
-        .clearValueCount  = sizeof(clear_values) / sizeof(clear_values[0]),
-        .pClearValues     = clear_values,
-    };
-
-    const VkViewport viewport{
-        .x        = 0.0f,
-        .y        = 0.0f,
-        .width    = static_cast<float>(surface.mResolution.width),
-        .height   = static_cast<float>(surface.mResolution.height),
-        .minDepth = 0.0f,
-        .maxDepth = 1.0f,
-    };
-
-    const VkRect2D scissor{
-        .offset   = VkOffset2D{
-            .x = 0,
-            .y = 0,
-        },
-        .extent   = surface.mResolution,
-    };
-
-    // TODO cf. ImGui::buildCommandBuffers
-
-    new_frame(mBenchmark.frame_counter == 0);
-    update_imgui_draw_data();
-
-    {
-        VkFramebuffer   framebuffer = mFrameBuffers.at(idx);
-        VkCommandBuffer cmdbuffer   = surface.mCommandBuffers.at(idx);
-
-        info_renderpassbegin.framebuffer = framebuffer;
-
-        CHECK(vkBeginCommandBuffer(cmdbuffer, &info_cmdbuffer));
-
-        vkCmdBeginRenderPass(cmdbuffer, &info_renderpassbegin, VK_SUBPASS_CONTENTS_INLINE);
-
-        vkCmdSetViewport(cmdbuffer, 0, 1, &viewport);
-        vkCmdSetScissor(cmdbuffer, 0, 1, &scissor);
-
-        vkCmdBindDescriptorSets(
-            cmdbuffer,
-            VK_PIPELINE_BIND_POINT_GRAPHICS,
-            mPipelineLayout,
-            0, 1, &mDescriptorSet,
-            0, nullptr
-        );
-        vkCmdBindPipeline(cmdbuffer,
-            VK_PIPELINE_BIND_POINT_GRAPHICS,
-            mPipeline
-        );
-
-        constexpr const VkDeviceSize offset = 0;
-        // TODO
-        // if (mUI.background)
-        // {
-        //     vkCmdBindVertexBuffers(cmdbuffer, 0, 1, &mModels.background.vertices.mBuffer, &offset);
-        //     vkCmdBindIndexBuffer(cmdbuffer, &mModels.background.indices.mBuffer, 0, VK_INDEX_TYPE_UINT32);
-        //     vkCmdDrawIndexed(cmdbuffer, &mModels.background.indexCount, 1, 0, 0, 0);
-        // }
-
-        // TODO
-        // if (mUI.models)
-        // {
-        //     vkCmdBindVertexBuffers(cmdbuffer, 0, 1, &mModels.models.vertices.mBuffer, &offset);
-        //     vkCmdBindIndexBuffer(cmdbuffer, &mModels.models.indices.mBuffer, 0, VK_INDEX_TYPE_UINT32);
-        //     vkCmdDrawIndexed(cmdbuffer, &mModels.models.indexCount, 1, 0, 0, 0);
-        // }
-
-        // TODO
-        // if (mUI.logos)
-        // {
-        //     vkCmdBindVertexBuffers(cmdbuffer, 0, 1, &mModels.logos.vertices.mBuffer, &offset);
-        //     vkCmdBindIndexBuffer(cmdbuffer, &mModels.logos.indices.mBuffer, 0, VK_INDEX_TYPE_UINT32);
-        //     vkCmdDrawIndexed(cmdbuffer, &mModels.logos.indexCount, 1, 0, 0, 0);
-        // }
-
-        build_imgui_command_buffer(cmdbuffer);
-
-        vkCmdEndRenderPass(cmdbuffer);
-
-        CHECK(vkEndCommandBuffer(cmdbuffer));
-    }
-}
-
-void VulkanDearImGui::build_imgui_command_buffer(VkCommandBuffer cmdbuffer)
-{
-    ImGuiIO& io = ImGui::GetIO();
-
-    const VkViewport viewport{
-        .x        = 0.0f,
-        .y        = 0.0f,
-        .width    = io.DisplaySize.x * io.DisplayFramebufferScale.x,
-        .height   = io.DisplaySize.y * io.DisplayFramebufferScale.y,
-        .minDepth = 0.0f,
-        .maxDepth = 1.0f,
-    };
-    assert(viewport.width > 0);
-    assert(viewport.height > 0);
-
-    const Constants constants{
-        .scale     = { 2.0f / io.DisplaySize.x, 2.0f / io.DisplaySize.y },
-        .translate = { -1.0f, -1.0f },
-    };
-
-    vkCmdBindDescriptorSets(cmdbuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelineLayout, 0, 1, &mDescriptorSet, 0, nullptr);
-    vkCmdBindPipeline(cmdbuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline);
-    vkCmdSetViewport(cmdbuffer, 0, 1, &viewport);
-    vkCmdPushConstants(cmdbuffer, mPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(constants), &constants);
-
-    const ImDrawData* draw_data = ImGui::GetDrawData();
-
-    constexpr const VkDeviceSize offset = 0;
-    if (draw_data->CmdListsCount > 0)
-    {
-        vkCmdBindVertexBuffers(cmdbuffer, 0, 1, &mVertex.buffer.mBuffer, &offset);
-
-        vkCmdBindIndexBuffer(cmdbuffer, mIndex.buffer.mBuffer, offset, VK_INDEX_TYPE_UINT16);
-
-        std::uint32_t offset_index = 0;
-        std::int32_t  offset_vertex = 0;
-
-        for (auto idx_list = 0, count_list = draw_data->CmdListsCount; idx_list < count_list; ++idx_list)
-        {
-            const ImDrawList* list = draw_data->CmdLists[idx_list];
-            for (auto idx_buffer = 0, count_buffer = list->CmdBuffer.Size; idx_buffer < count_buffer; ++idx_buffer)
-            {
-                const ImDrawCmd& command = list->CmdBuffer[idx_buffer];
-                assert(command.UserCallback == nullptr);
-
-                const VkRect2D scissors{
-                    .offset = VkOffset2D{
-                        .x = std::max(static_cast<std::int32_t>(command.ClipRect.x), 0),
-                        .y = std::max(static_cast<std::int32_t>(command.ClipRect.y), 0),
-                    },
-                    .extent = VkExtent2D{
-                        .width  = static_cast<std::uint32_t>(command.ClipRect.z - command.ClipRect.x),
-                        .height = static_cast<std::uint32_t>(command.ClipRect.w - command.ClipRect.y),
-                    }
-                };
-
-                vkCmdSetScissor(cmdbuffer, 0, 1, &scissors);
-                vkCmdDrawIndexed(cmdbuffer, command.ElemCount, 1, offset_index, offset_vertex, 0);
-
-                offset_index += command.ElemCount;
-            }
-            offset_vertex += list->VtxBuffer.Size;
-        }
-    }
-}
-
-void VulkanDearImGui::new_frame(bool update_frame_times)
-{
-    ImGuiIO& io = ImGui::GetIO();
-
-    io.MousePos     = ImVec2(mMouse.offset.x, mMouse.offset.y);
-    io.MouseDown[0] = mMouse.buttons.left;
-    io.MouseDown[1] = mMouse.buttons.right;
-    io.MouseDown[2] = mMouse.buttons.middle;
-
-    auto clear_color = ImColor(114, 144, 154);
-
-    ImGui::NewFrame();
-
-    ImGui::TextUnformatted("theblackunknown - Playground");
-    ImGui::TextUnformatted(mProperties.deviceName);
-
-    // Update frame time display
-    if (update_frame_times)
-    {
-        std::rotate(
-            std::begin(mUI.frame_times), std::next(std::begin(mUI.frame_times)),
-            std::end(mUI.frame_times)
-        );
-
-        float frame_time = 1e3 / (mBenchmark.frame_timer * 1e3);
-        mUI.frame_times.back() = frame_time;
-        // std::cout << "Frame times: ";
-        // std::copy(
-        //     std::begin(mUI.frame_times), std::end(mUI.frame_times),
-        //     std::ostream_iterator<float>(std::cout, ", ")
-        // );
-        // std::cout << std::endl;
-        if (frame_time < mUI.frame_time_min)
-            mUI.frame_time_min = frame_time;
-        if (frame_time > mUI.frame_time_max)
-            mUI.frame_time_max = frame_time;
-
-    }
-
-    ImGui::PlotLines(
-        "Frame Times",
-        &mUI.frame_times[0], static_cast<int>(mUI.frame_times.size()),
-        0,
-        nullptr,
-        mUI.frame_time_min,
-        mUI.frame_time_max,
-        ImVec2(0, 80)
-    );
-
-    ImGui::Text("Camera");
-    ImGui::InputFloat3("position", mCamera.position, "%.2f");
-    ImGui::InputFloat3("rotation", mCamera.rotation, "%.2f");
-
-    ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Example Settings");
-    ImGui::Checkbox   ("Render models"     , &mUI.models);
-    ImGui::Checkbox   ("Display logos"     , &mUI.logos);
-    ImGui::Checkbox   ("Display background", &mUI.background);
-    ImGui::Checkbox   ("Animated lights"   , &mUI.animated_lights);
-    ImGui::SliderFloat("Light Speed"       , &mUI.light_speed, 0.1f, 1.0f);
-    ImGui::End();
-
-    ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiCond_FirstUseEver);
-    ImGui::ShowDemoWindow();
-
-    ImGui::Render();
-}
-
-void VulkanDearImGui::update_imgui_draw_data()
-{
-    const ImDrawData* draw_data = ImGui::GetDrawData();
-    assert(draw_data->Valid);
-
-    // TODO Check Alignment
-    VkDeviceSize vertex_buffer_size = draw_data->TotalVtxCount * sizeof(ImDrawVert);
-    VkDeviceSize index_buffer_size  = draw_data->TotalIdxCount * sizeof(ImDrawIdx);
-
-    if ((vertex_buffer_size == 0) || (index_buffer_size == 0))
-        return;
-
-    // TODO Allocate a single memory, then bind vertex & index buffer to it
-    if (mVertex.count != draw_data->TotalVtxCount)
-    {
-        if (mVertex.buffer.mBuffer != VK_NULL_HANDLE)
-        {
-            mVertex.buffer.deallocate();
-        }
-        mVertex.buffer.allocate(vertex_buffer_size);
-        mVertex.count = draw_data->TotalVtxCount;
-
-        ScopedBufferMapping<ImDrawVert> mapping(mVertex.buffer);
-        ImDrawVert* mapped_memory = mapping.mMappedMemory;
-        for(auto idx = 0, count = draw_data->CmdListsCount; idx < count; ++idx)
-        {
-            const ImDrawList* draw_list = draw_data->CmdLists[idx];
-            std::copy(
-                draw_list->VtxBuffer.Data, std::next(draw_list->VtxBuffer.Data, draw_list->VtxBuffer.Size),
-                mapped_memory
-            );
-            mapped_memory += draw_list->VtxBuffer.Size;
-        }
-        const VkMappedMemoryRange range{
-            .sType  = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
-            .pNext  = nullptr,
-            .memory = mVertex.buffer.mMemory,
-            .offset = 0,
-            .size   = VK_WHOLE_SIZE
-        };
-        vkFlushMappedMemoryRanges(mDevice, 1, &range);
-    }
-    if (mIndex.count != draw_data->TotalIdxCount)
-    {
-        if (mIndex.buffer.mBuffer != VK_NULL_HANDLE)
-        {
-            mIndex.buffer.deallocate();
-        }
-        // TODO NYI reallocate
-        mIndex.buffer.allocate(index_buffer_size);
-        mIndex.count = draw_data->TotalIdxCount;
-
-        ScopedBufferMapping<ImDrawIdx> mapping(mIndex.buffer);
-        ImDrawIdx* mapped_memory = mapping.mMappedMemory;
-        for(auto idx = 0, count = draw_data->CmdListsCount; idx < count; ++idx)
-        {
-            const ImDrawList* draw_list = draw_data->CmdLists[idx];
-            std::copy(
-                draw_list->IdxBuffer.Data, std::next(draw_list->IdxBuffer.Data, draw_list->IdxBuffer.Size),
-                mapped_memory
-            );
-            mapped_memory += draw_list->IdxBuffer.Size;
-        }
-
-        const VkMappedMemoryRange range{
-            .sType  = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
-            .pNext  = nullptr,
-            .memory = mIndex.buffer.mMemory,
-            .offset = 0,
-            .size   = VK_WHOLE_SIZE
-        };
-        vkFlushMappedMemoryRanges(mDevice, 1, &range);
-    }
-}
-
-void VulkanDearImGui::render_frame(VulkanSurface& surface)
-{
-    auto tick_start = std::chrono::high_resolution_clock::now();
-
-    // TODO Veiw updated
-
-    render(surface);
-    ++mBenchmark.frame_counter;
-
-    auto tick_end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration<double, std::milli>(tick_end - tick_start).count();
-    mBenchmark.frame_timer = static_cast<float>(duration / 1000.f);
-
-    // TODO Camera
-    // TODO Animation timer
-
-    float fps_timer = static_cast<float>(std::chrono::duration<double, std::milli>(tick_end - mBenchmark.frame_tick).count());
-    if (fps_timer > 1e3f)
-    {
-        mBenchmark.frame_per_seconds = static_cast<std::uint32_t>(mBenchmark.frame_counter * (1000.f / fps_timer));
-        // std::cout << "FPS update: " << mBenchmark.frame_per_seconds << std::endl;
-        mBenchmark.frame_counter = 0;
-        mBenchmark.frame_tick = tick_end;
-    }
-}
-
-void VulkanDearImGui::render(VulkanSurface& surface)
-{
-    ImGuiIO& io = ImGui::GetIO();
-
-    io.DisplaySize = ImVec2(surface.mResolution.width, surface.mResolution.height);
-    io.DeltaTime   = mBenchmark.frame_timer;
-
-    // NOTE
-    //  - [ ] the application must use a synchronization primitive to ensure that the presentation engine has finished reading from the image
-    //  - [ ] The application can then transition the image’s layout
-    //  - [ ] queue rendering commands to it
-    //  - [ ] etc
-    //  - [ ] Finally, the application presents the image with vkQueuePresentKHR, which releases the acquisition of the image.
-    //  cf. https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/html/vkspec.html#_wsi_swapchain
-
-    VkResult result_acquire = VK_SUCCESS;
-    VkResult result_present = VK_SUCCESS;
-    {
-        const ScopedPresentableImage scoped_presentable_image(surface, result_acquire, result_present);
-        if (result_acquire == VK_ERROR_OUT_OF_DATE_KHR)
-        {
-            invalidate_surface(surface);
-        }
-        else if (result_acquire == VK_SUBOPTIMAL_KHR)
-        {
-            invalidate_surface(surface);
-        }
-        else
-        {
-            CHECK(result_acquire);
-        }
-
-        // NOTE Done after in case, Swap Chain re-generated
-        build_imgui_command_buffers(surface, scoped_presentable_image.mIndex);
-        // build_imgui_command_buffers(surface);
-
-        surface.submit(scoped_presentable_image.mIndex);
-    }
-    CHECK(result_present);
-    if (result_present == VK_ERROR_OUT_OF_DATE_KHR)
-    {
-        invalidate_surface(surface);
-    }
-    else if (result_present == VK_SUBOPTIMAL_KHR)
-    {
-        invalidate_surface(surface);
-    }
-    else
-    {
-        CHECK(result_present);
-    }
-
-    // NOTE Can we avoid blocking ?
-    CHECK(vkQueueWaitIdle(surface.mQueue));
-
-    // TODO Animated Lights
-    // if (mUI.animated_lights)
-    //     (void);
-}
-
-void VulkanDearImGui::invalidate_surface(VulkanSurface& surface)
-{
-    // Ensure all operations on the device have been finished before destroying resources
-    vkDeviceWaitIdle(mDevice);
-
-    // Recreate swap chain
-    surface.generate_swapchain();
-
-    // Recreate Depth
-    vkDestroyImageView(mDevice, mDepth.view, nullptr);
-    vkDestroyImage(mDevice, mDepth.image, nullptr);
-    vkFreeMemory(mDevice, mDepth.memory, nullptr);
-    setup_depth(surface.mResolution, mDepth.format);
-
-    // Recreate Framebuffers
-    for (auto&& framebuffer : mFrameBuffers)
-        vkDestroyFramebuffer(mDevice, framebuffer, nullptr);
-    {
-        std::vector<VkImageView> color_views;
-        color_views.reserve(surface.mBuffers.size());
-        for (auto&& buffer : surface.mBuffers)
-            color_views.push_back(buffer.view);
-        setup_framebuffers(surface.mResolution, color_views);
-    }
-
-    // Ensure all operations have completed before going further
-    vkDeviceWaitIdle(mDevice);
 }

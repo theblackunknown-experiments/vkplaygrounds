@@ -8,6 +8,8 @@
 #include <cassert>
 #include <string_view>
 
+#include "./vulkandebug.hpp"
+
 struct VulkanPhysicalDeviceBase
 {
     explicit VulkanPhysicalDeviceBase(const VkPhysicalDevice& physical_device)

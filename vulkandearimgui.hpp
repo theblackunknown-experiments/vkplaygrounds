@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <chrono>
 #include <vector>
 #include <cinttypes>
 #include <initializer_list>
@@ -33,6 +34,8 @@ struct VulkanDearImGui
         const VkDevice& device);
     ~VulkanDearImGui();
 
+    // Setup
+
     void setup_font();
     void setup_depth(const VkExtent2D& dimension, VkFormat depth_format);
     void setup_queues(std::uint32_t family_index);
@@ -44,14 +47,20 @@ struct VulkanDearImGui
 
     void invalidate_surface(VulkanSurface& surface);
 
-    void update_imgui_draw_data();
+    // ImGui Frame
 
-    void new_frame(bool update_frame_times = false);
+    void declare_imgui_frame(bool update_frame_times = false);
 
+    // Rendering
+
+    void upload_imgui_frame_data();
     void render(VulkanSurface& surface);
     void render_frame(VulkanSurface& surface);
-    void build_imgui_command_buffers(VulkanSurface& surface, std::uint32_t index);
-    void build_imgui_command_buffer(VkCommandBuffer);
+
+    // Command Buffers
+
+    void record_presentableimage_commandbuffer(VulkanSurface& surface, std::uint32_t index);
+    void record_presentableimage_commandbuffer_imgui(VkCommandBuffer);
 
     VkInstance       mInstance        = VK_NULL_HANDLE;
     VkPhysicalDevice mPhysicalDevice  = VK_NULL_HANDLE;
@@ -95,13 +104,15 @@ struct VulkanDearImGui
     VkPipelineLayout           mPipelineLayout         = VK_NULL_HANDLE;
     VkPipeline                 mPipeline               = VK_NULL_HANDLE;
 
+    using clock_type_t = std::chrono::high_resolution_clock;
+
     // UI & Misc settings
     struct Benchmark {
         // Frame counter to display fps
-        std::uint32_t                                  frame_counter = 0;
-        std::uint32_t                                  frame_per_seconds = 0;
-        float                                          frame_timer = 1.0f;
-        std::chrono::high_resolution_clock::time_point frame_tick;
+        std::uint32_t            frame_counter = 0;
+        std::uint32_t            frame_per_seconds = 0;
+        float                    frame_timer = 1.0f;
+        clock_type_t::time_point frame_tick;
     } mBenchmark;
 
     struct UI {

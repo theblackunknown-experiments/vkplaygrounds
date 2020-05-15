@@ -45,7 +45,7 @@ namespace
             PostQuitMessage(0);
             break;
         // case WM_PAINT:
-        //     ValidateRect(window, NULL);
+        //     ValidateRect(hWnd, NULL);
         //     break;
         // case WM_KEYDOWN:
         //     switch (wParam)

@@ -115,8 +115,12 @@ target_sources(sample-imgui
         vulkansurface.cpp
         vulkanbuffer.hpp
         vulkanbuffer.cpp
+
         vulkandearimgui.hpp
         vulkandearimgui.cpp
+        vulkandearimgui_rendering.cpp
+        vulkandearimgui_imguiframe.cpp
+
         "${CMAKE_BINARY_DIR}/ui.vertex.hpp"
         "${CMAKE_BINARY_DIR}/ui.fragment.hpp"
         "${CMAKE_CURRENT_BINARY_DIR}/font.hpp"
@@ -179,7 +183,6 @@ target_compile_definitions(sample-imgui
         >
         IMGUI_DISABLE_OBSOLETE_FUNCTIONS
 )
-
 target_link_libraries(sample-imgui
     PRIVATE
         unofficial-imgui::imgui
