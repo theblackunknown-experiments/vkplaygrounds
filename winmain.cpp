@@ -48,9 +48,9 @@ namespace
             // TODO Should I re-rendeer the next swapchain frame ?
             ValidateRect(hWnd, NULL);
             break;
-        // case WM_KEYDOWN:
-        //     switch (wParam)
-        //     {
+        case WM_KEYDOWN:
+            switch (wParam)
+            {
         //     case KEY_P:
         //         paused = !paused;
         //         break;
@@ -59,10 +59,10 @@ namespace
         //             UIOverlay.visible = !UIOverlay.visible;
         //         }
         //         break;
-        //     case KEY_ESCAPE:
-        //         PostQuitMessage(0);
-        //         break;
-        //     }
+            case VK_ESCAPE:
+                PostQuitMessage(0);
+                break;
+            }
 
         //     if (camera.firstperson)
         //     {
@@ -84,7 +84,7 @@ namespace
         //     }
 
         //     keyPressed((uint32_t)wParam);
-        //     break;
+            break;
         // case WM_KEYUP:
         //     if (camera.firstperson)
         //     {
