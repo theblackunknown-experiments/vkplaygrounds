@@ -403,6 +403,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     }
 
     vkDeviceWaitIdle(vkdevice);
+    FreeConsole();
 
     return static_cast<int>(msg.wParam);
 }
