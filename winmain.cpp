@@ -27,7 +27,7 @@
 namespace
 {
     constexpr const VkExtent2D kDimension = { 1280, 720 };
-    constexpr const bool       kVSync = false;
+    constexpr const bool       kVSync = true;
 
     bool sResizing = false;
     VulkanSurface* sSurface = nullptr;
@@ -35,8 +35,6 @@ namespace
 
     LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     {
-        // sApplication->handleMessages(hWnd, uMsg, wParam, lParam);
-
         switch (uMsg)
         {
         case WM_CLOSE:
