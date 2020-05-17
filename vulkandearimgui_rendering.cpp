@@ -118,15 +118,7 @@ void VulkanDearImGui::render(VulkanSurface& surface)
     io.DisplaySize = ImVec2(surface.mResolution.width, surface.mResolution.height);
     io.DeltaTime   = mBenchmark.frame_timer;
 
-    // NOTE
-    //  - [ ] the application must use a synchronization primitive to ensure that the presentation engine has finished reading from the image
-    //  - [ ] The application can then transition the image’s layout
-    //  - [ ] queue rendering commands to it
-    //  - [ ] etc
-    //  - [ ] Finally, the application presents the image with vkQueuePresentKHR, which releases the acquisition of the image.
-    //  cf. https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/html/vkspec.html#_wsi_swapchain
-
-    {
+    {// Acquire / Record / Submit / Present
         std::uint32_t index = 0;
         {// Acquire
             const VkResult result_acquire = vkAcquireNextImageKHR(
@@ -183,7 +175,8 @@ void VulkanDearImGui::render(VulkanSurface& surface)
         }
     }
 
-    // NOTE Can we avoid blocking ?
+    // NOTE We block to avoid override something in use (e.g. surface indexed VkCommandBuffer)
+    // TODO Block per command buffer, instead of a global lock for all of them
     CHECK(vkQueueWaitIdle(surface.mQueue));
 
     // TODO Animated Lights
