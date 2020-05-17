@@ -59,16 +59,16 @@ struct VulkanDearImGui
 
     // Command Buffers
 
-    void record_presentableimage_commandbuffer(VulkanSurface& surface, std::uint32_t index);
-    void record_presentableimage_commandbuffer_imgui(VkCommandBuffer);
+    void update_surface_commandbuffer(VulkanSurface& surface, std::uint32_t index);
+    void record_commandbuffer_imgui(VkCommandBuffer);
 
     VkInstance       mInstance        = VK_NULL_HANDLE;
     VkPhysicalDevice mPhysicalDevice  = VK_NULL_HANDLE;
     VkDevice         mDevice          = VK_NULL_HANDLE;
     ImGuiContext*    mContext         = nullptr;
 
-    VkQueue              mQueue                    = VK_NULL_HANDLE;
-    VkCommandPool        mCommandPool              = VK_NULL_HANDLE;
+    VkQueue          mQueue           = VK_NULL_HANDLE;
+    VkCommandPool    mCommandPool     = VK_NULL_HANDLE;
 
     struct
     {

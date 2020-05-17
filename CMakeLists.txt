@@ -103,7 +103,6 @@ target_sources(sample-imgui
         vulkanqueuemixin.hpp
 
         vulkanscopedbuffermapping.hpp
-        vulkanscopedpresentableimage.hpp
 
         vulkanapplication.hpp
         vulkanapplication.cpp

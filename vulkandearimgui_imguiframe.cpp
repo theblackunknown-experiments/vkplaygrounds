@@ -55,9 +55,9 @@ void VulkanDearImGui::declare_imgui_frame(bool update_frame_times)
         ImVec2(0, 80)
     );
 
-    ImGui::Text("Camera");
-    ImGui::InputFloat3("position", mCamera.position, "%.2f");
-    ImGui::InputFloat3("rotation", mCamera.rotation, "%.2f");
+    // ImGui::Text("Camera");
+    // ImGui::InputFloat3("position", mCamera.position, "%.2f");
+    // ImGui::InputFloat3("rotation", mCamera.rotation, "%.2f");
 
     // ImGui::SetNextWindowSize(ImVec2(200, 200), ImGuiCond_FirstUseEver);
     // ImGui::Begin("Example Settings");

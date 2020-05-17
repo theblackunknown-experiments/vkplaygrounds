@@ -44,9 +44,10 @@ namespace
             DestroyWindow(hWnd);
             PostQuitMessage(0);
             break;
-        // case WM_PAINT:
-        //     ValidateRect(hWnd, NULL);
-        //     break;
+        case WM_PAINT:
+            // TODO Should I re-rendeer the next swapchain frame ?
+            ValidateRect(hWnd, NULL);
+            break;
         // case WM_KEYDOWN:
         //     switch (wParam)
         //     {

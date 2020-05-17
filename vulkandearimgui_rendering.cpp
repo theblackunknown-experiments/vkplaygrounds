@@ -3,6 +3,7 @@
 #include <imgui.h>
 
 #include <chrono>
+#include <limits>
 #include <iterator>
 #include <algorithm>
 
@@ -13,7 +14,6 @@
 #include "./vulkanbuffer.hpp"
 #include "./vulkansurface.hpp"
 #include "./vulkanscopedbuffermapping.hpp"
-#include "./vulkanscopedpresentableimage.hpp"
 
 #include "./vulkandearimgui.hpp"
 
@@ -89,7 +89,7 @@ void VulkanDearImGui::render_frame(VulkanSurface& surface)
 {
     auto tick_start = clock_type_t::now();
 
-    // TODO Veiw updated
+    // TODO View updated
 
     render(surface);
     ++mBenchmark.frame_counter;
@@ -126,40 +126,61 @@ void VulkanDearImGui::render(VulkanSurface& surface)
     //  - [ ] Finally, the application presents the image with vkQueuePresentKHR, which releases the acquisition of the image.
     //  cf. https://www.khronos.org/registry/vulkan/specs/1.0-wsi_extensions/html/vkspec.html#_wsi_swapchain
 
-    VkResult result_acquire = VK_SUCCESS;
-    VkResult result_present = VK_SUCCESS;
     {
-        const ScopedPresentableImage scoped_presentable_image(surface, result_acquire, result_present);
-        if (result_acquire == VK_ERROR_OUT_OF_DATE_KHR)
-        {
-            invalidate_surface(surface);
-        }
-        else if (result_acquire == VK_SUBOPTIMAL_KHR)
-        {
-            invalidate_surface(surface);
-        }
-        else
-        {
-            CHECK(result_acquire);
+        std::uint32_t index = 0;
+        {// Acquire
+            const VkResult result_acquire = vkAcquireNextImageKHR(
+                surface.mDevice,
+                surface.mSwapChain,
+                std::numeric_limits<std::uint64_t>::max(),
+                surface.mSemaphorePresentComplete,
+                VK_NULL_HANDLE,
+                &index
+            );
+            if (result_acquire == VK_ERROR_OUT_OF_DATE_KHR)
+            {
+                invalidate_surface(surface);
+            }
+            else if (result_acquire == VK_SUBOPTIMAL_KHR)
+            {
+                invalidate_surface(surface);
+            }
+            else
+            {
+                CHECK(result_acquire);
+            }
         }
 
         // NOTE Done after in case, Swap Chain re-generated
-        record_presentableimage_commandbuffer(surface, scoped_presentable_image.mIndex);
+        update_surface_commandbuffer(surface, index);
 
-        surface.submit(scoped_presentable_image.mIndex);
-    }
-    CHECK(result_present);
-    if (result_present == VK_ERROR_OUT_OF_DATE_KHR)
-    {
-        invalidate_surface(surface);
-    }
-    else if (result_present == VK_SUBOPTIMAL_KHR)
-    {
-        invalidate_surface(surface);
-    }
-    else
-    {
-        CHECK(result_present);
+        surface.submit(index);
+        {// Present
+            const VkPresentInfoKHR info{
+                .sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+                .pNext              = nullptr,
+                .waitSemaphoreCount = 1,
+                .pWaitSemaphores    = &surface.mSemaphoreRenderComplete,
+                .swapchainCount     = 1,
+                .pSwapchains        = &surface.mSwapChain,
+                .pImageIndices      = &index,
+                .pResults           = nullptr,
+            };
+            const VkResult result_present = vkQueuePresentKHR(surface.mQueue, &info);
+            CHECK(result_present);
+            if (result_present == VK_ERROR_OUT_OF_DATE_KHR)
+            {
+                invalidate_surface(surface);
+            }
+            else if (result_present == VK_SUBOPTIMAL_KHR)
+            {
+                invalidate_surface(surface);
+            }
+            else
+            {
+                CHECK(result_present);
+            }
+        }
     }
 
     // NOTE Can we avoid blocking ?
@@ -170,15 +191,8 @@ void VulkanDearImGui::render(VulkanSurface& surface)
     //     (void);
 }
 
-void VulkanDearImGui::record_presentableimage_commandbuffer(VulkanSurface& surface, std::uint32_t idx)
+void VulkanDearImGui::update_surface_commandbuffer(VulkanSurface& surface, std::uint32_t idx)
 {
-    const VkCommandBufferBeginInfo info_cmdbuffer{
-        .sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        .pNext            = nullptr,
-        .flags            = 0,
-        .pInheritanceInfo = nullptr,
-    };
-
     const VkClearValue clear_values[] = {
         VkClearValue{
             .color = VkClearColorValue{
@@ -193,21 +207,6 @@ void VulkanDearImGui::record_presentableimage_commandbuffer(VulkanSurface& surfa
         }
     };
 
-    VkRenderPassBeginInfo info_renderpassbegin{
-        .sType            = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-        .pNext            = nullptr,
-        .renderPass       = mRenderPass,
-        .framebuffer      = VK_NULL_HANDLE,
-        .renderArea       = VkRect2D{
-            .offset = VkOffset2D{
-                .x = 0,
-                .y = 0,
-            },
-            .extent = surface.mResolution
-        },
-        .clearValueCount  = sizeof(clear_values) / sizeof(clear_values[0]),
-        .pClearValues     = clear_values,
-    };
 
     const VkViewport viewport{
         .x        = 0.0f,
@@ -229,65 +228,47 @@ void VulkanDearImGui::record_presentableimage_commandbuffer(VulkanSurface& surfa
     declare_imgui_frame(mBenchmark.frame_counter == 0);
     upload_imgui_frame_data();
 
-    {
-        VkFramebuffer   framebuffer = mFrameBuffers.at(idx);
-        VkCommandBuffer cmdbuffer   = surface.mCommandBuffers.at(idx);
+    {// Command Buffer
+        VkCommandBuffer cmdbuffer = surface.mCommandBuffers.at(idx);
+        {// Begin
+            const VkCommandBufferBeginInfo info{
+                .sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+                .pNext            = nullptr,
+                .flags            = 0,
+                .pInheritanceInfo = nullptr,
+            };
+            CHECK(vkBeginCommandBuffer(cmdbuffer, &info));
+        }
+        {// Render Pass - ImGui - Begin
+            const VkRenderPassBeginInfo info{
+                .sType            = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+                .pNext            = nullptr,
+                .renderPass       = mRenderPass,
+                .framebuffer      = mFrameBuffers.at(idx),
+                .renderArea       = VkRect2D{
+                    .offset = VkOffset2D{
+                        .x = 0,
+                        .y = 0,
+                    },
+                    .extent = surface.mResolution
+                },
+                .clearValueCount  = sizeof(clear_values) / sizeof(clear_values[0]),
+                .pClearValues     = clear_values,
+            };
+            vkCmdBeginRenderPass(cmdbuffer, &info, VK_SUBPASS_CONTENTS_INLINE);
+        }
+        record_commandbuffer_imgui(cmdbuffer);
+        {// Render Pass - ImGui - End
+            vkCmdEndRenderPass(cmdbuffer);
+        }
+        {// End
+            CHECK(vkEndCommandBuffer(cmdbuffer));
+        }
 
-        info_renderpassbegin.framebuffer = framebuffer;
-
-        CHECK(vkBeginCommandBuffer(cmdbuffer, &info_cmdbuffer));
-
-        vkCmdBeginRenderPass(cmdbuffer, &info_renderpassbegin, VK_SUBPASS_CONTENTS_INLINE);
-
-        vkCmdSetViewport(cmdbuffer, 0, 1, &viewport);
-        vkCmdSetScissor(cmdbuffer, 0, 1, &scissor);
-
-        vkCmdBindDescriptorSets(
-            cmdbuffer,
-            VK_PIPELINE_BIND_POINT_GRAPHICS,
-            mPipelineLayout,
-            0, 1, &mDescriptorSet,
-            0, nullptr
-        );
-        vkCmdBindPipeline(cmdbuffer,
-            VK_PIPELINE_BIND_POINT_GRAPHICS,
-            mPipeline
-        );
-
-        constexpr const VkDeviceSize offset = 0;
-        // TODO
-        // if (mUI.background)
-        // {
-        //     vkCmdBindVertexBuffers(cmdbuffer, 0, 1, &mModels.background.vertices.mBuffer, &offset);
-        //     vkCmdBindIndexBuffer(cmdbuffer, &mModels.background.indices.mBuffer, 0, VK_INDEX_TYPE_UINT32);
-        //     vkCmdDrawIndexed(cmdbuffer, &mModels.background.indexCount, 1, 0, 0, 0);
-        // }
-
-        // TODO
-        // if (mUI.models)
-        // {
-        //     vkCmdBindVertexBuffers(cmdbuffer, 0, 1, &mModels.models.vertices.mBuffer, &offset);
-        //     vkCmdBindIndexBuffer(cmdbuffer, &mModels.models.indices.mBuffer, 0, VK_INDEX_TYPE_UINT32);
-        //     vkCmdDrawIndexed(cmdbuffer, &mModels.models.indexCount, 1, 0, 0, 0);
-        // }
-
-        // TODO
-        // if (mUI.logos)
-        // {
-        //     vkCmdBindVertexBuffers(cmdbuffer, 0, 1, &mModels.logos.vertices.mBuffer, &offset);
-        //     vkCmdBindIndexBuffer(cmdbuffer, &mModels.logos.indices.mBuffer, 0, VK_INDEX_TYPE_UINT32);
-        //     vkCmdDrawIndexed(cmdbuffer, &mModels.logos.indexCount, 1, 0, 0, 0);
-        // }
-
-        record_presentableimage_commandbuffer_imgui(cmdbuffer);
-
-        vkCmdEndRenderPass(cmdbuffer);
-
-        CHECK(vkEndCommandBuffer(cmdbuffer));
     }
 }
 
-void VulkanDearImGui::record_presentableimage_commandbuffer_imgui(VkCommandBuffer cmdbuffer)
+void VulkanDearImGui::record_commandbuffer_imgui(VkCommandBuffer cmdbuffer)
 {
     const ImDrawData* data = ImGui::GetDrawData();
 
