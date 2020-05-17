@@ -155,11 +155,15 @@ namespace
         //     viewUpdated = true;
         //     break;
         // }
-        // case WM_MOUSEMOVE:
-        // {
-        //     handleMouseMove(LOWORD(lParam), HIWORD(lParam));
-        //     break;
-        // }
+        case WM_MOUSEMOVE:
+        {
+            if (!sDearImGui)
+                break;
+
+            sDearImGui->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
+            sDearImGui->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
+            break;
+        }
         case WM_SIZE:
             if (wParam != SIZE_MINIMIZED)
             {
