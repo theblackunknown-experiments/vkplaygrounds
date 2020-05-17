@@ -124,7 +124,7 @@ struct VulkanDearImGui
         float                 light_timer     = 0.0f;
         float                 frame_time_min  = 9999.0f;
         float                 frame_time_max  = 0.0f;
-        std::array<float, 10> frame_times     = {};
+        std::array<float, 50> frame_times     = {};
     } mUI;
 
     struct Mouse {

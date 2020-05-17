@@ -38,11 +38,9 @@ void VulkanDearImGui::declare_imgui_frame(bool update_frame_times)
         //     std::ostream_iterator<float>(std::cout, ", ")
         // );
         // std::cout << std::endl;
-        if (frame_time < mUI.frame_time_min)
-            mUI.frame_time_min = frame_time;
-        if (frame_time > mUI.frame_time_max)
-            mUI.frame_time_max = frame_time;
-
+        auto [find_min, find_max] = std::minmax_element(std::begin(mUI.frame_times), std::end(mUI.frame_times));
+        mUI.frame_time_min = *find_min;
+        mUI.frame_time_max = *find_max;
     }
 
     ImGui::PlotLines(
