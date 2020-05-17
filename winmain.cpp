@@ -43,7 +43,13 @@ namespace
             PostQuitMessage(0);
             break;
         case WM_PAINT:
-            // TODO Should I re-rendeer the next swapchain frame ?
+            if (!sDearImGui)
+                break;
+
+            if (!sSurface)
+                break;
+
+            sDearImGui->render_frame(*sSurface);
             ValidateRect(hWnd, NULL);
             break;
         case WM_KEYDOWN:
