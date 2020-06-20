@@ -51,7 +51,7 @@
                     "name": "devenv - Debug - sample-imgui.exe"
                 }
             ],
-            "working_dir": "C:/builds/blk-playgrounds"
+            "working_dir": "C:/builds/vkplaygrounds"
         }
     ],
     "folders":
@@ -60,7 +60,7 @@
             "path": "."
         },
         {
-            "path": "C:/builds/blk-playgrounds"
+            "path": "C:/builds/vkplaygrounds"
         },
         {
             "path": "../vcpkg/installed/x64-windows"
