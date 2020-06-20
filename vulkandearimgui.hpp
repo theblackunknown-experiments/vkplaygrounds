@@ -1,12 +1,13 @@
 #pragma once
 
+#include <span>
 #include <array>
 #include <chrono>
 #include <vector>
 #include <cinttypes>
 #include <initializer_list>
 
-#include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
 
 class ImGuiContext;
 
@@ -14,7 +15,6 @@ class ImGuiContext;
 
 #include "vulkanbuffer.hpp"
 
-#include "vulkaninstancemixin.hpp"
 #include "vulkanphysicaldevicemixin.hpp"
 #include "vulkandevicemixin.hpp"
 #include "vulkanqueuemixin.hpp"
@@ -22,17 +22,16 @@ class ImGuiContext;
 struct VulkanSurface;
 
 struct VulkanDearImGui
-    : public VulkanInstanceMixin<VulkanDearImGui>
-    , public VulkanPhysicalDeviceBase
-    , public VulkanPhysicalDeviceMixin<VulkanDearImGui>
-    , public VulkanDeviceMixin<VulkanDearImGui>
-    , public VulkanQueueMixin<VulkanDearImGui>
 {
     explicit VulkanDearImGui(
-        const VkInstance& instance,
         const VkPhysicalDevice& physical_device,
-        const VkDevice& device);
+        std::uint32_t queue_family_index,
+        std::uint32_t queue_count
+    );
     ~VulkanDearImGui();
+
+    static
+    std::tuple<VkPhysicalDevice, std::uint32_t, std::uint32_t> requirements(const std::span<VkPhysicalDevice>& vkphysicaldevices);
 
     // Setup
 
@@ -62,13 +61,22 @@ struct VulkanDearImGui
     void update_surface_commandbuffer(VulkanSurface& surface, std::uint32_t index);
     void record_commandbuffer_imgui(VkCommandBuffer);
 
-    VkInstance       mInstance        = VK_NULL_HANDLE;
-    VkPhysicalDevice mPhysicalDevice  = VK_NULL_HANDLE;
-    VkDevice         mDevice          = VK_NULL_HANDLE;
-    ImGuiContext*    mContext         = nullptr;
+    // States
 
-    VkQueue          mQueue           = VK_NULL_HANDLE;
-    VkCommandPool    mCommandPool     = VK_NULL_HANDLE;
+    VkPhysicalDevice                     mPhysicalDevice  = VK_NULL_HANDLE;
+
+    VkPhysicalDeviceFeatures             mFeatures;
+    VkPhysicalDeviceProperties           mProperties;
+    VkPhysicalDeviceMemoryProperties     mMemoryProperties;
+    std::vector<VkQueueFamilyProperties> mQueueFamiliesProperties;
+    std::vector<VkExtensionProperties>   mExtensions;
+
+    std::uint32_t                        mQueueFamilyIndex;
+    VkDevice                             mDevice          = VK_NULL_HANDLE;
+    VkQueue                              mQueue           = VK_NULL_HANDLE;
+    VkCommandPool                        mCommandPool     = VK_NULL_HANDLE;
+
+    ImGuiContext*    mContext         = nullptr;
 
     struct
     {
@@ -146,12 +154,8 @@ struct VulkanDearImGui
         float rotation[3];
     } mCamera;
 
-    struct {
-        std::uint32_t  count = 0u;
-        VulkanBuffer   buffer;
-    } mVertex;
-    struct {
-        std::uint32_t  count = 0u;
-        VulkanBuffer   buffer;
-    } mIndex;
+    std::uint32_t  mIndexCount  = 0u;
+    std::uint32_t  mVertexCount = 0u;
+    VulkanBuffer   mIndexBuffer;
+    VulkanBuffer   mVertexBuffer;
 };

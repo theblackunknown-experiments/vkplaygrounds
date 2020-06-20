@@ -10,7 +10,7 @@
 
 #include "./vulkandebug.hpp"
 
-struct VulkanPhysicalDeviceBase
+struct [[deprecated("VulkanPhysicalDeviceBase -> VulkanPhysicalDeviceInformation")]] VulkanPhysicalDeviceBase
 {
     explicit VulkanPhysicalDeviceBase(const VkPhysicalDevice& physical_device)
     {

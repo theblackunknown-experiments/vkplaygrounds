@@ -13,6 +13,7 @@
 template<typename Base>
 struct VulkanDeviceMixin
 {
+    [[nodiscard]]
     VkCommandBuffer create_command_buffer(VkCommandPool cmdpool, VkCommandBufferLevel level)
     {
         const Base& that = static_cast<const Base&>(*this);
@@ -65,6 +66,8 @@ struct VulkanDeviceMixin
 
         return result;
     }
+
+    [[nodiscard]]
     VkShaderModule load_shader(const std::filesystem::path& filepath)
     {
         const Base& that = static_cast<const Base&>(*this);

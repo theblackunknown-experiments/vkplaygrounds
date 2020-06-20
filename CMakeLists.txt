@@ -96,11 +96,7 @@ target_sources(sample-imgui
         vulkandevicebase.hpp
         vulkansurfacebase.hpp
 
-        vulkaninstancemixin.hpp
-        vulkanphysicaldevicemixin.hpp
-        vulkandevicemixin.hpp
-        vulkansurfacemixin.hpp
-        vulkanqueuemixin.hpp
+        vulkanutilities.hpp
 
         vulkanscopedbuffermapping.hpp
 
@@ -114,6 +110,12 @@ target_sources(sample-imgui
         vulkansurface.cpp
         vulkanbuffer.hpp
         vulkanbuffer.cpp
+
+        vulkangenerativeshader.hpp
+        vulkangenerativeshader.cpp
+
+        vulkanpresentation.hpp
+        vulkanpresentation.cpp
 
         vulkandearimgui.hpp
         vulkandearimgui.cpp

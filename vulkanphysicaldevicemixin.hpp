@@ -23,6 +23,7 @@ struct VulkanPhysicalDeviceMixin
         ) != std::end(that.mExtensions);
     }
 
+    [[nodiscard]]
     std::optional<std::uint32_t> get_memory_type(std::uint32_t type_bits, VkMemoryPropertyFlags flags) const
     {
         const Base& that = static_cast<const Base&>(*this);
@@ -36,122 +37,5 @@ struct VulkanPhysicalDeviceMixin
             }
         }
         return {};
-    }
-
-    std::optional<std::uint32_t> select_queue_family_index(VkQueueFlags requirements) const
-    {
-        const Base& that = static_cast<const Base&>(*this);
-        // Find a dedicated queue which match the requirement, or fallback on a compatible one
-        auto finder_dedicated = std::find_if(
-            std::begin(that.mQueueFamilies), std::end(that.mQueueFamilies),
-            [&requirements](const VkQueueFamilyProperties& p) {
-                if (requirements & VK_QUEUE_GRAPHICS_BIT)
-                {
-                    return (p.queueFlags & requirements)
-                        && ((p.queueFlags & VK_QUEUE_COMPUTE_BIT) == 0)
-                        && ((p.queueFlags & VK_QUEUE_TRANSFER_BIT) == 0);
-                }
-                else if (requirements & VK_QUEUE_COMPUTE_BIT)
-                {
-                    return (p.queueFlags & requirements)
-                        && ((p.queueFlags & VK_QUEUE_GRAPHICS_BIT) == 0)
-                        && ((p.queueFlags & VK_QUEUE_TRANSFER_BIT) == 0);
-                }
-                else if (requirements & VK_QUEUE_TRANSFER_BIT)
-                {
-                    return (p.queueFlags & requirements)
-                        && ((p.queueFlags & VK_QUEUE_GRAPHICS_BIT) == 0)
-                        && ((p.queueFlags & VK_QUEUE_COMPUTE_BIT) == 0);
-                }
-                else
-                {
-                    return false;
-                }
-            }
-        );
-        if (finder_dedicated == std::end(that.mQueueFamilies))
-        {
-            auto finder_compatible = std::find_if(
-                std::begin(that.mQueueFamilies), std::end(that.mQueueFamilies),
-                [&requirements](const VkQueueFamilyProperties& p) {
-                    return (p.queueFlags & requirements) == requirements;
-                }
-            );
-            finder_dedicated = finder_compatible;
-        }
-        if (finder_dedicated != std::end(that.mQueueFamilies))
-        {
-            return static_cast<std::uint32_t>(std::distance(std::begin(that.mQueueFamilies), finder_dedicated));
-        }
-        else
-        {
-            return { };
-        }
-    }
-
-    std::optional<std::uint32_t> select_surface_queue_family_index(VkSurfaceKHR surface) const
-    {
-        const Base& that = static_cast<const Base&>(*this);
-
-        std::uint32_t count = that.mQueueFamilies.size();
-        std::vector<VkBool32> supporteds(count);
-        std::optional<std::uint32_t> selected_queue;
-        for(std::uint32_t idx = 0; idx < count; ++idx)
-        {
-            VkBool32 supported;
-            CHECK(vkGetPhysicalDeviceSurfaceSupportKHR(that.mPhysicalDevice, idx, surface, &supported));
-            supporteds.at(idx) = supported;
-
-            const VkQueueFamilyProperties& p = that.mQueueFamilies.at(idx);
-            if((p.queueFlags & VK_QUEUE_GRAPHICS_BIT) && (supported == VK_TRUE))
-            {
-                selected_queue = idx;
-                break;
-            }
-        }
-        if(!selected_queue.has_value())
-        {
-            for(std::uint32_t idx = 0; idx < count; ++idx)
-            {
-                const VkBool32& supported = supporteds.at(idx);
-                if(supported == VK_TRUE)
-                {
-                    selected_queue = idx;
-                    break;
-                }
-            }
-        }
-        return selected_queue;
-    }
-
-    std::optional<VkFormat> select_best_depth_format() const
-    {
-        const Base& that = static_cast<const Base&>(*this);
-        // Depth Format
-        constexpr const VkFormat kDEPTH_FORMATS[] = {
-            VK_FORMAT_D32_SFLOAT_S8_UINT,
-            VK_FORMAT_D32_SFLOAT,
-            VK_FORMAT_D24_UNORM_S8_UINT,
-            VK_FORMAT_D16_UNORM_S8_UINT,
-            VK_FORMAT_D16_UNORM
-        };
-
-        auto finder_depth_format = std::find_if(
-            std::begin(kDEPTH_FORMATS), std::end(kDEPTH_FORMATS),
-            [&that](const VkFormat& f) {
-                VkFormatProperties properties;
-                vkGetPhysicalDeviceFormatProperties(that.mPhysicalDevice, f, &properties);
-                return properties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT;
-            }
-        );
-
-        if (finder_depth_format != std::end(kDEPTH_FORMATS))
-        {
-            return *finder_depth_format;
-        }
-        else
-        {
-            return { };
-        }
     }
 };

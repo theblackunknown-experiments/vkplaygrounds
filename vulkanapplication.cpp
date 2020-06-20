@@ -42,6 +42,46 @@ VulkanApplication::VulkanApplication()
             .engineVersion      = VK_MAKE_VERSION(0,0,0),
             .apiVersion         = VK_MAKE_VERSION(mVersion.major,mVersion.minor,mVersion.patch),
         };
+
+        // NOTE Un-comment if required
+        // constexpr const VkValidationCheckEXT kDisabledChecks[] = {
+        //     VK_VALIDATION_CHECK_ALL_EXT,
+        //     VK_VALIDATION_CHECK_SHADERS_EXT,
+        // };
+        // const VkValidationFlagsEXT info_validation_check{
+        //     .sType                        = VK_STRUCTURE_TYPE_VALIDATION_FLAGS_EXT,
+        //     .pNext                        = nullptr,
+        //     .disabledValidationCheckCount = sizeof(kDisabledChecks) / sizeof(*kDisabledChecks),
+        //     .pDisabledValidationChecks    = kDisabledChecks,
+        // };
+
+        constexpr const VkValidationFeatureEnableEXT kFeaturesEnabled[] = {
+            VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT,
+            VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT,
+            VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT,
+            // NOTE Cannot be used with VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT
+            // VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT,
+        };
+        // constexpr const VkValidationFeatureDisableEXT kFeaturesDisabled[] = {
+        //     VK_VALIDATION_FEATURE_DISABLE_ALL_EXT,
+        //     VK_VALIDATION_FEATURE_DISABLE_SHADERS_EXT,
+        //     VK_VALIDATION_FEATURE_DISABLE_THREAD_SAFETY_EXT,
+        //     VK_VALIDATION_FEATURE_DISABLE_API_PARAMETERS_EXT,
+        //     VK_VALIDATION_FEATURE_DISABLE_OBJECT_LIFETIMES_EXT,
+        //     VK_VALIDATION_FEATURE_DISABLE_CORE_CHECKS_EXT,
+        //     VK_VALIDATION_FEATURE_DISABLE_UNIQUE_HANDLES_EXT,
+        // };
+        const VkValidationFeaturesEXT info_validation_features{
+            .sType                          = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT,
+            .pNext                          = nullptr,
+            .enabledValidationFeatureCount  = sizeof(kFeaturesEnabled) / sizeof(*kFeaturesEnabled),
+            .pEnabledValidationFeatures     = kFeaturesEnabled,
+            // .disabledValidationFeatureCount = sizeof(kFeaturesDisabled) / sizeof(*kFeaturesDisabled),
+            // .pDisabledValidationFeatures    = kFeaturesDisabled,
+            .disabledValidationFeatureCount = 0,
+            .pDisabledValidationFeatures    = nullptr,
+        };
+
         // NOTE
         //  - https://www.lunarg.com/new-tutorial-for-vulkan-debug-utilities-extension/
         //  - https://www.lunarg.com/wp-content/uploads/2018/05/Vulkan-Debug-Utils_05_18_v1.pdf

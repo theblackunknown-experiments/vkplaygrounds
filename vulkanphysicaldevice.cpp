@@ -12,11 +12,33 @@
 
 #include "vulkanphysicaldevice.hpp"
 
+namespace
+{
+}
+
 VulkanPhysicalDevice::VulkanPhysicalDevice(const VkPhysicalDevice& physical_device)
     : VulkanPhysicalDeviceBase(physical_device)
     , VulkanPhysicalDeviceMixin()
     , mPhysicalDevice(physical_device)
 {
+    vkGetPhysicalDeviceFeatures(physical_device, &mFeatures);
+    vkGetPhysicalDeviceProperties(physical_device, &mProperties);
+    vkGetPhysicalDeviceMemoryProperties(physical_device, &mMemoryProperties);
+    {// Queue Family Properties
+        std::uint32_t count;
+        vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &count, nullptr);
+        assert(count > 0);
+        mQueueFamiliesProperties.resize(count);
+        vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &count, mQueueFamiliesProperties.data());
+    }
+    {// Extensions
+        std::uint32_t count;
+        CHECK(vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &count, nullptr));
+        mExtensions.resize(count);
+        CHECK(vkEnumerateDeviceExtensionProperties(physical_device, nullptr, &count, mExtensions.data()));
+    }
+
+    std::cout << "Device: " << DeviceType2Text(mProperties.deviceType) << std::endl;
     { // Version
         mVersion.major = VK_VERSION_MAJOR(mProperties.apiVersion);
         mVersion.minor = VK_VERSION_MINOR(mProperties.apiVersion);
