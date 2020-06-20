@@ -18,10 +18,11 @@
 #include <iostream>
 
 #include "./vulkandebug.hpp"
+#include "./vulkanutilities.hpp"
+
 #include "./vulkanapplication.hpp"
 #include "./vulkanphysicaldevice.hpp"
 #include "./vulkandevice.hpp"
-#include "./vulkansurface.hpp"
 
 #include "./vulkandearimgui.hpp"
 #include "./vulkanpresentation.hpp"
@@ -29,7 +30,7 @@
 
 namespace
 {
-    constexpr const VkExtent2D kDimension = { 1280, 720 };
+    constexpr const VkExtent2D kWindowExtent = { 1280, 720 };
     constexpr const bool       kVSync = true;
 
     bool sResizing = false;
@@ -119,8 +120,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         RECT window_rectange{
             .left   = 0,
             .top    = 0,
-            .right  = kDimension.width,
-            .bottom = kDimension.height,
+            .right  = kWindowExtent.width,
+            .bottom = kWindowExtent.height,
         };
         // WS_EX_OVERLAPPEDWINDOW
         DWORD window_style = WS_OVERLAPPEDWINDOW;
@@ -152,7 +153,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     // Application - Instance
 
     VulkanApplication application;
-    assert(application.has_extension(VK_KHR_WIN32_SURFACE_EXTENSION_NAME));
+    assert(has_extension(application.mExtensions, VK_KHR_WIN32_SURFACE_EXTENSION_NAME));
 
     // Surface
 
@@ -168,7 +169,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
     // Physical Devices
 
-    auto vkphysicaldevices = application.physical_devices();
+    auto vkphysicaldevices = physical_devices(application.mInstance);
     assert(vkphysicaldevices.size() > 0);
 
     // Requirements
@@ -180,34 +181,25 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     assert(vkphysicaldevice_dearimgui);
     assert(vkphysicaldevice_generativeshader);
 
-    VulkanDearImGui vkgenerativeshader(vkphysicaldevice_dearimgui, queue_family_index_dearimgui, queue_count_dearimgui);
-    VulkanGenerativeShader vkgenerativeshader(vkphysicaldevice_generativeshader, queue_family_index_generativeshader, queue_count_generativeshader);
+    VulkanDearImGui vkdearimgui(
+        vkphysicaldevice_dearimgui,
+        queue_family_index_dearimgui, queue_count_dearimgui
+    );
 
+    VulkanPresentation vkpresentation(
+        vkphysicaldevice_presentation,
+        queue_family_index_presentation, queue_count_presentation,
+        vksurface, kWindowExtent, kVSync
+    );
 
+    VulkanGenerativeShader vkgenerativeshader(
+        vkphysicaldevice_generativeshader,
+        queue_family_index_generativeshader, queue_count_generativeshader
+    );
 
-
-
-
-
+    #if 0
     VulkanDevice device(application.mInstance, vkphysicaldevice, vkdevice, queue_family_index);
 
-    VkSurfaceKHR vksurface = VK_NULL_HANDLE;
-    {// surface
-        VkWin32SurfaceCreateInfoKHR info_surface{
-            .sType     = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
-            .pNext     = nullptr,
-            .flags     = 0,
-            .hinstance = hInstance,
-            .hwnd      = hWindow,
-        };
-
-        VkResult err = vkCreateWin32SurfaceKHR(application.mInstance, &info_surface, nullptr, &vksurface);
-        assert(err == VK_SUCCESS);
-    }
-    assert(vksurface != VK_NULL_HANDLE);
-
-    VulkanSurface surface(application.mInstance, vkphysicaldevice, vkdevice, vksurface, kDimension, kVSync);
-    sSurface = &surface;
 
     // TODO Current limitation because we use a single device for now
     assert(queue_family_index == surface.mQueueFamilyIndex);
@@ -244,6 +236,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     imgui.setup_graphics_pipeline(surface.mResolution);
 
     imgui.mBenchmark.frame_tick = std::chrono::high_resolution_clock::now();
+    #endif
 
     MSG msg = { };
     while (msg.message != WM_QUIT)
@@ -253,19 +246,29 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
+        #if 0
         else if(!IsIconic(hWindow))
         // if(!IsIconic(hWindow))
         {
             imgui.render_frame(surface);
         }
+        #endif
     }
 
+    #if 0
     vkDeviceWaitIdle(vkdevice);
+    #endif
+    vkDestroySurfaceKHR(application.mInstance, vksurface, nullptr);
     FreeConsole();
 
     return static_cast<int>(msg.wParam);
 }
 
+LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+    return DefWindowProc(hWnd, uMsg, wParam, lParam);
+}
+#if 0
 LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     switch (uMsg)
@@ -441,3 +444,4 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     }
     return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
+#endif

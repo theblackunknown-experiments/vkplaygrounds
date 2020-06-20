@@ -3,11 +3,9 @@
 #include <vulkan/vulkan.h>
 
 #include "vulkanapplicationbase.hpp"
-#include "vulkaninstancemixin.hpp"
 
 struct VulkanApplication
     : public VulkanApplicationBase
-    , public VulkanInstanceMixin<VulkanApplication>
 {
     explicit VulkanApplication();
     ~VulkanApplication();
