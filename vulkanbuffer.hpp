@@ -4,10 +4,7 @@
 
 #include <vulkan/vulkan.h>
 
-#include "vulkanphysicaldevicemixin.hpp"
-
 struct VulkanBuffer
-    : public VulkanPhysicalDeviceMixin<VulkanBuffer>
 {
     VulkanBuffer(
         VkDevice device,

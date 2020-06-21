@@ -1,48 +1,59 @@
 #pragma once
 
-#include <span>
-#include <array>
-#include <chrono>
-#include <vector>
-#include <cinttypes>
-#include <initializer_list>
-
 #include <vulkan/vulkan_core.h>
+
+#include <cstddef>
+
+#include <span>
+#include <tuple>
+#include <array>
+#include <vector>
+#include <memory>
+
+#include <chrono>
 
 class ImGuiContext;
 
-#include "vulkanphysicaldevicebase.hpp"
-
 #include "vulkanbuffer.hpp"
 
-#include "vulkanphysicaldevicemixin.hpp"
-#include "vulkandevicemixin.hpp"
-#include "vulkanqueuemixin.hpp"
-
-struct VulkanSurface;
+struct VulkanPresentation;
 
 struct VulkanDearImGui
 {
     explicit VulkanDearImGui(
-        const VkPhysicalDevice& physical_device,
+        VkPhysicalDevice vkphysicaldevice,
+        VkDevice vkdevice,
         std::uint32_t queue_family_index,
-        std::uint32_t queue_count
+        const std::span<VkQueue>& vkqueues,
+        const VulkanPresentation*
     );
     ~VulkanDearImGui();
 
     static
-    std::tuple<VkPhysicalDevice, std::uint32_t, std::uint32_t> requirements(const std::span<VkPhysicalDevice>& vkphysicaldevices);
+    bool supports(VkPhysicalDevice vkphysicaldevice);
+
+    static
+    std::tuple<std::uint32_t, std::uint32_t> requirements(VkPhysicalDevice vkphysicaldevice);
 
     // Setup
 
-    void setup_font();
-    void setup_depth(const VkExtent2D& dimension, VkFormat depth_format);
-    void setup_queues(std::uint32_t family_index);
-    void setup_shaders();
-    void setup_descriptors();
-    void setup_render_pass(VkFormat color_format, VkFormat depth_format);
-    void setup_framebuffers(const VkExtent2D& dimension, const std::vector<VkImageView>& views);
-    void setup_graphics_pipeline(const VkExtent2D& dimension);
+    //      Fonts
+
+    [[nodiscard]]
+    std::tuple<VkBuffer, VkDeviceMemory> create_staging_font_buffer(VkDeviceSize size);
+
+    [[nodiscard]]
+    std::tuple<VkExtent2D, unsigned char *> get_font_data_8bits() const;
+
+    void destroy_staging_font_buffer(VkBuffer vkbuffer, VkDeviceMemory vkmemory);
+
+    void record_font_optimal_image(const VkExtent2D& extent, VkCommandBuffer cmdbuffer, VkBuffer staging);
+
+    //      Pipeline
+
+    void recreate_graphics_pipeline(const VkExtent2D& dimension);
+
+    #if 0
 
     void invalidate_surface(VulkanSurface& surface);
 
@@ -61,30 +72,24 @@ struct VulkanDearImGui
     void update_surface_commandbuffer(VulkanSurface& surface, std::uint32_t index);
     void record_commandbuffer_imgui(VkCommandBuffer);
 
+    #endif
+
     // States
 
     VkPhysicalDevice                     mPhysicalDevice  = VK_NULL_HANDLE;
+    std::uint32_t                        mQueueFamilyIndex;
+    VkDevice                             mDevice          = VK_NULL_HANDLE;
+    VkQueue                              mQueue           = VK_NULL_HANDLE;
+
+    const VulkanPresentation*            mPresentation    = nullptr;
+
+    ImGuiContext*                        mContext         = nullptr;
 
     VkPhysicalDeviceFeatures             mFeatures;
     VkPhysicalDeviceProperties           mProperties;
     VkPhysicalDeviceMemoryProperties     mMemoryProperties;
-    std::vector<VkQueueFamilyProperties> mQueueFamiliesProperties;
-    std::vector<VkExtensionProperties>   mExtensions;
 
-    std::uint32_t                        mQueueFamilyIndex;
-    VkDevice                             mDevice          = VK_NULL_HANDLE;
-    VkQueue                              mQueue           = VK_NULL_HANDLE;
     VkCommandPool                        mCommandPool     = VK_NULL_HANDLE;
-
-    ImGuiContext*    mContext         = nullptr;
-
-    struct
-    {
-        VkFormat       format = VK_FORMAT_UNDEFINED;
-        VkImage        image  = VK_NULL_HANDLE;
-        VkDeviceMemory memory = VK_NULL_HANDLE;
-        VkImageView    view   = VK_NULL_HANDLE;
-    } mDepth;
 
     struct {
         VkImage        image   = VK_NULL_HANDLE;
@@ -154,8 +159,8 @@ struct VulkanDearImGui
         float rotation[3];
     } mCamera;
 
-    std::uint32_t  mIndexCount  = 0u;
-    std::uint32_t  mVertexCount = 0u;
-    VulkanBuffer   mIndexBuffer;
-    VulkanBuffer   mVertexBuffer;
+    std::uint32_t                 mIndexCount  = 0u;
+    std::uint32_t                 mVertexCount = 0u;
+    std::unique_ptr<VulkanBuffer> mIndexBuffer;
+    std::unique_ptr<VulkanBuffer> mVertexBuffer;
 };

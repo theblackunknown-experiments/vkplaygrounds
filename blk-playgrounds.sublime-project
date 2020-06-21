@@ -66,10 +66,10 @@
             "path": "../vcpkg/installed/x64-windows"
         },
         {
-            "path": "C:/VulkanSDK/1.2.135.0/Demos"
+            "path": "C:/VulkanSDK/1.2.141.2/Demos"
         },
         {
-            "path": "C:/VulkanSDK/1.2.135.0/Include"
+            "path": "C:/VulkanSDK/1.2.141.2/Include"
         },
         {
             "path": "../SaschaWillemsVulkanExamples"

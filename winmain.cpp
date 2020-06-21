@@ -9,8 +9,10 @@
 
 #include <chrono>
 
-#include <vector>
+#include <map>
+#include <set>
 #include <string>
+#include <vector>
 
 #include <locale>
 #include <codecvt>
@@ -19,11 +21,11 @@
 
 #include "./vulkandebug.hpp"
 #include "./vulkanutilities.hpp"
+#include "./vulkanqueuefamilyindices.hpp"
 
 #include "./vulkanapplication.hpp"
-#include "./vulkanphysicaldevice.hpp"
-#include "./vulkandevice.hpp"
 
+#include "./vulkanengine.hpp"
 #include "./vulkandearimgui.hpp"
 #include "./vulkanpresentation.hpp"
 #include "./vulkangenerativeshader.hpp"
@@ -34,8 +36,8 @@ namespace
     constexpr const bool       kVSync = true;
 
     bool sResizing = false;
-    VulkanSurface* sSurface = nullptr;
-    VulkanDearImGui* sDearImGui = nullptr;
+    // VulkanSurface* sSurface = nullptr;
+    // VulkanDearImGui* sDearImGui = nullptr;
 }
 
 static
@@ -167,35 +169,350 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     VkSurfaceKHR vksurface;
     CHECK(vkCreateWin32SurfaceKHR(application.mInstance, &info_surface, nullptr, &vksurface));
 
-    // Physical Devices
+    VkPhysicalDevice                     vkphysicaldevice = VK_NULL_HANDLE;
+    VkPhysicalDeviceFeatures             vkfeatures;
+    VkPhysicalDeviceProperties           vkproperties;
+    VkPhysicalDeviceMemoryProperties     vkmemoryproperties;
+    std::vector<VkQueueFamilyProperties> vkqueuefamiliesproperties;
+    std::vector<VkExtensionProperties>   vkextensions;
 
-    auto vkphysicaldevices = physical_devices(application.mInstance);
-    assert(vkphysicaldevices.size() > 0);
+    {// Physical Devices
+        auto vkphysicaldevices = physical_devices(application.mInstance);
+        assert(vkphysicaldevices.size() > 0);
 
-    // Requirements
+        auto finder = std::find_if(
+            std::begin(vkphysicaldevices), std::end(vkphysicaldevices),
+            [&vksurface](VkPhysicalDevice vkphysicaldevice) {
+                return VulkanEngine::supports(vkphysicaldevice) &&
+                    VulkanDearImGui::supports(vkphysicaldevice) &&
+                    VulkanPresentation::supports(vkphysicaldevice, vksurface) &&
+                    VulkanGenerativeShader::supports(vkphysicaldevice);
+            }
+        );
+        assert(finder != std::end(vkphysicaldevices));
 
-    auto [vkphysicaldevice_dearimgui, queue_family_index_dearimgui, queue_count_dearimgui] = VulkanDearImGui::requirements(vkphysicaldevices);
-    auto [vkphysicaldevice_presentation, queue_family_index_presentation, queue_count_presentation] = VulkanPresentation::requirements(vkphysicaldevices, vksurface);
-    auto [vkphysicaldevice_generativeshader, queue_family_index_generativeshader, queue_count_generativeshader] = VulkanGenerativeShader::requirements(vkphysicaldevices);
+        vkphysicaldevice = *finder;
 
-    assert(vkphysicaldevice_dearimgui);
-    assert(vkphysicaldevice_generativeshader);
+        vkGetPhysicalDeviceFeatures(vkphysicaldevice, &vkfeatures);
+        vkGetPhysicalDeviceProperties(vkphysicaldevice, &vkproperties);
+        vkGetPhysicalDeviceMemoryProperties(vkphysicaldevice, &vkmemoryproperties);
+        {// Queue Family Properties
+            std::uint32_t count;
+            vkGetPhysicalDeviceQueueFamilyProperties(vkphysicaldevice, &count, nullptr);
+            assert(count > 0);
+            vkqueuefamiliesproperties.resize(count);
+            vkGetPhysicalDeviceQueueFamilyProperties(vkphysicaldevice, &count, vkqueuefamiliesproperties.data());
+        }
+        {// Extensions
+            std::uint32_t count;
+            CHECK(vkEnumerateDeviceExtensionProperties(vkphysicaldevice, nullptr, &count, nullptr));
+            vkextensions.resize(count);
+            CHECK(vkEnumerateDeviceExtensionProperties(vkphysicaldevice, nullptr, &count, vkextensions.data()));
+        }
 
-    VulkanDearImGui vkdearimgui(
-        vkphysicaldevice_dearimgui,
-        queue_family_index_dearimgui, queue_count_dearimgui
+        std::cout << "GPU: " << DeviceType2Text(vkproperties.deviceType) << std::endl;
+        {// Version
+            std::uint32_t major = VK_VERSION_MAJOR(vkproperties.apiVersion);
+            std::uint32_t minor = VK_VERSION_MINOR(vkproperties.apiVersion);
+            std::uint32_t patch = VK_VERSION_PATCH(vkproperties.apiVersion);
+            std::cout << vkproperties.deviceName << ": " << major << "." << minor << "." << patch << std::endl;
+            major = VK_VERSION_MAJOR(vkproperties.driverVersion);
+            minor = VK_VERSION_MINOR(vkproperties.driverVersion);
+            patch = VK_VERSION_PATCH(vkproperties.driverVersion);
+            std::cout << "Driver: " << major << "." << minor << "." << patch << std::endl;
+        }
+    }
+    assert(vkphysicaldevice != VK_NULL_HANDLE);
+
+    // Queues
+    VulkanQueueFamilyIndices vkqueuefamilyindices;
+
+    auto [queue_family_index_engine, queue_count_engine] = VulkanEngine::requirements(vkphysicaldevice);
+    auto [queue_family_index_dearimgui, queue_count_dearimgui] = VulkanDearImGui::requirements(vkphysicaldevice);
+    auto [queue_family_index_presentation, queue_count_presentation] = VulkanPresentation::requirements(vkphysicaldevice, vksurface);
+    auto [queue_family_index_generativeshader, queue_count_generativeshader] = VulkanGenerativeShader::requirements(vkphysicaldevice);
+
+    vkqueuefamilyindices.engine = queue_family_index_engine;
+    vkqueuefamilyindices.dearimgui = queue_family_index_dearimgui;
+    vkqueuefamilyindices.presentation = queue_family_index_presentation;
+    vkqueuefamilyindices.generativeshader = queue_family_index_generativeshader;
+
+    assert(queue_count_engine > 0);
+    assert(queue_count_dearimgui > 0);
+    assert(queue_count_presentation > 0);
+    assert(queue_count_generativeshader > 0);
+
+    // NOTE Dummy but at least provides enough priorities in worst case
+    const auto max_queue_count(
+        std::max(
+            std::max(queue_count_engine, queue_count_dearimgui),
+            std::max(queue_count_presentation, queue_count_generativeshader)
+        )
     );
+    const auto total_queue_count =
+        queue_count_engine + queue_count_dearimgui +
+        queue_count_presentation + queue_count_generativeshader
+    ;
+    const std::set<std::uint32_t> unique_indices{
+        vkqueuefamilyindices.engine,
+        vkqueuefamilyindices.dearimgui,
+        vkqueuefamilyindices.presentation,
+        vkqueuefamilyindices.generativeshader
+    };
+
+    const std::vector<float> priorities(max_queue_count, 1.0f);
+    std::vector<VkDeviceQueueCreateInfo> info_queue_creations(unique_indices.size());
+    for (std::uint32_t queue_family_index : unique_indices)
+    {
+        std::set<std::uint32_t> expected_queue_count;
+        if (queue_family_index == vkqueuefamilyindices.engine)
+            expected_queue_count.insert(queue_count_engine);
+        if (queue_family_index == vkqueuefamilyindices.dearimgui)
+            expected_queue_count.insert(queue_count_dearimgui);
+        if (queue_family_index == vkqueuefamilyindices.presentation)
+            expected_queue_count.insert(queue_count_presentation);
+        if (queue_family_index == vkqueuefamilyindices.generativeshader)
+            expected_queue_count.insert(queue_count_generativeshader);
+
+        const std::uint32_t queue_count = *std::min_element(
+            std::begin(expected_queue_count), std::end(expected_queue_count)
+        );
+        info_queue_creations.push_back(VkDeviceQueueCreateInfo{
+            .sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+            .pNext            = nullptr,
+            .flags            = 0,
+            .queueFamilyIndex = queue_family_index,
+            .queueCount       = queue_count,
+            .pQueuePriorities = priorities.data(),
+        });
+    }
+
+    VkDevice vkdevice = VK_NULL_HANDLE;
+    {// Device
+        constexpr const VkPhysicalDeviceFeatures features{
+            .robustBufferAccess                      = VK_FALSE,
+            .fullDrawIndexUint32                     = VK_FALSE,
+            .imageCubeArray                          = VK_FALSE,
+            .independentBlend                        = VK_FALSE,
+            .geometryShader                          = VK_FALSE,
+            .tessellationShader                      = VK_FALSE,
+            .sampleRateShading                       = VK_FALSE,
+            .dualSrcBlend                            = VK_FALSE,
+            .logicOp                                 = VK_FALSE,
+            .multiDrawIndirect                       = VK_FALSE,
+            .drawIndirectFirstInstance               = VK_FALSE,
+            .depthClamp                              = VK_FALSE,
+            .depthBiasClamp                          = VK_FALSE,
+            .fillModeNonSolid                        = VK_FALSE,
+            .depthBounds                             = VK_FALSE,
+            .wideLines                               = VK_FALSE,
+            .largePoints                             = VK_FALSE,
+            .alphaToOne                              = VK_FALSE,
+            .multiViewport                           = VK_FALSE,
+            .samplerAnisotropy                       = VK_FALSE,
+            .textureCompressionETC2                  = VK_FALSE,
+            .textureCompressionASTC_LDR              = VK_FALSE,
+            .textureCompressionBC                    = VK_FALSE,
+            .occlusionQueryPrecise                   = VK_FALSE,
+            .pipelineStatisticsQuery                 = VK_FALSE,
+            .vertexPipelineStoresAndAtomics          = VK_FALSE,
+            .fragmentStoresAndAtomics                = VK_FALSE,
+            .shaderTessellationAndGeometryPointSize  = VK_FALSE,
+            .shaderImageGatherExtended               = VK_FALSE,
+            .shaderStorageImageExtendedFormats       = VK_FALSE,
+            .shaderStorageImageMultisample           = VK_FALSE,
+            .shaderStorageImageReadWithoutFormat     = VK_FALSE,
+            .shaderStorageImageWriteWithoutFormat    = VK_FALSE,
+            .shaderUniformBufferArrayDynamicIndexing = VK_FALSE,
+            .shaderSampledImageArrayDynamicIndexing  = VK_FALSE,
+            .shaderStorageBufferArrayDynamicIndexing = VK_FALSE,
+            .shaderStorageImageArrayDynamicIndexing  = VK_FALSE,
+            .shaderClipDistance                      = VK_FALSE,
+            .shaderCullDistance                      = VK_FALSE,
+            .shaderFloat64                           = VK_FALSE,
+            .shaderInt64                             = VK_FALSE,
+            .shaderInt16                             = VK_FALSE,
+            .shaderResourceResidency                 = VK_FALSE,
+            .shaderResourceMinLod                    = VK_FALSE,
+            .sparseBinding                           = VK_FALSE,
+            .sparseResidencyBuffer                   = VK_FALSE,
+            .sparseResidencyImage2D                  = VK_FALSE,
+            .sparseResidencyImage3D                  = VK_FALSE,
+            .sparseResidency2Samples                 = VK_FALSE,
+            .sparseResidency4Samples                 = VK_FALSE,
+            .sparseResidency8Samples                 = VK_FALSE,
+            .sparseResidency16Samples                = VK_FALSE,
+            .sparseResidencyAliased                  = VK_FALSE,
+            .variableMultisampleRate                 = VK_FALSE,
+            .inheritedQueries                        = VK_FALSE,
+        };
+        std::vector<const char*> enabled_extensions{};
+        if (has_extension(vkextensions, VK_EXT_DEBUG_MARKER_EXTENSION_NAME))
+        {// Debug Marker
+            enabled_extensions.emplace_back(VK_EXT_DEBUG_MARKER_EXTENSION_NAME);
+        }
+        const VkDeviceCreateInfo info{
+            .sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+            .pNext                   = nullptr,
+            .flags                   = 0,
+            .queueCreateInfoCount    = static_cast<std::uint32_t>(info_queue_creations.size()),
+            .pQueueCreateInfos       = info_queue_creations.data(),
+            .enabledLayerCount       = 0,
+            .ppEnabledLayerNames     = nullptr,
+            .enabledExtensionCount   = static_cast<std::uint32_t>(enabled_extensions.size()),
+            .ppEnabledExtensionNames = enabled_extensions.data(),
+            .pEnabledFeatures        = &features,
+        };
+        CHECK(vkCreateDevice(vkphysicaldevice, &info, nullptr, &vkdevice));
+    }
+
+    std::unordered_map<std::uint32_t, std::vector<VkQueue>> queues_by_family;
+    for (const VkDeviceQueueCreateInfo& info_queue_creation : info_queue_creations)
+    {
+        std::vector<VkQueue>& queues = queues_by_family[info_queue_creation.queueFamilyIndex];
+        queues.resize(info_queue_creation.queueCount);
+        for (std::uint32_t idx = 0; idx < info_queue_creation.queueCount; ++idx)
+            vkGetDeviceQueue(vkdevice, info_queue_creation.queueFamilyIndex, idx, &queues.at(idx));
+    }
+
+    // Components
+
+    std::vector<VkQueue> queues_engine(queue_count_engine);
+    std::vector<VkQueue> queues_dearimgui(queue_count_dearimgui);
+    std::vector<VkQueue> queues_presentation(queue_count_presentation);
+    std::vector<VkQueue> queues_generativeshader(queue_count_generativeshader);
+
+    for (auto&& iterator : queues_by_family)
+    {
+        const std::uint32_t&        queue_family_index = iterator.first;
+        const std::vector<VkQueue>& queues             = iterator.second;
+
+        if (queue_family_index == vkqueuefamilyindices.engine)
+            std::copy_n(std::begin(queues), queue_count_engine, std::begin(queues_engine));
+        if (queue_family_index == vkqueuefamilyindices.dearimgui)
+            std::copy_n(std::begin(queues), queue_count_dearimgui, std::begin(queues_dearimgui));
+        if (queue_family_index == vkqueuefamilyindices.presentation)
+            std::copy_n(std::begin(queues), queue_count_presentation, std::begin(queues_presentation));
+        if (queue_family_index == vkqueuefamilyindices.generativeshader)
+            std::copy_n(std::begin(queues), queue_count_generativeshader, std::begin(queues_generativeshader));
+    }
 
     VulkanPresentation vkpresentation(
-        vkphysicaldevice_presentation,
-        queue_family_index_presentation, queue_count_presentation,
+        vkphysicaldevice, vkdevice,
+        queue_family_index_presentation, queues_presentation,
         vksurface, kWindowExtent, kVSync
     );
 
     VulkanGenerativeShader vkgenerativeshader(
-        vkphysicaldevice_generativeshader,
-        queue_family_index_generativeshader, queue_count_generativeshader
+        vkphysicaldevice, vkdevice,
+        queue_family_index_generativeshader, queues_generativeshader
     );
+
+    VulkanDearImGui vkdearimgui(
+        vkphysicaldevice, vkdevice,
+        queue_family_index_dearimgui, queues_dearimgui,
+        &vkpresentation
+    );
+
+    VulkanEngine vkengine(
+        vkphysicaldevice, vkdevice,
+        queue_family_index_engine, queues_engine,
+        &vkpresentation
+    );
+
+    {// Font Uploading
+        auto [vkextent, data] = vkdearimgui.get_font_data_8bits();
+
+        const VkDeviceSize vksize = vkextent.width * vkextent.height * sizeof(unsigned char);
+
+        auto [vkstagingbuffer, vkstagingmemory] = vkdearimgui.create_staging_font_buffer(vksize);
+
+        {// Memory Mapping
+            constexpr const VkDeviceSize offset = 0;
+            constexpr const VkDeviceSize size   = VK_WHOLE_SIZE;
+
+            unsigned char* mapped_memory = nullptr;
+            CHECK(vkMapMemory(
+                vkdearimgui.mDevice,
+                vkstagingmemory, offset, size, 0, reinterpret_cast<void**>(&mapped_memory)));
+
+            std::copy(data, std::next(data, size), mapped_memory);
+
+            vkUnmapMemory(vkdearimgui.mDevice, vkstagingmemory);
+
+            const VkMappedMemoryRange range{
+                .sType  = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
+                .pNext  = nullptr,
+                .memory = vkstagingmemory,
+                .offset = offset,
+                .size   = size
+            };
+            CHECK(vkFlushMappedMemoryRanges(vkdearimgui.mDevice, 1, &range));
+        }
+        {// Command Buffer
+            VkFence vkfence;
+            VkCommandBuffer vkcmdbuffer;
+
+            {// Command Buffer
+                const VkCommandBufferAllocateInfo info{
+                    .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+                    .pNext              = nullptr,
+                    .commandPool        = vkdearimgui.mCommandPool,
+                    .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+                    .commandBufferCount = 1,
+                };
+                CHECK(vkAllocateCommandBuffers(vkdearimgui.mDevice, &info, &vkcmdbuffer));
+            }
+            {// Fence
+                const VkFenceCreateInfo info{
+                    .sType              = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+                    .pNext              = nullptr,
+                    .flags              = 0,
+                };
+                CHECK(vkCreateFence(vkdearimgui.mDevice, &info, nullptr, &vkfence));
+            }
+            {// Start
+                const VkCommandBufferBeginInfo info{
+                    .sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+                    .pNext            = nullptr,
+                    .flags            = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+                    .pInheritanceInfo = nullptr,
+                };
+                CHECK(vkBeginCommandBuffer(vkcmdbuffer, &info));
+            }
+
+            vkdearimgui.record_font_optimal_image(vkextent ,vkcmdbuffer, vkstagingbuffer);
+
+            {// End
+                CHECK(vkEndCommandBuffer(vkcmdbuffer));
+            }
+            {// Submission
+                const VkSubmitInfo info{
+                    .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                    .pNext                = nullptr,
+                    .waitSemaphoreCount   = 0,
+                    .pWaitSemaphores      = nullptr,
+                    .pWaitDstStageMask    = nullptr,
+                    .commandBufferCount   = 1,
+                    .pCommandBuffers      = &vkcmdbuffer,
+                    .signalSemaphoreCount = 0,
+                    .pSignalSemaphores    = nullptr,
+                };
+            }
+
+            CHECK(vkWaitForFences(vkdearimgui.mDevice, 1, &vkfence, VK_TRUE, 10e9));
+
+            vkDestroyFence(vkdearimgui.mDevice, vkfence, nullptr);
+            vkFreeCommandBuffers(vkdearimgui.mDevice, vkdearimgui.mCommandPool, 1, &vkcmdbuffer);
+        }
+
+        vkdearimgui.destroy_staging_font_buffer(vkstagingbuffer, vkstagingmemory);
+    }
+
+    {// Depth
+        vkengine.recreate_depth(kWindowExtent);
+
+    }
 
     #if 0
     VulkanDevice device(application.mInstance, vkphysicaldevice, vkdevice, queue_family_index);
@@ -258,6 +575,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     #if 0
     vkDeviceWaitIdle(vkdevice);
     #endif
+    vkDestroyDevice(vkdevice, nullptr);
     vkDestroySurfaceKHR(application.mInstance, vksurface, nullptr);
     FreeConsole();
 

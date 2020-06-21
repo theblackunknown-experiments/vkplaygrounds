@@ -7,13 +7,38 @@
 #include <sstream>
 #include <iostream>
 
-#include "vulkandebug.hpp"
-#include "vulkanapplication.hpp"
+#include "./vulkandebug.hpp"
+#include "./vulkanapplication.hpp"
 
 VulkanApplication::VulkanApplication()
-    : VulkanApplicationBase()
-    , VulkanInstanceMixin()
 {
+    { // Version
+        std::uint32_t version;
+        CHECK(vkEnumerateInstanceVersion(&version));
+        mVersion.major = VK_VERSION_MAJOR(version);
+        mVersion.minor = VK_VERSION_MINOR(version);
+        mVersion.patch = VK_VERSION_PATCH(version);
+    }
+    { // Layers / Extensions
+        std::uint32_t count;
+        CHECK(vkEnumerateInstanceLayerProperties(&count, nullptr));
+        mLayers.resize(count);
+        CHECK(vkEnumerateInstanceLayerProperties(&count, mLayers.data()));
+    }
+    {
+        std::uint32_t count;
+        CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr));
+        mExtensions.resize(count);
+        CHECK(vkEnumerateInstanceExtensionProperties(nullptr, &count, mExtensions.data()));
+
+        for (auto&& layer_properties : mLayers)
+        {
+            CHECK(vkEnumerateInstanceExtensionProperties(layer_properties.layerName, &count, nullptr));
+            auto& layer_extensions = mLayerExtensions[layer_properties.layerName];
+            layer_extensions.resize(count);
+            CHECK(vkEnumerateInstanceExtensionProperties(layer_properties.layerName, &count, layer_extensions.data()));
+        }
+    }
     { // Instance
         std::vector<const char*> extensions(mExtensions.size());
         std::transform(

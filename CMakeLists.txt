@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.15)
 
-project(blk-imgui
+project(vkplaygrounds
     VERSION 0.0.0
-    DESCRIPTION "Playground with imgui"
+    DESCRIPTION "Playground for Vulkan"
     LANGUAGES CXX
 )
 
@@ -26,8 +26,8 @@ include(CMakePackageConfigHelpers)
 ##        Packages          ##
 ##############################
 
-find_package(unofficial-imgui CONFIG REQUIRED)
-find_package(Vulkan                  REQUIRED)
+find_package(dearimgui CONFIG REQUIRED)
+find_package(Vulkan    REQUIRED)
 
 ##############################
 ##         Targets          ##
@@ -91,25 +91,15 @@ target_sources(sample-imgui
         vulkandebug.cpp
         $<$<PLATFORM_ID:Windows>:winvulkandebug.cpp>
 
-        vulkanapplicationbase.hpp
-        vulkanphysicaldevicebase.hpp
-        vulkandevicebase.hpp
-        vulkansurfacebase.hpp
-
         vulkanutilities.hpp
-
-        vulkanscopedbuffermapping.hpp
 
         vulkanapplication.hpp
         vulkanapplication.cpp
-        vulkanphysicaldevice.hpp
-        vulkanphysicaldevice.cpp
-        vulkandevice.hpp
-        vulkandevice.cpp
-        vulkansurface.hpp
-        vulkansurface.cpp
         vulkanbuffer.hpp
         vulkanbuffer.cpp
+
+        vulkanengine.hpp
+        vulkanengine.cpp
 
         vulkangenerativeshader.hpp
         vulkangenerativeshader.cpp
@@ -186,7 +176,7 @@ target_compile_definitions(sample-imgui
 )
 target_link_libraries(sample-imgui
     PRIVATE
-        unofficial-imgui::imgui
+        dearimgui::dearimgui
         Vulkan::Vulkan
 )
 
@@ -194,21 +184,21 @@ target_link_libraries(sample-imgui
 ##          Config          ##
 ##############################
 
-file(WRITE "${CMAKE_BINARY_DIR}/blk-imgui-config.cmake.in" [=[
+file(WRITE "${CMAKE_BINARY_DIR}/vkplaygrounds-config.cmake.in" [=[
     @PACKAGE_INIT@
     include("@PACKAGE_PATH_EXPORT_TARGETS@")
 ]=])
 
-set(PATH_EXPORT_TARGETS "${CMAKE_INSTALL_DATADIR}/blk-imgui-targets.cmake")
+set(PATH_EXPORT_TARGETS "${CMAKE_INSTALL_DATADIR}/vkplaygrounds-targets.cmake")
 configure_package_config_file(
-    "${CMAKE_BINARY_DIR}/blk-imgui-config.cmake.in"
-    "${CMAKE_BINARY_DIR}/blk-imgui-config.cmake"
+    "${CMAKE_BINARY_DIR}/vkplaygrounds-config.cmake.in"
+    "${CMAKE_BINARY_DIR}/vkplaygrounds-config.cmake"
     PATH_VARS
         PATH_EXPORT_TARGETS
     INSTALL_DESTINATION ${CMAKE_INSTALL_DATADIR}
 )
 
-write_basic_package_version_file("${CMAKE_BINARY_DIR}/blk-imgui-config-version.cmake"
+write_basic_package_version_file("${CMAKE_BINARY_DIR}/vkplaygrounds-config-version.cmake"
   COMPATIBILITY AnyNewerVersion
 )
 
@@ -218,19 +208,19 @@ write_basic_package_version_file("${CMAKE_BINARY_DIR}/blk-imgui-config-version.c
 
 install(
     TARGETS sample-imgui
-    EXPORT blk-imgui-targets
+    EXPORT vkplaygrounds-targets
     COMPONENT runtime
 )
 
-install(EXPORT blk-imgui-targets
-    NAMESPACE blk-imgui::
+install(EXPORT vkplaygrounds-targets
+    NAMESPACE vkplaygrounds::
     DESTINATION "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}"
 )
 
 install(
     FILES
-        "${CMAKE_BINARY_DIR}/blk-imgui-config.cmake"
-        "${CMAKE_BINARY_DIR}/blk-imgui-config-version.cmake"
+        "${CMAKE_BINARY_DIR}/vkplaygrounds-config.cmake"
+        "${CMAKE_BINARY_DIR}/vkplaygrounds-config-version.cmake"
     DESTINATION
         "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}"
 )

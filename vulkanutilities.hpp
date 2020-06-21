@@ -39,6 +39,21 @@ std::vector<VkPhysicalDevice> physical_devices(VkInstance instance)
     return physical_devices;
 }
 
+inline
+[[nodiscard]]
+std::optional<std::uint32_t> get_memory_type(const VkPhysicalDeviceMemoryProperties& properties, std::uint32_t type_bits, VkMemoryPropertyFlags flags)
+{
+    for(std::uint32_t idx = 0; idx < properties.memoryTypeCount; ++idx, type_bits >>= 1)
+    {
+        if((type_bits & 1) == 1)
+        {
+            const VkMemoryType& memory_type = properties.memoryTypes[idx];
+            if((memory_type.propertyFlags & flags) == flags)
+                return idx;
+        }
+    }
+    return { };
+}
 
 inline
 [[nodiscard]]
@@ -133,38 +148,6 @@ std::optional<std::uint32_t> select_surface_queue_family_index(
 
 inline
 [[nodiscard]]
-std::optional<VkFormat> select_best_depth_format(VkPhysicalDevice vkphysicaldevice)
-{
-    // Depth Format
-    constexpr const VkFormat kDEPTH_FORMATS[] = {
-        VK_FORMAT_D32_SFLOAT_S8_UINT,
-        VK_FORMAT_D32_SFLOAT,
-        VK_FORMAT_D24_UNORM_S8_UINT,
-        VK_FORMAT_D16_UNORM_S8_UINT,
-        VK_FORMAT_D16_UNORM
-    };
-
-    auto finder_depth_format = std::find_if(
-        std::begin(kDEPTH_FORMATS), std::end(kDEPTH_FORMATS),
-        [&vkphysicaldevice](const VkFormat& f) {
-            VkFormatProperties properties;
-            vkGetPhysicalDeviceFormatProperties(vkphysicaldevice, f, &properties);
-            return properties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT;
-        }
-    );
-
-    if (finder_depth_format != std::end(kDEPTH_FORMATS))
-    {
-        return *finder_depth_format;
-    }
-    else
-    {
-        return { };
-    }
-}
-
-inline
-[[nodiscard]]
 const char* DeviceType2Text(const VkPhysicalDeviceType& type)
 {
     switch(type)
@@ -176,4 +159,26 @@ const char* DeviceType2Text(const VkPhysicalDeviceType& type)
         case VK_PHYSICAL_DEVICE_TYPE_CPU           : return "CPU";
         default                                    : return "Unknown";
     }
+}
+
+inline
+[[nodiscard]]
+VkCommandBuffer create_command_buffer(VkDevice vkdevice, VkCommandPool vkcmdpool, VkCommandBufferLevel level)
+{
+    VkCommandBuffer vkcmdbuffer;
+    const VkCommandBufferAllocateInfo info{
+        .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .pNext              = nullptr,
+        .commandPool        = vkcmdpool,
+        .level              = level,
+        .commandBufferCount = 1,
+    };
+    CHECK(vkAllocateCommandBuffers(vkdevice, &info, &vkcmdbuffer));
+    return vkcmdbuffer;
+}
+
+inline
+void destroy_command_buffer(VkDevice vkdevice, VkCommandPool vkcmdpool, VkCommandBuffer vkcmdbuffer)
+{
+    vkFreeCommandBuffers(vkdevice, vkcmdpool, 1, &vkcmdbuffer);
 }

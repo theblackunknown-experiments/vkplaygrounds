@@ -6,7 +6,7 @@
 
 #include <sstream>
 
-#include "vulkandebug.hpp"
+#include "./vulkandebug.hpp"
 
 void CHECK(const VkResult& v)
 {

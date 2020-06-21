@@ -4,14 +4,17 @@
 
 #include <cstddef>
 
+#include <span>
 #include <tuple>
+#include <vector>
 
 struct VulkanPresentation
 {
     explicit VulkanPresentation(
         VkPhysicalDevice vkphysicaldevice,
+        VkDevice vkdevice,
         std::uint32_t queue_family_index,
-        std::uint32_t queue_count,
+        const std::span<VkQueue>& vkqueues,
         VkSurfaceKHR vksurface,
         VkExtent2D resolution,
         bool vsync
@@ -19,7 +22,10 @@ struct VulkanPresentation
     ~VulkanPresentation();
 
     static
-    std::tuple<VkPhysicalDevice, std::uint32_t, std::uint32_t> requirements(const std::span<VkPhysicalDevice>& vkphysicaldevices, VkSurfaceKHR vksurface);
+    bool supports(VkPhysicalDevice vkphysicaldevice, VkSurfaceKHR vksurface);
+
+    static
+    std::tuple<std::uint32_t, std::uint32_t> requirements(VkPhysicalDevice vkphysicaldevice, VkSurfaceKHR vksurface);
 
     // Setup
 
@@ -30,15 +36,13 @@ struct VulkanPresentation
     // States
 
     VkPhysicalDevice                     mPhysicalDevice  = VK_NULL_HANDLE;
+    std::uint32_t                        mQueueFamilyIndex;
+    VkDevice                             mDevice          = VK_NULL_HANDLE;
+    VkQueue                              mQueue           = VK_NULL_HANDLE;
 
     VkPhysicalDeviceFeatures             mFeatures;
     VkPhysicalDeviceProperties           mProperties;
     VkPhysicalDeviceMemoryProperties     mMemoryProperties;
-    std::vector<VkQueueFamilyProperties> mQueueFamiliesProperties;
-    std::vector<VkExtensionProperties>   mExtensions;
-
-    std::uint32_t                        mQueueFamilyIndex;
-    VkDevice                             mDevice          = VK_NULL_HANDLE;
 
     VkSurfaceKHR                         mSurface;
     VkExtent2D                           mResolution;
@@ -46,16 +50,15 @@ struct VulkanPresentation
     VkColorSpaceKHR                      mColorSpace;
     VkPresentModeKHR                     mPresentMode;
 
-    VkQueue                              mQueue       = VK_NULL_HANDLE;
     VkCommandPool                        mCommandPool = VK_NULL_HANDLE;
 
     VkSwapchainKHR                       mSwapChain   = VK_NULL_HANDLE;
 
-    std::uint32_t                mCount;
-    std::vector<VkImage>         mImages;
-    std::vector<VkImageView>     mImageViews;
-    std::vector<VkCommandBuffer> mCommandBuffers;
-    std::vector<VkFence>         mWaitFences;
+    std::uint32_t                        mCount;
+    std::vector<VkImage>                 mImages;
+    std::vector<VkImageView>             mImageViews;
+    std::vector<VkCommandBuffer>         mCommandBuffers;
+    std::vector<VkFence>                 mWaitFences;
 
     // NOTE To scale, we would need to have an array of semaphore present/complete if we want to process frame as fast as possible
     VkSemaphore                          mSemaphorePresentComplete = VK_NULL_HANDLE;

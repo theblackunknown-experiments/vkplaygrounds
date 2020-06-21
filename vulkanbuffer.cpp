@@ -1,8 +1,9 @@
 #include <vulkan/vulkan.h>
 
-#include "vulkandebug.hpp"
+#include "./vulkandebug.hpp"
+#include "./vulkanutilities.hpp"
 
-#include "vulkanbuffer.hpp"
+#include "./vulkanbuffer.hpp"
 
 #include <cassert>
 
@@ -38,7 +39,7 @@ void VulkanBuffer::allocate(VkDeviceSize size)
 
     vkGetBufferMemoryRequirements(mDevice, mBuffer, &mRequirements);
 
-    auto memory_type_index = get_memory_type(mRequirements.memoryTypeBits, mMemoryFlags);
+    auto memory_type_index = get_memory_type(mMemoryProperties, mRequirements.memoryTypeBits, mMemoryFlags);
     assert(memory_type_index.has_value());
 
     const VkMemoryAllocateInfo info_allocation{
