@@ -109,43 +109,6 @@ std::optional<std::uint32_t> select_queue_family_index(
     }
 }
 
-[[nodiscard]]
-std::optional<std::uint32_t> select_surface_queue_family_index(
-    VkPhysicalDevice vkphysicaldevice,
-    const std::span<VkQueueFamilyProperties>& queue_families_properties,
-    VkSurfaceKHR surface)
-{
-    std::uint32_t count = queue_families_properties.size();
-    std::vector<VkBool32> supporteds(count);
-    std::optional<std::uint32_t> selected_queue;
-    for (std::uint32_t idx = 0; idx < count; ++idx)
-    {
-        VkBool32 supported;
-        CHECK(vkGetPhysicalDeviceSurfaceSupportKHR(vkphysicaldevice, idx, surface, &supported));
-        supporteds.at(idx) = supported;
-
-        const VkQueueFamilyProperties& p = queue_families_properties[idx];
-        if((p.queueFlags & VK_QUEUE_GRAPHICS_BIT) && (supported == VK_TRUE))
-        {
-            selected_queue = idx;
-            break;
-        }
-    }
-    if (!selected_queue.has_value())
-    {
-        for(std::uint32_t idx = 0; idx < count; ++idx)
-        {
-            const VkBool32& supported = supporteds[idx];
-            if(supported == VK_TRUE)
-            {
-                selected_queue = idx;
-                break;
-            }
-        }
-    }
-    return selected_queue;
-}
-
 inline
 [[nodiscard]]
 const char* DeviceType2Text(const VkPhysicalDeviceType& type)

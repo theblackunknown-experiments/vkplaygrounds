@@ -14,7 +14,7 @@
 
 class ImGuiContext;
 
-#include "vulkanbuffer.hpp"
+struct VulkanBuffer;
 
 struct VulkanPresentation;
 
@@ -25,7 +25,7 @@ struct VulkanDearImGui
         VkDevice vkdevice,
         std::uint32_t queue_family_index,
         const std::span<VkQueue>& vkqueues,
-        const VulkanPresentation*
+        const VulkanPresentation* vkpresentation
     );
     ~VulkanDearImGui();
 

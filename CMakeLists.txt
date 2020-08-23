@@ -93,8 +93,9 @@ target_sources(sample-imgui
 
         vulkanutilities.hpp
 
-        vulkanapplication.hpp
-        vulkanapplication.cpp
+        vkapplication.hpp
+        vkapplication.cpp
+
         vulkanbuffer.hpp
         vulkanbuffer.cpp
 
@@ -109,8 +110,8 @@ target_sources(sample-imgui
 
         vulkandearimgui.hpp
         vulkandearimgui.cpp
-        vulkandearimgui_rendering.cpp
-        vulkandearimgui_imguiframe.cpp
+        # vulkandearimgui_rendering.cpp
+        # vulkandearimgui_imguiframe.cpp
 
         "${CMAKE_BINARY_DIR}/ui.vertex.hpp"
         "${CMAKE_BINARY_DIR}/ui.fragment.hpp"

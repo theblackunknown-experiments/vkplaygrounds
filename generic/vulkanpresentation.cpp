@@ -11,6 +11,23 @@
 
 #include "./vulkanpresentation.hpp"
 
+bool VulkanPresentation::supports(VkPhysicalDevice vkphysicaldevice, VkSurfaceKHR vksurface)
+{
+    std::uint32_t count;
+    vkGetPhysicalDeviceQueueFamilyProperties(vkphysicaldevice, &count, nullptr);
+    assert(count > 0);
+
+    for (std::uint32_t idx = 0; idx < count; ++idx)
+    {
+        VkBool32 supported;
+        CHECK(vkGetPhysicalDeviceSurfaceSupportKHR(vkphysicaldevice, idx, vksurface, &supported));
+
+        if (supported == VK_TRUE)
+            return true;
+    }
+    return false;
+}
+
 std::tuple<std::uint32_t, std::uint32_t> VulkanPresentation::requirements(VkPhysicalDevice vkphysicaldevice, VkSurfaceKHR vksurface)
 {
     constexpr const std::uint32_t queue_count = 1;
@@ -62,7 +79,7 @@ VulkanPresentation::VulkanPresentation(
         constexpr const VkFormat kPreferredFormat = VK_FORMAT_R8G8B8A8_UNORM;
         if((count == 1) && (formats.front().format == VK_FORMAT_UNDEFINED))
         {
-            // TODO Check the specification what is the right minimal requirement in this situation
+            // NOTE No preferred format, pick what you want
             mColorFormat = kPreferredFormat;
             mColorSpace  = formats.front().colorSpace;
         }

@@ -57,10 +57,12 @@
     "folders":
     [
         {
-            "path": "."
+            "path": ".",
+            "name": "vkplaygrounds (source)"
         },
         {
-            "path": "C:/builds/vkplaygrounds"
+            "path": "C:/builds/vkplaygrounds",
+            "name": "vkplaygrounds (build)"
         },
         {
             "path": "../vcpkg/installed/x64-windows"
@@ -75,12 +77,12 @@
             "path": "../SaschaWillemsVulkanExamples"
         },
         {
-            "name": "Microsoft Visual Studio - MSVC - 14.24.28314 - ATLMFC",
-            "path": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.24.28314/ATLMFC/include"
+            "name": "Microsoft Visual Studio - MSVC - 14.26.28801 - ATLMFC",
+            "path": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.26.28801/ATLMFC/include"
         },
         {
-            "name": "Microsoft Visual Studio - MSVC - 14.24.28314",
-            "path": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.24.28314/include"
+            "name": "Microsoft Visual Studio - MSVC - 14.26.28801",
+            "path": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.26.28801/include"
         },
         {
             "name": "Windows Kits - NETFXSDK - 4.8 (um)",
@@ -88,26 +90,26 @@
         },
         {
             "name": "Windows Kits - 10.0.18362.0 (ucrt)",
-            "path": "C:/Program Files (x86)/Windows Kits/10/include/10.0.18362.0/ucrt"
+            "path": "C:/Program Files (x86)/Windows Kits/10/Include/10.0.18362.0/ucrt"
         },
         {
             "name": "Windows Kits - 10.0.18362.0 (shared)",
-            "path": "C:/Program Files (x86)/Windows Kits/10/include/10.0.18362.0/shared"
+            "path": "C:/Program Files (x86)/Windows Kits/10/Include/10.0.18362.0/shared"
         },
         {
             "name": "Windows Kits - 10.0.18362.0 (um)",
-            "path": "C:/Program Files (x86)/Windows Kits/10/include/10.0.18362.0/um"
+            "path": "C:/Program Files (x86)/Windows Kits/10/Include/10.0.18362.0/um"
         },
         {
             "name": "Windows Kits - 10.0.18362.0 (winrt)",
-            "path": "C:/Program Files (x86)/Windows Kits/10/include/10.0.18362.0/winrt"
+            "path": "C:/Program Files (x86)/Windows Kits/10/Include/10.0.18362.0/winrt"
         },
         {
             "name": "Windows Kits - 10.0.18362.0 (cppwinrt)",
-            "path": "C:/Program Files (x86)/Windows Kits/10/include/10.0.18362.0/cppwinrt"
+            "path": "C:/Program Files (x86)/Windows Kits/10/Include/10.0.18362.0/cppwinrt"
         },
         {
-            "path": "D:/Program Files/CMake/share/cmake-3.17/Modules"
+            "path": "C:/Program Files/CMake/share/cmake-3.17/Modules"
         },
         {
             "path": "../shade_runner"

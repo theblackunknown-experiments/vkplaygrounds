@@ -23,7 +23,7 @@
 #include "./vulkanutilities.hpp"
 #include "./vulkanqueuefamilyindices.hpp"
 
-#include "./vulkanapplication.hpp"
+#include "./vkapplication.hpp"
 
 #include "./vulkanengine.hpp"
 #include "./vulkandearimgui.hpp"
@@ -40,6 +40,8 @@ namespace
     // VulkanDearImGui* sDearImGui = nullptr;
 }
 
+static
+LRESULT CALLBACK MinimalWindocProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 static
 LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
@@ -104,7 +106,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         WNDCLASSEX clazz{
             .cbSize        = sizeof(WNDCLASSEX),
             .style         = CS_HREDRAW | CS_VREDRAW,
-            .lpfnWndProc   = &WndProc,
+            .lpfnWndProc   = &MinimalWindocProcedure,
             .cbClsExtra    = 0,
             .cbWndExtra    = 0,
             .hInstance     = hInstance,
@@ -180,6 +182,23 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         auto vkphysicaldevices = physical_devices(application.mInstance);
         assert(vkphysicaldevices.size() > 0);
 
+        std::cout << "Detected " << vkphysicaldevices.size() << " GPU:" << std::endl;
+        for (auto vkphysicaldevice : vkphysicaldevices)
+        {
+            vkGetPhysicalDeviceProperties(vkphysicaldevice, &vkproperties);
+
+            std::cout << "GPU: "<< vkproperties.deviceName << " (" << DeviceType2Text(vkproperties.deviceType) << ')' << std::endl;
+
+            std::uint32_t major = VK_VERSION_MAJOR(vkproperties.apiVersion);
+            std::uint32_t minor = VK_VERSION_MINOR(vkproperties.apiVersion);
+            std::uint32_t patch = VK_VERSION_PATCH(vkproperties.apiVersion);
+            std::cout << '\t' << "API: " << major << "." << minor << "." << patch << std::endl;
+            major = VK_VERSION_MAJOR(vkproperties.driverVersion);
+            minor = VK_VERSION_MINOR(vkproperties.driverVersion);
+            patch = VK_VERSION_PATCH(vkproperties.driverVersion);
+            std::cout << '\t' << "Driver: " << major << "." << minor << "." << patch << std::endl;
+        }
+
         auto finder = std::find_if(
             std::begin(vkphysicaldevices), std::end(vkphysicaldevices),
             [&vksurface](VkPhysicalDevice vkphysicaldevice) {
@@ -210,17 +229,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
             CHECK(vkEnumerateDeviceExtensionProperties(vkphysicaldevice, nullptr, &count, vkextensions.data()));
         }
 
-        std::cout << "GPU: " << DeviceType2Text(vkproperties.deviceType) << std::endl;
-        {// Version
-            std::uint32_t major = VK_VERSION_MAJOR(vkproperties.apiVersion);
-            std::uint32_t minor = VK_VERSION_MINOR(vkproperties.apiVersion);
-            std::uint32_t patch = VK_VERSION_PATCH(vkproperties.apiVersion);
-            std::cout << vkproperties.deviceName << ": " << major << "." << minor << "." << patch << std::endl;
-            major = VK_VERSION_MAJOR(vkproperties.driverVersion);
-            minor = VK_VERSION_MINOR(vkproperties.driverVersion);
-            patch = VK_VERSION_PATCH(vkproperties.driverVersion);
-            std::cout << "Driver: " << major << "." << minor << "." << patch << std::endl;
-        }
+        std::cout << "Selected GPU: " << vkproperties.deviceName << std::endl;
     }
     assert(vkphysicaldevice != VK_NULL_HANDLE);
 
@@ -261,7 +270,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     };
 
     const std::vector<float> priorities(max_queue_count, 1.0f);
-    std::vector<VkDeviceQueueCreateInfo> info_queue_creations(unique_indices.size());
+    std::vector<VkDeviceQueueCreateInfo> info_queue_creations;
     for (std::uint32_t queue_family_index : unique_indices)
     {
         std::set<std::uint32_t> expected_queue_count;
@@ -347,6 +356,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
             .inheritedQueries                        = VK_FALSE,
         };
         std::vector<const char*> enabled_extensions{};
+        // TODO Fint out why this is needed
         if (has_extension(vkextensions, VK_EXT_DEBUG_MARKER_EXTENSION_NAME))
         {// Debug Marker
             enabled_extensions.emplace_back(VK_EXT_DEBUG_MARKER_EXTENSION_NAME);
@@ -399,27 +409,28 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
     VulkanPresentation vkpresentation(
         vkphysicaldevice, vkdevice,
-        queue_family_index_presentation, queues_presentation,
+        vkqueuefamilyindices.presentation, queues_presentation,
         vksurface, kWindowExtent, kVSync
     );
 
     VulkanGenerativeShader vkgenerativeshader(
         vkphysicaldevice, vkdevice,
-        queue_family_index_generativeshader, queues_generativeshader
+        vkqueuefamilyindices.generativeshader, queues_generativeshader
     );
 
-    VulkanDearImGui vkdearimgui(
-        vkphysicaldevice, vkdevice,
-        queue_family_index_dearimgui, queues_dearimgui,
-        &vkpresentation
-    );
+    // VulkanDearImGui vkdearimgui(
+    //     vkphysicaldevice, vkdevice,
+    //     vkqueuefamilyindices.dearimgui, queues_dearimgui,
+    //     &vkpresentation
+    // );
 
     VulkanEngine vkengine(
         vkphysicaldevice, vkdevice,
-        queue_family_index_engine, queues_engine,
+        vkqueuefamilyindices.engine, queues_engine,
         &vkpresentation
     );
 
+    #if 0
     {// Font Uploading
         auto [vkextent, data] = vkdearimgui.get_font_data_8bits();
 
@@ -508,11 +519,13 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
         vkdearimgui.destroy_staging_font_buffer(vkstagingbuffer, vkstagingmemory);
     }
+    #endif
 
-    {// Depth
-        vkengine.recreate_depth(kWindowExtent);
+    vkpresentation.recreate_swapchain();
 
-    }
+    vkengine.recreate_depth(vkpresentation.mResolution);
+
+    // vkdearimgui.recreate_graphics_pipeline(vkpresentation.mResolution);
 
     #if 0
     VulkanDevice device(application.mInstance, vkphysicaldevice, vkdevice, queue_family_index);
@@ -582,12 +595,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     return static_cast<int>(msg.wParam);
 }
 
-LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-    return DefWindowProc(hWnd, uMsg, wParam, lParam);
-}
-#if 0
-LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK MinimalWindocProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     switch (uMsg)
     {
@@ -596,6 +604,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         DestroyWindow(hWnd);
         PostQuitMessage(0);
         break;
+    #if 0
     case WM_PAINT:
         if (!sDearImGui)
             break;
@@ -759,7 +768,185 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     case WM_EXITSIZEMOVE:
         sResizing = false;
         break;
+    #endif
     }
     return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
-#endif
+
+LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+    switch (uMsg)
+    {
+    case WM_CLOSE:
+        // TODO Ask confirmation
+        DestroyWindow(hWnd);
+        PostQuitMessage(0);
+        break;
+    #if 0
+    case WM_PAINT:
+        if (!sDearImGui)
+            break;
+
+        if (!sSurface)
+            break;
+
+        sDearImGui->render_frame(*sSurface);
+        ValidateRect(hWnd, NULL);
+        break;
+    case WM_KEYDOWN:
+        switch (wParam)
+        {
+    //     case KEY_P:
+    //         paused = !paused;
+    //         break;
+    //     case KEY_F1:
+    //         if (settings.overlay) {
+    //             UIOverlay.visible = !UIOverlay.visible;
+    //         }
+    //         break;
+        case VK_ESCAPE:
+            PostQuitMessage(0);
+            break;
+        }
+
+    //     if (camera.firstperson)
+    //     {
+    //         switch (wParam)
+    //         {
+    //         case KEY_W:
+    //             camera.keys.up = true;
+    //             break;
+    //         case KEY_S:
+    //             camera.keys.down = true;
+    //             break;
+    //         case KEY_A:
+    //             camera.keys.left = true;
+    //             break;
+    //         case KEY_D:
+    //             camera.keys.right = true;
+    //             break;
+    //         }
+    //     }
+
+    //     keyPressed((uint32_t)wParam);
+        break;
+    // case WM_KEYUP:
+    //     if (camera.firstperson)
+    //     {
+    //         switch (wParam)
+    //         {
+    //         case KEY_W:
+    //             camera.keys.up = false;
+    //             break;
+    //         case KEY_S:
+    //             camera.keys.down = false;
+    //             break;
+    //         case KEY_A:
+    //             camera.keys.left = false;
+    //             break;
+    //         case KEY_D:
+    //             camera.keys.right = false;
+    //             break;
+    //         }
+    //     }
+    //     break;
+    case WM_LBUTTONDOWN:
+        if (!sDearImGui)
+            break;
+
+        sDearImGui->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
+        sDearImGui->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
+        sDearImGui->mMouse.buttons.left = true;
+        break;
+    case WM_RBUTTONDOWN:
+        if (!sDearImGui)
+            break;
+
+        sDearImGui->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
+        sDearImGui->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
+        sDearImGui->mMouse.buttons.right = true;
+        break;
+    case WM_MBUTTONDOWN:
+        if (!sDearImGui)
+            break;
+
+        sDearImGui->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
+        sDearImGui->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
+        sDearImGui->mMouse.buttons.middle = true;
+        break;
+    case WM_LBUTTONUP:
+        if (!sDearImGui)
+            break;
+
+        sDearImGui->mMouse.buttons.left = false;
+        break;
+    case WM_RBUTTONUP:
+        if (!sDearImGui)
+            break;
+
+        sDearImGui->mMouse.buttons.right = false;
+        break;
+    case WM_MBUTTONUP:
+        if (!sDearImGui)
+            break;
+
+        sDearImGui->mMouse.buttons.middle = false;
+        break;
+    // case WM_MOUSEWHEEL:
+    // {
+    //     short wheelDelta = GET_WHEEL_DELTA_WPARAM(wParam);
+    //     zoom += (float)wheelDelta * 0.005f * zoomSpeed;
+    //     camera.translate(glm::vec3(0.0f, 0.0f, (float)wheelDelta * 0.005f * zoomSpeed));
+    //     viewUpdated = true;
+    //     break;
+    // }
+    case WM_MOUSEMOVE:
+    {
+        if (!sDearImGui)
+            break;
+
+        sDearImGui->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
+        sDearImGui->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
+        break;
+    }
+    case WM_SIZE:
+        if (wParam != SIZE_MINIMIZED)
+        {
+            if ((sResizing) || ((wParam == SIZE_MAXIMIZED) || (wParam == SIZE_RESTORED)))
+            {
+                // TODO Update Camera
+                if (sSurface)
+                {
+                    sSurface->mResolution = VkExtent2D{
+                        .width  = LOWORD(lParam),
+                        .height = HIWORD(lParam)
+                    };
+                    if (sDearImGui)
+                    {
+                        sDearImGui->invalidate_surface(*sSurface);
+                    }
+                    else
+                    {
+                        sSurface->generate_swapchain();
+                    }
+                }
+            }
+        }
+        break;
+    // case WM_GETMINMAXINFO:
+    // {
+    //     LPMINMAXINFO minMaxInfo = (LPMINMAXINFO)lParam;
+    //     minMaxInfo->ptMinTrackSize.x = 64;
+    //     minMaxInfo->ptMinTrackSize.y = 64;
+    //     break;
+    // }
+    case WM_ENTERSIZEMOVE:
+        sResizing = true;
+        break;
+    case WM_EXITSIZEMOVE:
+        sResizing = false;
+        break;
+    #endif
+    }
+    return DefWindowProc(hWnd, uMsg, wParam, lParam);
+}
