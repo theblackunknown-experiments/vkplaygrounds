@@ -7,17 +7,13 @@
 #include <sstream>
 #include <iostream>
 
-#include "./vulkandebug.hpp"
-#include "./vulkanapplication.hpp"
+#include "./vkdebug.hpp"
+#include "./vkapplication.hpp"
 
 VulkanApplication::VulkanApplication()
 {
     { // Version
-        std::uint32_t version;
-        CHECK(vkEnumerateInstanceVersion(&version));
-        mVersion.major = VK_VERSION_MAJOR(version);
-        mVersion.minor = VK_VERSION_MINOR(version);
-        mVersion.patch = VK_VERSION_PATCH(version);
+        CHECK(vkEnumerateInstanceVersion(&mVersion.mPacked));
     }
     { // Layers / Extensions
         std::uint32_t count;
@@ -65,7 +61,7 @@ VulkanApplication::VulkanApplication()
             .applicationVersion = VK_MAKE_VERSION(0,0,0),
             .pEngineName        = "theblackunknown",
             .engineVersion      = VK_MAKE_VERSION(0,0,0),
-            .apiVersion         = VK_MAKE_VERSION(mVersion.major,mVersion.minor,mVersion.patch),
+            .apiVersion         = mVersion,
         };
 
         // NOTE Un-comment if required

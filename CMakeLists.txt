@@ -6,6 +6,13 @@ project(vkplaygrounds
     LANGUAGES CXX
 )
 
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    message(FATAL_ERROR "NYI ${CMAKE_SYSTEM_NAME}")
+endif()
+
+message(VERBOSE "CMAKE_SYSTEM_NAME: ${CMAKE_SYSTEM_NAME}")
+message(VERBOSE "CMAKE_SYSTEM_VERSION: ${CMAKE_SYSTEM_VERSION}")
+
 set(CMAKE_CXX_STANDARD 20)
 
 ##############################
@@ -26,101 +33,80 @@ include(CMakePackageConfigHelpers)
 ##        Packages          ##
 ##############################
 
-find_package(dearimgui CONFIG REQUIRED)
-find_package(Vulkan    REQUIRED)
+find_package(Vulkan REQUIRED)
+
+##############################
+##     Imported Targets     ##
+##############################
+
+add_library(dearimgui INTERFACE)
+
+target_sources(dearimgui
+    INTERFACE
+        dearimgui/imconfig.h
+        dearimgui/imgui.cpp
+        dearimgui/imgui.h
+        dearimgui/imgui_demo.cpp
+        dearimgui/imgui_draw.cpp
+        dearimgui/imgui_internal.h
+        dearimgui/imgui_widgets.cpp
+        dearimgui/imstb_rectpack.h
+        dearimgui/imstb_textedit.h
+        dearimgui/imstb_truetype.h
+)
+
+target_include_directories(dearimgui
+    INTERFACE
+        dearimgui
+)
+
+target_compile_definitions(dearimgui
+    INTERFACE
+        IMGUI_DISABLE_OBSOLETE_FUNCTIONS
+)
 
 ##############################
 ##         Targets          ##
 ##############################
 
-if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    message(FATAL_ERROR "NYI ${CMAKE_SYSTEM_NAME}")
-endif()
-
-message(VERBOSE "CMAKE_SYSTEM_NAME: ${CMAKE_SYSTEM_NAME}")
-message(VERBOSE "CMAKE_SYSTEM_VERSION: ${CMAKE_SYSTEM_VERSION}")
-
-add_custom_command(OUTPUT
-        "${CMAKE_BINARY_DIR}/ui.vertex.spv"
-        "${CMAKE_BINARY_DIR}/ui.fragment.spv"
-    COMMAND glslangValidator -V -S vert -e main -o "${CMAKE_BINARY_DIR}/ui.vertex.spv"   "${CMAKE_CURRENT_LIST_DIR}/ui.vertex.glsl"
-    COMMAND glslangValidator -V -S frag -e main -o "${CMAKE_BINARY_DIR}/ui.fragment.spv" "${CMAKE_CURRENT_LIST_DIR}/ui.fragment.glsl"
-    DEPENDS
-        "${CMAKE_CURRENT_LIST_DIR}/ui.vertex.glsl"
-        "${CMAKE_CURRENT_LIST_DIR}/ui.fragment.glsl"
-    COMMENT
-        "Compiling GLSL shaders into SPIR-V binary file..."
-)
-
-add_custom_command(OUTPUT
-        "${CMAKE_BINARY_DIR}/ui.vertex.hpp"
-        "${CMAKE_BINARY_DIR}/ui.fragment.hpp"
-    COMMAND glslangValidator -V -S vert -e main -o "${CMAKE_BINARY_DIR}/ui.vertex.hpp"   --variable-name shader_ui_vertex   "${CMAKE_CURRENT_LIST_DIR}/ui.vertex.glsl"
-    COMMAND glslangValidator -V -S frag -e main -o "${CMAKE_BINARY_DIR}/ui.fragment.hpp" --variable-name shader_ui_fragment "${CMAKE_CURRENT_LIST_DIR}/ui.fragment.glsl"
-    DEPENDS
-        "${CMAKE_CURRENT_LIST_DIR}/ui.vertex.glsl"
-        "${CMAKE_CURRENT_LIST_DIR}/ui.fragment.glsl"
-    COMMENT
-        "Compiling GLSL shaders into SPIR-V headers..."
-)
-
-file(READ "CascadiaPL.ttf" FILE_CASCADIA HEX)
-
-string(REGEX MATCHALL ".." ARRAY_CASCADIA "${FILE_CASCADIA}")
-string(REGEX REPLACE  ";" ", 0x" CONTENT_ARRAY_CASCADIA "${ARRAY_CASCADIA}")
-
-file(GENERATE
-    OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/font.hpp"
-    CONTENT "
-#pragma once
-
-#include <cstddef>
-
-constexpr const char          kFontName[]     = \"Cascadia w/ Powerline symbols\";
-constexpr const float         kFontSizePixels = 16.0f;
-constexpr const unsigned char kFont[]    = {
-    0x${CONTENT_ARRAY_CASCADIA}
-};
-")
-
-add_executable(sample-imgui WIN32)
-target_sources(sample-imgui
+add_executable(default-sample WIN32)
+target_sources(default-sample
     PRIVATE
-        $<$<PLATFORM_ID:Windows>:winmain.cpp>
-        vulkandebug.hpp
-        vulkandebug.cpp
-        $<$<PLATFORM_ID:Windows>:winvulkandebug.cpp>
+        src/vkdebug.hpp
+        src/vkdebug.cpp
 
-        vulkanutilities.hpp
+        src/vkutilities.hpp
 
-        vkapplication.hpp
-        vkapplication.cpp
+        src/vkapplication.hpp
+        src/vkapplication.cpp
 
-        vulkanbuffer.hpp
-        vulkanbuffer.cpp
+        src/vulkanbuffer.hpp
+        src/vulkanbuffer.cpp
 
-        vulkanengine.hpp
-        vulkanengine.cpp
+        src/vulkanengine.hpp
+        src/vulkanengine.cpp
 
-        vulkangenerativeshader.hpp
-        vulkangenerativeshader.cpp
+        src/vulkangenerativeshader.hpp
+        src/vulkangenerativeshader.cpp
 
-        vulkanpresentation.hpp
-        vulkanpresentation.cpp
+        src/vulkanpresentation.hpp
+        src/vulkanpresentation.cpp
 
-        vulkandearimgui.hpp
-        vulkandearimgui.cpp
-        # vulkandearimgui_rendering.cpp
-        # vulkandearimgui_imguiframe.cpp
+        src/vulkandearimgui.hpp
+        src/vulkandearimgui.cpp
+        # src/vulkandearimgui_rendering.cpp
+        # src/vulkandearimgui_imguiframe.cpp
 
-        "${CMAKE_BINARY_DIR}/ui.vertex.hpp"
-        "${CMAKE_BINARY_DIR}/ui.fragment.hpp"
-        "${CMAKE_CURRENT_BINARY_DIR}/font.hpp"
+        $<$<PLATFORM_ID:Windows>:src/win32_main.cpp>
+        $<$<PLATFORM_ID:Windows>:src/win32_vkapplication.hpp>
+        $<$<PLATFORM_ID:Windows>:src/win32_vkapplication.cpp>
+        $<$<PLATFORM_ID:Windows>:src/win32_vkdebug.cpp>
 )
 
-target_include_directories(sample-imgui
+target_include_directories(default-sample
     PRIVATE
-        ${CMAKE_BINARY_DIR}
+        src
+        ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 #  If defined, the following flags inhibit definition
@@ -165,7 +151,7 @@ target_include_directories(sample-imgui
 #  NOPROFILER        - Profiler interface.
 #  NODEFERWINDOWPOS  - DeferWindowPos routines
 #  NOMCX             - Modem Configuration Extensions
-target_compile_definitions(sample-imgui
+target_compile_definitions(default-sample
     PRIVATE
         $<$<PLATFORM_ID:Windows>:
             VK_USE_PLATFORM_WIN32_KHR
@@ -173,33 +159,35 @@ target_compile_definitions(sample-imgui
             NOMINMAX
             NOCOMM
         >
-        IMGUI_DISABLE_OBSOLETE_FUNCTIONS
 )
-target_link_libraries(sample-imgui
+target_link_libraries(default-sample
     PRIVATE
-        dearimgui::dearimgui
+        dearimgui
         Vulkan::Vulkan
 )
+
+add_subdirectory(fonts)
+add_subdirectory(shaders)
 
 ##############################
 ##          Config          ##
 ##############################
 
-file(WRITE "${CMAKE_BINARY_DIR}/vkplaygrounds-config.cmake.in" [=[
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/vkplaygrounds-config.cmake.in" [=[
     @PACKAGE_INIT@
     include("@PACKAGE_PATH_EXPORT_TARGETS@")
 ]=])
 
 set(PATH_EXPORT_TARGETS "${CMAKE_INSTALL_DATADIR}/vkplaygrounds-targets.cmake")
 configure_package_config_file(
-    "${CMAKE_BINARY_DIR}/vkplaygrounds-config.cmake.in"
-    "${CMAKE_BINARY_DIR}/vkplaygrounds-config.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/vkplaygrounds-config.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/vkplaygrounds-config.cmake"
     PATH_VARS
         PATH_EXPORT_TARGETS
     INSTALL_DESTINATION ${CMAKE_INSTALL_DATADIR}
 )
 
-write_basic_package_version_file("${CMAKE_BINARY_DIR}/vkplaygrounds-config-version.cmake"
+write_basic_package_version_file("${CMAKE_CURRENT_BINARY_DIR}/vkplaygrounds-config-version.cmake"
   COMPATIBILITY AnyNewerVersion
 )
 
@@ -208,7 +196,7 @@ write_basic_package_version_file("${CMAKE_BINARY_DIR}/vkplaygrounds-config-versi
 ##############################
 
 install(
-    TARGETS sample-imgui
+    TARGETS default-sample
     EXPORT vkplaygrounds-targets
     COMPONENT runtime
 )
@@ -220,8 +208,8 @@ install(EXPORT vkplaygrounds-targets
 
 install(
     FILES
-        "${CMAKE_BINARY_DIR}/vkplaygrounds-config.cmake"
-        "${CMAKE_BINARY_DIR}/vkplaygrounds-config-version.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/vkplaygrounds-config.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/vkplaygrounds-config-version.cmake"
     DESTINATION
         "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}"
 )

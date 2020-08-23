@@ -1,6 +1,6 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
 
 #include <cassert>
 #include <cinttypes>
@@ -13,7 +13,32 @@
 
 #include <string_view>
 
-#include "./vulkandebug.hpp"
+#include "./vkdebug.hpp"
+
+struct Version
+{
+    std::uint32_t mPacked;
+
+    operator std::uint32_t() const
+    {
+        return mPacked;
+    }
+
+    std::uint32_t major() const
+    {
+        return VK_VERSION_MAJOR(mPacked);
+    }
+
+    std::uint32_t minor() const
+    {
+        return VK_VERSION_MINOR(mPacked);
+    }
+
+    std::uint32_t patch() const
+    {
+        return VK_VERSION_PATCH(mPacked);
+    }
+};
 
 inline
 bool has_extension(const std::span<VkExtensionProperties>& extensions, const std::string_view& extension)

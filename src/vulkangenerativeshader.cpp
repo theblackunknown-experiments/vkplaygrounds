@@ -4,8 +4,8 @@
 #include <iterator>
 #include <iostream>
 
-#include "./vulkandebug.hpp"
-#include "./vulkanutilities.hpp"
+#include "./vkdebug.hpp"
+#include "./vkutilities.hpp"
 
 #include "./vulkangenerativeshader.hpp"
 

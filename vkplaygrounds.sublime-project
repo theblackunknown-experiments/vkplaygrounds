@@ -3,7 +3,7 @@
     [
         {
             "file_regex": "^[ ]*(.+?)\\(([0-9]+)\\): (.*)$",
-            "name": "blk-playgrounds (All)",
+            "name": "vkplaygrounds (All)",
 
             /*  add target and syntax */
             "target": "ansi_color_build",
@@ -38,17 +38,8 @@
                         "20",
                         "$file^"
                     ],
-                    "name": "Ninja - Current",
+                    "name": "Current",
                     "selector": "source.c++"
-                },
-                {
-                    "cmd":
-                    [
-                        "devenv",
-                        "/debugexe",
-                        "./Debug/sample-imgui.exe"
-                    ],
-                    "name": "devenv - Debug - sample-imgui.exe"
                 }
             ],
             "working_dir": "C:/builds/vkplaygrounds"

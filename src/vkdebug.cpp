@@ -7,7 +7,7 @@
 #include <sstream>
 #include <iostream>
 
-#include "vulkandebug.hpp"
+#include "./vkdebug.hpp"
 
 const std::string VkDebugUtilsMessageTypeFlagsEXTString(const VkDebugUtilsMessageTypeFlagsEXT messageType) {
     std::ostringstream stream;

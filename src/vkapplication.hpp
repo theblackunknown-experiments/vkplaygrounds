@@ -8,16 +8,14 @@
 #include <string_view>
 #include <unordered_map>
 
+#include "./vkutilities.hpp"
+
 struct VulkanApplication
 {
     explicit VulkanApplication();
     ~VulkanApplication();
 
-    struct {
-        std::uint32_t major;
-        std::uint32_t minor;
-        std::uint32_t patch;
-    } mVersion;
+    Version mVersion;
     std::vector<VkLayerProperties>                                           mLayers;
     std::vector<VkExtensionProperties>                                       mExtensions;
     std::unordered_map<std::string_view, std::vector<VkExtensionProperties>> mLayerExtensions;

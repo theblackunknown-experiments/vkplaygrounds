@@ -5,8 +5,8 @@
 
 #include <iostream>
 
-#include "./vulkandebug.hpp"
-#include "./vulkanutilities.hpp"
+#include "./vkdebug.hpp"
+#include "./vkutilities.hpp"
 
 #include "./vulkanengine.hpp"
 #include "./vulkanpresentation.hpp"

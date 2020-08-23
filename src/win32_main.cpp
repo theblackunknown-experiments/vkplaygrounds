@@ -19,11 +19,11 @@
 
 #include <iostream>
 
-#include "./vulkandebug.hpp"
-#include "./vulkanutilities.hpp"
+#include "./vkdebug.hpp"
+#include "./vkutilities.hpp"
 #include "./vulkanqueuefamilyindices.hpp"
 
-#include "./vkapplication.hpp"
+#include "./win32_vkapplication.hpp"
 
 #include "./vulkanengine.hpp"
 #include "./vulkandearimgui.hpp"
@@ -58,6 +58,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
             args.emplace_back(converter.to_bytes(wargv[i]));
         LocalFree(wargv);
     }
+
     {// console
         auto success = AllocConsole();
         assert(success);
@@ -100,7 +101,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         std::wcin.clear();
     }
 
-    BOOL status;
     HWND hWindow;
     {// Window
         WNDCLASSEX clazz{
@@ -114,7 +114,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
             .hCursor       = LoadCursor(nullptr, IDC_ARROW),
             .hbrBackground = reinterpret_cast<HBRUSH>(GetStockObject(WHITE_BRUSH)),
             .lpszMenuName  = 0,
-            .lpszClassName = "BlkDearImguiWindowClazz",
+            .lpszClassName = "VkPlaygroundWindowClazz",
             .hIconSm       = LoadIconA(nullptr, IDI_WINLOGO),
         };
 
@@ -132,11 +132,11 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         // dwExStyle = WS_EX_APPWINDOW | WS_EX_WINDOWEDGE;
         // dwStyle = WS_OVERLAPPEDWINDOW | WS_CLIPSIBLINGS | WS_CLIPCHILDREN;
 
-        status = AdjustWindowRect(&window_rectange, window_style, FALSE);
+        BOOL status = AdjustWindowRect(&window_rectange, window_style, FALSE);
         assert(status);
         hWindow = CreateWindowExA(
             0,
-            "BlkDearImguiWindowClazz",
+            "VkPlaygroundWindowClazz",
             "theblackunknown - Playground",
             window_style,
             CW_USEDEFAULT, CW_USEDEFAULT,
@@ -148,28 +148,13 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
             nullptr
         );
         assert(hWindow);
-
-        ShowWindow(hWindow, nCmdShow);
-        SetForegroundWindow(hWindow);
-        SetFocus(hWindow);
     }
 
     // Application - Instance
 
-    VulkanApplication application;
-    assert(has_extension(application.mExtensions, VK_KHR_WIN32_SURFACE_EXTENSION_NAME));
-
-    // Surface
-
-    const VkWin32SurfaceCreateInfoKHR info_surface{
-        .sType     = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
-        .pNext     = nullptr,
-        .flags     = 0,
-        .hinstance = hInstance,
-        .hwnd      = hWindow,
-    };
-    VkSurfaceKHR vksurface;
-    CHECK(vkCreateWin32SurfaceKHR(application.mInstance, &info_surface, nullptr, &vksurface));
+    VulkanWin32Application application(hInstance, hWindow);
+    // This playground is to experiment with Vulkan 1.2
+    assert(VK_MAKE_VERSION(1,2,0) <= application.mVersion);
 
     VkPhysicalDevice                     vkphysicaldevice = VK_NULL_HANDLE;
     VkPhysicalDeviceFeatures             vkfeatures;
@@ -201,7 +186,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
         auto finder = std::find_if(
             std::begin(vkphysicaldevices), std::end(vkphysicaldevices),
-            [&vksurface](VkPhysicalDevice vkphysicaldevice) {
+            [vksurface = application.mSurface](VkPhysicalDevice vkphysicaldevice) {
                 return VulkanEngine::supports(vkphysicaldevice) &&
                     VulkanDearImGui::supports(vkphysicaldevice) &&
                     VulkanPresentation::supports(vkphysicaldevice, vksurface) &&
@@ -238,7 +223,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
     auto [queue_family_index_engine, queue_count_engine] = VulkanEngine::requirements(vkphysicaldevice);
     auto [queue_family_index_dearimgui, queue_count_dearimgui] = VulkanDearImGui::requirements(vkphysicaldevice);
-    auto [queue_family_index_presentation, queue_count_presentation] = VulkanPresentation::requirements(vkphysicaldevice, vksurface);
+    auto [queue_family_index_presentation, queue_count_presentation] = VulkanPresentation::requirements(vkphysicaldevice, application.mSurface);
     auto [queue_family_index_generativeshader, queue_count_generativeshader] = VulkanGenerativeShader::requirements(vkphysicaldevice);
 
     vkqueuefamilyindices.engine = queue_family_index_engine;
@@ -410,7 +395,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     VulkanPresentation vkpresentation(
         vkphysicaldevice, vkdevice,
         vkqueuefamilyindices.presentation, queues_presentation,
-        vksurface, kWindowExtent, kVSync
+        application.mSurface, kWindowExtent, kVSync
     );
 
     VulkanGenerativeShader vkgenerativeshader(
@@ -568,6 +553,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     imgui.mBenchmark.frame_tick = std::chrono::high_resolution_clock::now();
     #endif
 
+    ShowWindow(hWindow, nCmdShow);
+    SetForegroundWindow(hWindow);
+    SetFocus(hWindow);
+
     MSG msg = { };
     while (msg.message != WM_QUIT)
     {
@@ -589,7 +578,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     vkDeviceWaitIdle(vkdevice);
     #endif
     vkDestroyDevice(vkdevice, nullptr);
-    vkDestroySurfaceKHR(application.mInstance, vksurface, nullptr);
     FreeConsole();
 
     return static_cast<int>(msg.wParam);

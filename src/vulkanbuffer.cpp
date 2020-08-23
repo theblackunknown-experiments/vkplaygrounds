@@ -1,7 +1,7 @@
 #include <vulkan/vulkan.h>
 
-#include "./vulkandebug.hpp"
-#include "./vulkanutilities.hpp"
+#include "./vkdebug.hpp"
+#include "./vkutilities.hpp"
 
 #include "./vulkanbuffer.hpp"
 
