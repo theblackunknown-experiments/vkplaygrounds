@@ -231,6 +231,14 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     showcase.initialize();
     showcase.initialize_resources();
 
+    showcase.allocate_memory();
+    showcase.allocate_descriptorset();
+
+    showcase.bind_resources();
+    showcase.initialize_views();
+
+    showcase.update_descriptorset();
+
     #if 0
     // Components
 
@@ -432,6 +440,14 @@ LRESULT CALLBACK MinimalWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPA
         break;
     case WM_DESTROY:
         PostQuitMessage(0);
+        break;
+    case WM_KEYUP:
+        switch (wParam)
+        {
+        case VK_ESCAPE:
+            PostQuitMessage(0);
+            break;
+        }
         break;
     default:
         return DefWindowProc(hWnd, uMsg, wParam, lParam);

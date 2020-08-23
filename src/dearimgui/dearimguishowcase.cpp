@@ -5,6 +5,8 @@
 #include "../vkdebug.hpp"
 
 #include "font.hpp"
+#include "ui.vertex.hpp"
+#include "ui.fragment.hpp"
 
 #include <vulkan/vulkan_core.h>
 
@@ -21,6 +23,13 @@
 namespace
 {
     constexpr const bool kVSync = true;
+
+    constexpr const std::uint32_t kShaderBindingFontTexture = 0;
+
+    // TODO(andrea.machizaud) use literals...
+    // TODO(andrea.machizaud) pre-allocate a reasonable amount for buffers
+    constexpr const std::size_t kInitialVertexBufferSize = 2 << 20; // 1 Mb
+    constexpr const std::size_t kInitialIndexBufferSize  = 2 << 20; // 1 Mb
 
     struct alignas(4) DearImGuiConstants {
         float scale    [2];
@@ -203,6 +212,12 @@ DearImGuiShowcase::DearImGuiShowcase(VkInstance vkinstance, VkSurfaceKHR vksurfa
 
 DearImGuiShowcase::~DearImGuiShowcase()
 {
+    vkFreeMemory(mDevice, mMemoryCPUCoherent.memory, nullptr);
+    vkFreeMemory(mDevice, mMemoryGPU.memory, nullptr);
+
+    vkDestroyBuffer(mDevice, mIndexBuffer.buffer, nullptr);
+    vkDestroyBuffer(mDevice, mVertexBuffer.buffer, nullptr);
+
     vkDestroyImageView(mDevice, mFont.view, nullptr);
     vkDestroyImage(mDevice, mFont.image, nullptr);
 
@@ -215,6 +230,9 @@ DearImGuiShowcase::~DearImGuiShowcase()
     vkDestroyPipelineCache(mDevice, mPipelineCache, nullptr);
     vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
     vkDestroyDescriptorSetLayout(mDevice, mDescriptorSetLayout, nullptr);
+
+    vkDestroyShaderModule(mDevice, mShaderModuleUIFragment, nullptr);
+    vkDestroyShaderModule(mDevice, mShaderModuleUIVertex, nullptr);
 
     vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
 
@@ -270,8 +288,6 @@ bool DearImGuiShowcase::isSuitable(VkPhysicalDevice vkphysicaldevice, VkSurfaceK
 
 void DearImGuiShowcase::initialize()
 {
-    constexpr const std::uint32_t kShaderBindingFontTexture = 0;
-
     {// Present Modes
         mPresentMode = VK_PRESENT_MODE_MAX_ENUM_KHR;
         if(kVSync)
@@ -492,6 +508,28 @@ void DearImGuiShowcase::initialize()
         };
         CHECK(vkCreateRenderPass(mDevice, &info, nullptr, &mRenderPass));
     }
+    {// Shader Modules
+        {// UI Vertex
+            constexpr const VkShaderModuleCreateInfo info{
+                .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+                .pNext    = nullptr,
+                .flags    = 0,
+                .codeSize = sizeof(shader_ui_vertex),
+                .pCode    = shader_ui_vertex,
+            };
+            CHECK(vkCreateShaderModule(mDevice, &info, nullptr, &mShaderModuleUIVertex));
+        }
+        {// UI Fragment
+            constexpr const VkShaderModuleCreateInfo info{
+                .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+                .pNext    = nullptr,
+                .flags    = 0,
+                .codeSize = sizeof(shader_ui_fragment),
+                .pCode    = shader_ui_fragment,
+            };
+            CHECK(vkCreateShaderModule(mDevice, &info, nullptr, &mShaderModuleUIFragment));
+        }
+    }
     {// Descriptor Layouts
         // 1 sampler : font texture
         const std::array<VkDescriptorSetLayoutBinding, 1> bindings{
@@ -626,8 +664,44 @@ void DearImGuiShowcase::initialize_resources()
                 .initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED,
             };
             CHECK(vkCreateImage(mDevice, &info, nullptr, &mFont.image));
+            vkGetImageMemoryRequirements(mDevice, mFont.image, &mFont.requirements);
         }
         io.Fonts->SetTexID(&mFont);
+    }
+    {// Geometry
+        {// Vertex
+            constexpr const VkBufferCreateInfo info{
+                .sType                 = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+                .pNext                 = nullptr,
+                .flags                 = 0,
+                .size                  = kInitialVertexBufferSize,
+                .usage                 = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                .sharingMode           = VK_SHARING_MODE_EXCLUSIVE,
+                .queueFamilyIndexCount = 0,
+                .pQueueFamilyIndices   = nullptr,
+            };
+            CHECK(vkCreateBuffer(mDevice, &info, nullptr, &mVertexBuffer.buffer));
+            vkGetBufferMemoryRequirements(mDevice, mVertexBuffer.buffer, &mVertexBuffer.requirements);
+            mVertexBuffer.offset       = 0;
+            mVertexBuffer.current_size = info.size;
+        }
+        {// Vertex
+            constexpr const VkBufferCreateInfo info{
+                .sType                 = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+                .pNext                 = nullptr,
+                .flags                 = 0,
+                .size                  = kInitialIndexBufferSize,
+                .usage                 = VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                .sharingMode           = VK_SHARING_MODE_EXCLUSIVE,
+                .queueFamilyIndexCount = 0,
+                .pQueueFamilyIndices   = nullptr,
+            };
+            CHECK(vkCreateBuffer(mDevice, &info, nullptr, &mIndexBuffer.buffer));
+            vkGetBufferMemoryRequirements(mDevice, mIndexBuffer.buffer, &mIndexBuffer.requirements);
+            // TODO(andrea.machizaud) we leave a gap for vertex buffer to be filled
+            mIndexBuffer.offset       = kInitialVertexBufferSize;
+            mIndexBuffer.current_size = info.size;
+        }
     }
 }
 
@@ -659,4 +733,116 @@ void DearImGuiShowcase::initialize_views()
             CHECK(vkCreateImageView(mDevice, &info, nullptr, &mFont.view));
         }
     }
+}
+
+void DearImGuiShowcase::allocate_memory()
+{
+    {// GPU : Font (static, defined and uploaded once)
+        auto memory_type_index = get_memory_type(
+            mMemoryProperties, mFont.requirements.memoryTypeBits,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+        );
+        assert(memory_type_index.has_value());
+
+        const VkMemoryAllocateInfo info{
+            .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+            .pNext           = nullptr,
+            .allocationSize  = mFont.requirements.size,
+            .memoryTypeIndex = memory_type_index.value(),
+        };
+        CHECK(vkAllocateMemory(mDevice, &info, nullptr, &mMemoryGPU.memory));
+        mMemoryGPU.free = info.allocationSize;
+    }
+    {// CPU : UI Geometry (quite dynamic)
+        assert(mVertexBuffer.requirements.memoryTypeBits == mIndexBuffer.requirements.memoryTypeBits);
+
+        auto memory_type_index = get_memory_type(
+            mMemoryProperties, mVertexBuffer.requirements.memoryTypeBits,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        );
+        assert(memory_type_index.has_value());
+
+        const VkMemoryAllocateInfo info{
+            .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+            .pNext           = nullptr,
+            .allocationSize  = mVertexBuffer.requirements.size + mIndexBuffer.requirements.size,
+            .memoryTypeIndex = memory_type_index.value(),
+        };
+        CHECK(vkAllocateMemory(mDevice, &info, nullptr, &mMemoryCPUCoherent.memory));
+        mMemoryCPUCoherent.free = info.allocationSize;
+    }
+}
+
+void DearImGuiShowcase::allocate_descriptorset()
+{
+    const VkDescriptorSetAllocateInfo info{
+        .sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+        .pNext              = nullptr,
+        .descriptorPool     = mDescriptorPool,
+        .descriptorSetCount = 1,
+        .pSetLayouts        = &mDescriptorSetLayout,
+    };
+    CHECK(vkAllocateDescriptorSets(mDevice, &info, &mDescriptorSet));
+}
+
+void DearImGuiShowcase::bind_resources()
+{
+    {// Images
+        assert(mMemoryGPU.free >= mFont.requirements.size);
+        const std::array<VkBindImageMemoryInfo, 1> bindings{
+            VkBindImageMemoryInfo{
+                .sType        = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO,
+                .pNext        = nullptr,
+                .image        = mFont.image,
+                .memory       = mMemoryGPU.memory,
+                .memoryOffset = 0u,
+            },
+        };
+        CHECK(vkBindImageMemory2(mDevice, bindings.size(), bindings.data()));
+        mMemoryGPU.free -= mFont.requirements.size;
+    }
+    {// Buffers
+        assert(mMemoryCPUCoherent.free >= (mVertexBuffer.requirements.size + mIndexBuffer.requirements.size));
+        const std::array<VkBindBufferMemoryInfo, 2> bindings{
+            VkBindBufferMemoryInfo{
+                .sType        = VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO,
+                .pNext        = nullptr,
+                .buffer       = mVertexBuffer.buffer,
+                .memory       = mMemoryCPUCoherent.memory,
+                .memoryOffset = mVertexBuffer.offset,
+            },
+            VkBindBufferMemoryInfo{
+                .sType        = VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO,
+                .pNext        = nullptr,
+                .buffer       = mIndexBuffer.buffer,
+                .memory       = mMemoryCPUCoherent.memory,
+                .memoryOffset = mIndexBuffer.offset,
+            },
+        };
+        CHECK(vkBindBufferMemory2(mDevice, bindings.size(), bindings.data()));
+        mMemoryCPUCoherent.free -= mVertexBuffer.requirements.size;
+        mMemoryCPUCoherent.free -= mIndexBuffer.requirements.size;
+    }
+}
+
+void DearImGuiShowcase::update_descriptorset()
+{
+    const VkDescriptorImageInfo info{
+        .sampler     = VK_NULL_HANDLE,
+        .imageView   = mFont.view,
+        .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+    };
+    const VkWriteDescriptorSet write{
+        .sType            = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .pNext            = nullptr,
+        .dstSet           = mDescriptorSet,
+        .dstBinding       = kShaderBindingFontTexture,
+        .dstArrayElement  = 0,
+        .descriptorCount  = 1,
+        .descriptorType   = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        .pImageInfo       = &info,
+        .pBufferInfo      = nullptr,
+        .pTexelBufferView = nullptr,
+    };
+    vkUpdateDescriptorSets(mDevice, 1, &write, 0, nullptr);
 }
