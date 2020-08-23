@@ -21,9 +21,13 @@
 
 #include "./vkdebug.hpp"
 #include "./vkutilities.hpp"
-#include "./vulkanqueuefamilyindices.hpp"
+#include "./vksurface.hpp"
+#include "./vkapplication.hpp"
+#include "./win32_vkutilities.hpp"
 
-#include "./win32_vkapplication.hpp"
+#include "./dearimgui/dearimguishowcase.hpp"
+
+#include "./vulkanqueuefamilyindices.hpp"
 
 #include "./vulkanengine.hpp"
 #include "./vulkandearimgui.hpp"
@@ -41,7 +45,7 @@ namespace
 }
 
 static
-LRESULT CALLBACK MinimalWindocProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK MinimalWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 static
 LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
@@ -101,12 +105,23 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         std::wcin.clear();
     }
 
+    // Application - Instance
+
+    std::uint32_t apiVersion;
+    CHECK(vkEnumerateInstanceVersion(&apiVersion));
+    // This playground is to experiment with Vulkan 1.2
+    assert(apiVersion >= VK_MAKE_VERSION(1,2,0));
+
+    VulkanApplication application(Version{ VK_MAKE_VERSION(1, 2, 0) });
+
+    assert(has_extension(application.mExtensions, VK_KHR_WIN32_SURFACE_EXTENSION_NAME));
+
     HWND hWindow;
     {// Window
         WNDCLASSEX clazz{
             .cbSize        = sizeof(WNDCLASSEX),
             .style         = CS_HREDRAW | CS_VREDRAW,
-            .lpfnWndProc   = &MinimalWindocProcedure,
+            .lpfnWndProc   = &MinimalWindowProcedure,
             .cbClsExtra    = 0,
             .cbWndExtra    = 0,
             .hInstance     = hInstance,
@@ -149,53 +164,47 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         );
         assert(hWindow);
     }
+    VulkanSurface surface(application.mInstance, create_surface(application.mInstance, hInstance, hWindow));
 
-    // Application - Instance
+    auto vkphysicaldevices = physical_devices(application.mInstance);
+    assert(vkphysicaldevices.size() > 0);
 
-    VulkanWin32Application application(hInstance, hWindow);
-    // This playground is to experiment with Vulkan 1.2
-    assert(VK_MAKE_VERSION(1,2,0) <= application.mVersion);
+    std::cout << "Detected " << vkphysicaldevices.size() << " GPU:" << std::endl;
+    for (auto vkphysicaldevice : vkphysicaldevices)
+    {
+        VkPhysicalDeviceProperties vkproperties;
 
-    VkPhysicalDevice                     vkphysicaldevice = VK_NULL_HANDLE;
-    VkPhysicalDeviceFeatures             vkfeatures;
-    VkPhysicalDeviceProperties           vkproperties;
-    VkPhysicalDeviceMemoryProperties     vkmemoryproperties;
-    std::vector<VkQueueFamilyProperties> vkqueuefamiliesproperties;
-    std::vector<VkExtensionProperties>   vkextensions;
+        vkGetPhysicalDeviceProperties(vkphysicaldevice, &vkproperties);
+
+        std::cout << "GPU: "<< vkproperties.deviceName << " (" << DeviceType2Text(vkproperties.deviceType) << ')' << std::endl;
+
+        std::uint32_t major = VK_VERSION_MAJOR(vkproperties.apiVersion);
+        std::uint32_t minor = VK_VERSION_MINOR(vkproperties.apiVersion);
+        std::uint32_t patch = VK_VERSION_PATCH(vkproperties.apiVersion);
+        std::cout << '\t' << "API: " << major << "." << minor << "." << patch << std::endl;
+        major = VK_VERSION_MAJOR(vkproperties.driverVersion);
+        minor = VK_VERSION_MINOR(vkproperties.driverVersion);
+        patch = VK_VERSION_PATCH(vkproperties.driverVersion);
+        std::cout << '\t' << "Driver: " << major << "." << minor << "." << patch << std::endl;
+    }
+
+    auto finderSuitablePhysicalDevice = std::find_if(
+        std::begin(vkphysicaldevices), std::end(vkphysicaldevices),
+        [&surface](VkPhysicalDevice vkphysicaldevice) {
+            return DearImGuiShowcase::isSuitable(vkphysicaldevice, surface);
+        }
+    );
+    assert(finderSuitablePhysicalDevice != std::end(vkphysicaldevices));
+
+    auto vkphysicaldevice = *finderSuitablePhysicalDevice;
+    assert(vkphysicaldevice != VK_NULL_HANDLE);
 
     {// Physical Devices
-        auto vkphysicaldevices = physical_devices(application.mInstance);
-        assert(vkphysicaldevices.size() > 0);
-
-        std::cout << "Detected " << vkphysicaldevices.size() << " GPU:" << std::endl;
-        for (auto vkphysicaldevice : vkphysicaldevices)
-        {
-            vkGetPhysicalDeviceProperties(vkphysicaldevice, &vkproperties);
-
-            std::cout << "GPU: "<< vkproperties.deviceName << " (" << DeviceType2Text(vkproperties.deviceType) << ')' << std::endl;
-
-            std::uint32_t major = VK_VERSION_MAJOR(vkproperties.apiVersion);
-            std::uint32_t minor = VK_VERSION_MINOR(vkproperties.apiVersion);
-            std::uint32_t patch = VK_VERSION_PATCH(vkproperties.apiVersion);
-            std::cout << '\t' << "API: " << major << "." << minor << "." << patch << std::endl;
-            major = VK_VERSION_MAJOR(vkproperties.driverVersion);
-            minor = VK_VERSION_MINOR(vkproperties.driverVersion);
-            patch = VK_VERSION_PATCH(vkproperties.driverVersion);
-            std::cout << '\t' << "Driver: " << major << "." << minor << "." << patch << std::endl;
-        }
-
-        auto finder = std::find_if(
-            std::begin(vkphysicaldevices), std::end(vkphysicaldevices),
-            [vksurface = application.mSurface](VkPhysicalDevice vkphysicaldevice) {
-                return VulkanEngine::supports(vkphysicaldevice) &&
-                    VulkanDearImGui::supports(vkphysicaldevice) &&
-                    VulkanPresentation::supports(vkphysicaldevice, vksurface) &&
-                    VulkanGenerativeShader::supports(vkphysicaldevice);
-            }
-        );
-        assert(finder != std::end(vkphysicaldevices));
-
-        vkphysicaldevice = *finder;
+        VkPhysicalDeviceFeatures             vkfeatures;
+        VkPhysicalDeviceProperties           vkproperties;
+        VkPhysicalDeviceMemoryProperties     vkmemoryproperties;
+        std::vector<VkQueueFamilyProperties> vkqueuefamiliesproperties;
+        std::vector<VkExtensionProperties>   vkextensions;
 
         vkGetPhysicalDeviceFeatures(vkphysicaldevice, &vkfeatures);
         vkGetPhysicalDeviceProperties(vkphysicaldevice, &vkproperties);
@@ -216,186 +225,19 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
         std::cout << "Selected GPU: " << vkproperties.deviceName << std::endl;
     }
-    assert(vkphysicaldevice != VK_NULL_HANDLE);
 
-    // Queues
-    VulkanQueueFamilyIndices vkqueuefamilyindices;
+    DearImGuiShowcase showcase(application, surface, vkphysicaldevice);
 
-    auto [queue_family_index_engine, queue_count_engine] = VulkanEngine::requirements(vkphysicaldevice);
-    auto [queue_family_index_dearimgui, queue_count_dearimgui] = VulkanDearImGui::requirements(vkphysicaldevice);
-    auto [queue_family_index_presentation, queue_count_presentation] = VulkanPresentation::requirements(vkphysicaldevice, application.mSurface);
-    auto [queue_family_index_generativeshader, queue_count_generativeshader] = VulkanGenerativeShader::requirements(vkphysicaldevice);
+    showcase.initialize();
+    showcase.initialize_resources();
 
-    vkqueuefamilyindices.engine = queue_family_index_engine;
-    vkqueuefamilyindices.dearimgui = queue_family_index_dearimgui;
-    vkqueuefamilyindices.presentation = queue_family_index_presentation;
-    vkqueuefamilyindices.generativeshader = queue_family_index_generativeshader;
-
-    assert(queue_count_engine > 0);
-    assert(queue_count_dearimgui > 0);
-    assert(queue_count_presentation > 0);
-    assert(queue_count_generativeshader > 0);
-
-    // NOTE Dummy but at least provides enough priorities in worst case
-    const auto max_queue_count(
-        std::max(
-            std::max(queue_count_engine, queue_count_dearimgui),
-            std::max(queue_count_presentation, queue_count_generativeshader)
-        )
-    );
-    const auto total_queue_count =
-        queue_count_engine + queue_count_dearimgui +
-        queue_count_presentation + queue_count_generativeshader
-    ;
-    const std::set<std::uint32_t> unique_indices{
-        vkqueuefamilyindices.engine,
-        vkqueuefamilyindices.dearimgui,
-        vkqueuefamilyindices.presentation,
-        vkqueuefamilyindices.generativeshader
-    };
-
-    const std::vector<float> priorities(max_queue_count, 1.0f);
-    std::vector<VkDeviceQueueCreateInfo> info_queue_creations;
-    for (std::uint32_t queue_family_index : unique_indices)
-    {
-        std::set<std::uint32_t> expected_queue_count;
-        if (queue_family_index == vkqueuefamilyindices.engine)
-            expected_queue_count.insert(queue_count_engine);
-        if (queue_family_index == vkqueuefamilyindices.dearimgui)
-            expected_queue_count.insert(queue_count_dearimgui);
-        if (queue_family_index == vkqueuefamilyindices.presentation)
-            expected_queue_count.insert(queue_count_presentation);
-        if (queue_family_index == vkqueuefamilyindices.generativeshader)
-            expected_queue_count.insert(queue_count_generativeshader);
-
-        const std::uint32_t queue_count = *std::min_element(
-            std::begin(expected_queue_count), std::end(expected_queue_count)
-        );
-        info_queue_creations.push_back(VkDeviceQueueCreateInfo{
-            .sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-            .pNext            = nullptr,
-            .flags            = 0,
-            .queueFamilyIndex = queue_family_index,
-            .queueCount       = queue_count,
-            .pQueuePriorities = priorities.data(),
-        });
-    }
-
-    VkDevice vkdevice = VK_NULL_HANDLE;
-    {// Device
-        constexpr const VkPhysicalDeviceFeatures features{
-            .robustBufferAccess                      = VK_FALSE,
-            .fullDrawIndexUint32                     = VK_FALSE,
-            .imageCubeArray                          = VK_FALSE,
-            .independentBlend                        = VK_FALSE,
-            .geometryShader                          = VK_FALSE,
-            .tessellationShader                      = VK_FALSE,
-            .sampleRateShading                       = VK_FALSE,
-            .dualSrcBlend                            = VK_FALSE,
-            .logicOp                                 = VK_FALSE,
-            .multiDrawIndirect                       = VK_FALSE,
-            .drawIndirectFirstInstance               = VK_FALSE,
-            .depthClamp                              = VK_FALSE,
-            .depthBiasClamp                          = VK_FALSE,
-            .fillModeNonSolid                        = VK_FALSE,
-            .depthBounds                             = VK_FALSE,
-            .wideLines                               = VK_FALSE,
-            .largePoints                             = VK_FALSE,
-            .alphaToOne                              = VK_FALSE,
-            .multiViewport                           = VK_FALSE,
-            .samplerAnisotropy                       = VK_FALSE,
-            .textureCompressionETC2                  = VK_FALSE,
-            .textureCompressionASTC_LDR              = VK_FALSE,
-            .textureCompressionBC                    = VK_FALSE,
-            .occlusionQueryPrecise                   = VK_FALSE,
-            .pipelineStatisticsQuery                 = VK_FALSE,
-            .vertexPipelineStoresAndAtomics          = VK_FALSE,
-            .fragmentStoresAndAtomics                = VK_FALSE,
-            .shaderTessellationAndGeometryPointSize  = VK_FALSE,
-            .shaderImageGatherExtended               = VK_FALSE,
-            .shaderStorageImageExtendedFormats       = VK_FALSE,
-            .shaderStorageImageMultisample           = VK_FALSE,
-            .shaderStorageImageReadWithoutFormat     = VK_FALSE,
-            .shaderStorageImageWriteWithoutFormat    = VK_FALSE,
-            .shaderUniformBufferArrayDynamicIndexing = VK_FALSE,
-            .shaderSampledImageArrayDynamicIndexing  = VK_FALSE,
-            .shaderStorageBufferArrayDynamicIndexing = VK_FALSE,
-            .shaderStorageImageArrayDynamicIndexing  = VK_FALSE,
-            .shaderClipDistance                      = VK_FALSE,
-            .shaderCullDistance                      = VK_FALSE,
-            .shaderFloat64                           = VK_FALSE,
-            .shaderInt64                             = VK_FALSE,
-            .shaderInt16                             = VK_FALSE,
-            .shaderResourceResidency                 = VK_FALSE,
-            .shaderResourceMinLod                    = VK_FALSE,
-            .sparseBinding                           = VK_FALSE,
-            .sparseResidencyBuffer                   = VK_FALSE,
-            .sparseResidencyImage2D                  = VK_FALSE,
-            .sparseResidencyImage3D                  = VK_FALSE,
-            .sparseResidency2Samples                 = VK_FALSE,
-            .sparseResidency4Samples                 = VK_FALSE,
-            .sparseResidency8Samples                 = VK_FALSE,
-            .sparseResidency16Samples                = VK_FALSE,
-            .sparseResidencyAliased                  = VK_FALSE,
-            .variableMultisampleRate                 = VK_FALSE,
-            .inheritedQueries                        = VK_FALSE,
-        };
-        std::vector<const char*> enabled_extensions{};
-        // TODO Fint out why this is needed
-        if (has_extension(vkextensions, VK_EXT_DEBUG_MARKER_EXTENSION_NAME))
-        {// Debug Marker
-            enabled_extensions.emplace_back(VK_EXT_DEBUG_MARKER_EXTENSION_NAME);
-        }
-        const VkDeviceCreateInfo info{
-            .sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-            .pNext                   = nullptr,
-            .flags                   = 0,
-            .queueCreateInfoCount    = static_cast<std::uint32_t>(info_queue_creations.size()),
-            .pQueueCreateInfos       = info_queue_creations.data(),
-            .enabledLayerCount       = 0,
-            .ppEnabledLayerNames     = nullptr,
-            .enabledExtensionCount   = static_cast<std::uint32_t>(enabled_extensions.size()),
-            .ppEnabledExtensionNames = enabled_extensions.data(),
-            .pEnabledFeatures        = &features,
-        };
-        CHECK(vkCreateDevice(vkphysicaldevice, &info, nullptr, &vkdevice));
-    }
-
-    std::unordered_map<std::uint32_t, std::vector<VkQueue>> queues_by_family;
-    for (const VkDeviceQueueCreateInfo& info_queue_creation : info_queue_creations)
-    {
-        std::vector<VkQueue>& queues = queues_by_family[info_queue_creation.queueFamilyIndex];
-        queues.resize(info_queue_creation.queueCount);
-        for (std::uint32_t idx = 0; idx < info_queue_creation.queueCount; ++idx)
-            vkGetDeviceQueue(vkdevice, info_queue_creation.queueFamilyIndex, idx, &queues.at(idx));
-    }
-
+    #if 0
     // Components
-
-    std::vector<VkQueue> queues_engine(queue_count_engine);
-    std::vector<VkQueue> queues_dearimgui(queue_count_dearimgui);
-    std::vector<VkQueue> queues_presentation(queue_count_presentation);
-    std::vector<VkQueue> queues_generativeshader(queue_count_generativeshader);
-
-    for (auto&& iterator : queues_by_family)
-    {
-        const std::uint32_t&        queue_family_index = iterator.first;
-        const std::vector<VkQueue>& queues             = iterator.second;
-
-        if (queue_family_index == vkqueuefamilyindices.engine)
-            std::copy_n(std::begin(queues), queue_count_engine, std::begin(queues_engine));
-        if (queue_family_index == vkqueuefamilyindices.dearimgui)
-            std::copy_n(std::begin(queues), queue_count_dearimgui, std::begin(queues_dearimgui));
-        if (queue_family_index == vkqueuefamilyindices.presentation)
-            std::copy_n(std::begin(queues), queue_count_presentation, std::begin(queues_presentation));
-        if (queue_family_index == vkqueuefamilyindices.generativeshader)
-            std::copy_n(std::begin(queues), queue_count_generativeshader, std::begin(queues_generativeshader));
-    }
 
     VulkanPresentation vkpresentation(
         vkphysicaldevice, vkdevice,
         vkqueuefamilyindices.presentation, queues_presentation,
-        application.mSurface, kWindowExtent, kVSync
+        surface, kWindowExtent, kVSync
     );
 
     VulkanGenerativeShader vkgenerativeshader(
@@ -415,7 +257,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         &vkpresentation
     );
 
-    #if 0
     {// Font Uploading
         auto [vkextent, data] = vkdearimgui.get_font_data_8bits();
 
@@ -504,13 +345,13 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
         vkdearimgui.destroy_staging_font_buffer(vkstagingbuffer, vkstagingmemory);
     }
-    #endif
 
     vkpresentation.recreate_swapchain();
 
     vkengine.recreate_depth(vkpresentation.mResolution);
 
     // vkdearimgui.recreate_graphics_pipeline(vkpresentation.mResolution);
+    #endif
 
     #if 0
     VulkanDevice device(application.mInstance, vkphysicaldevice, vkdevice, queue_family_index);
@@ -577,199 +418,31 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     #if 0
     vkDeviceWaitIdle(vkdevice);
     #endif
-    vkDestroyDevice(vkdevice, nullptr);
     FreeConsole();
 
     return static_cast<int>(msg.wParam);
 }
 
-LRESULT CALLBACK MinimalWindocProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK MinimalWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     switch (uMsg)
     {
     case WM_CLOSE:
-        // TODO Ask confirmation
         DestroyWindow(hWnd);
+        break;
+    case WM_DESTROY:
         PostQuitMessage(0);
         break;
-    #if 0
-    case WM_PAINT:
-        if (!sDearImGui)
-            break;
-
-        if (!sSurface)
-            break;
-
-        sDearImGui->render_frame(*sSurface);
-        ValidateRect(hWnd, NULL);
-        break;
-    case WM_KEYDOWN:
-        switch (wParam)
-        {
-    //     case KEY_P:
-    //         paused = !paused;
-    //         break;
-    //     case KEY_F1:
-    //         if (settings.overlay) {
-    //             UIOverlay.visible = !UIOverlay.visible;
-    //         }
-    //         break;
-        case VK_ESCAPE:
-            PostQuitMessage(0);
-            break;
-        }
-
-    //     if (camera.firstperson)
-    //     {
-    //         switch (wParam)
-    //         {
-    //         case KEY_W:
-    //             camera.keys.up = true;
-    //             break;
-    //         case KEY_S:
-    //             camera.keys.down = true;
-    //             break;
-    //         case KEY_A:
-    //             camera.keys.left = true;
-    //             break;
-    //         case KEY_D:
-    //             camera.keys.right = true;
-    //             break;
-    //         }
-    //     }
-
-    //     keyPressed((uint32_t)wParam);
-        break;
-    // case WM_KEYUP:
-    //     if (camera.firstperson)
-    //     {
-    //         switch (wParam)
-    //         {
-    //         case KEY_W:
-    //             camera.keys.up = false;
-    //             break;
-    //         case KEY_S:
-    //             camera.keys.down = false;
-    //             break;
-    //         case KEY_A:
-    //             camera.keys.left = false;
-    //             break;
-    //         case KEY_D:
-    //             camera.keys.right = false;
-    //             break;
-    //         }
-    //     }
-    //     break;
-    case WM_LBUTTONDOWN:
-        if (!sDearImGui)
-            break;
-
-        sDearImGui->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
-        sDearImGui->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
-        sDearImGui->mMouse.buttons.left = true;
-        break;
-    case WM_RBUTTONDOWN:
-        if (!sDearImGui)
-            break;
-
-        sDearImGui->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
-        sDearImGui->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
-        sDearImGui->mMouse.buttons.right = true;
-        break;
-    case WM_MBUTTONDOWN:
-        if (!sDearImGui)
-            break;
-
-        sDearImGui->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
-        sDearImGui->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
-        sDearImGui->mMouse.buttons.middle = true;
-        break;
-    case WM_LBUTTONUP:
-        if (!sDearImGui)
-            break;
-
-        sDearImGui->mMouse.buttons.left = false;
-        break;
-    case WM_RBUTTONUP:
-        if (!sDearImGui)
-            break;
-
-        sDearImGui->mMouse.buttons.right = false;
-        break;
-    case WM_MBUTTONUP:
-        if (!sDearImGui)
-            break;
-
-        sDearImGui->mMouse.buttons.middle = false;
-        break;
-    // case WM_MOUSEWHEEL:
-    // {
-    //     short wheelDelta = GET_WHEEL_DELTA_WPARAM(wParam);
-    //     zoom += (float)wheelDelta * 0.005f * zoomSpeed;
-    //     camera.translate(glm::vec3(0.0f, 0.0f, (float)wheelDelta * 0.005f * zoomSpeed));
-    //     viewUpdated = true;
-    //     break;
-    // }
-    case WM_MOUSEMOVE:
-    {
-        if (!sDearImGui)
-            break;
-
-        sDearImGui->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
-        sDearImGui->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
-        break;
+    default:
+        return DefWindowProc(hWnd, uMsg, wParam, lParam);
     }
-    case WM_SIZE:
-        if (wParam != SIZE_MINIMIZED)
-        {
-            if ((sResizing) || ((wParam == SIZE_MAXIMIZED) || (wParam == SIZE_RESTORED)))
-            {
-                // TODO Update Camera
-                if (sSurface)
-                {
-                    sSurface->mResolution = VkExtent2D{
-                        .width  = LOWORD(lParam),
-                        .height = HIWORD(lParam)
-                    };
-                    if (sDearImGui)
-                    {
-                        sDearImGui->invalidate_surface(*sSurface);
-                    }
-                    else
-                    {
-                        sSurface->generate_swapchain();
-                    }
-                }
-            }
-        }
-        break;
-    // case WM_GETMINMAXINFO:
-    // {
-    //     LPMINMAXINFO minMaxInfo = (LPMINMAXINFO)lParam;
-    //     minMaxInfo->ptMinTrackSize.x = 64;
-    //     minMaxInfo->ptMinTrackSize.y = 64;
-    //     break;
-    // }
-    case WM_ENTERSIZEMOVE:
-        sResizing = true;
-        break;
-    case WM_EXITSIZEMOVE:
-        sResizing = false;
-        break;
-    #endif
-    }
-    return DefWindowProc(hWnd, uMsg, wParam, lParam);
+    return 0;
 }
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     switch (uMsg)
     {
-    case WM_CLOSE:
-        // TODO Ask confirmation
-        DestroyWindow(hWnd);
-        PostQuitMessage(0);
-        break;
     #if 0
     case WM_PAINT:
         if (!sDearImGui)
@@ -935,6 +608,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         sResizing = false;
         break;
     #endif
+    default:
+        return MinimalWindowProcedure(hWnd, uMsg, wParam, lParam);
     }
-    return DefWindowProc(hWnd, uMsg, wParam, lParam);
+    return 0;
 }

@@ -12,8 +12,13 @@
 
 struct VulkanApplication
 {
-    explicit VulkanApplication();
+    explicit VulkanApplication(Version version);
     ~VulkanApplication();
+
+    operator VkInstance() const
+    {
+        return mInstance;
+    }
 
     Version mVersion;
     std::vector<VkLayerProperties>                                           mLayers;

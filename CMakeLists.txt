@@ -10,6 +10,49 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
     message(FATAL_ERROR "NYI ${CMAKE_SYSTEM_NAME}")
 endif()
 
+#  If defined, the following flags inhibit definition
+#     of the indicated items.
+#
+#  NOGDICAPMASKS     - CC_*, LC_*, PC_*, CP_*, TC_*, RC_
+#  NOVIRTUALKEYCODES - VK_*
+#  NOWINMESSAGES     - WM_*, EM_*, LB_*, CB_*
+#  NOWINSTYLES       - WS_*, CS_*, ES_*, LBS_*, SBS_*, CBS_*
+#  NOSYSMETRICS      - SM_*
+#  NOMENUS           - MF_*
+#  NOICONS           - IDI_*
+#  NOKEYSTATES       - MK_*
+#  NOSYSCOMMANDS     - SC_*
+#  NORASTEROPS       - Binary and Tertiary raster ops
+#  NOSHOWWINDOW      - SW_*
+#  OEMRESOURCE       - OEM Resource values
+#  NOATOM            - Atom Manager routines
+#  NOCLIPBOARD       - Clipboard routines
+#  NOCOLOR           - Screen colors
+#  NOCTLMGR          - Control and Dialog routines
+#  NODRAWTEXT        - DrawText() and DT_*
+#  NOGDI             - All GDI defines and routines
+#  NOKERNEL          - All KERNEL defines and routines
+#  NOUSER            - All USER defines and routines
+#  NONLS             - All NLS defines and routines
+#  NOMB              - MB_* and MessageBox()
+#  NOMEMMGR          - GMEM_*, LMEM_*, GHND, LHND, associated routines
+#  NOMETAFILE        - typedef METAFILEPICT
+#  NOMINMAX          - Macros min(a,b) and max(a,b)
+#  NOMSG             - typedef MSG and associated routines
+#  NOOPENFILE        - OpenFile(), OemToAnsi, AnsiToOem, and OF_*
+#  NOSCROLL          - SB_* and scrolling routines
+#  NOSERVICE         - All Service Controller routines, SERVICE_ equates, etc.
+#  NOSOUND           - Sound driver routines
+#  NOTEXTMETRIC      - typedef TEXTMETRIC and associated routines
+#  NOWH              - SetWindowsHook and WH_*
+#  NOWINOFFSETS      - GWL_*, GCL_*, associated routines
+#  NOCOMM            - COMM driver routines
+#  NOKANJI           - Kanji support stuff.
+#  NOHELP            - Help engine interface.
+#  NOPROFILER        - Profiler interface.
+#  NODEFERWINDOWPOS  - DeferWindowPos routines
+#  NOMCX             - Modem Configuration Extensions
+
 message(VERBOSE "CMAKE_SYSTEM_NAME: ${CMAKE_SYSTEM_NAME}")
 message(VERBOSE "CMAKE_SYSTEM_VERSION: ${CMAKE_SYSTEM_VERSION}")
 
@@ -63,6 +106,7 @@ target_include_directories(dearimgui
 target_compile_definitions(dearimgui
     INTERFACE
         IMGUI_DISABLE_OBSOLETE_FUNCTIONS
+        $<$<PLATFORM_ID:Windows>:OS_WINDOWS>
 )
 
 ##############################
@@ -72,6 +116,8 @@ target_compile_definitions(dearimgui
 add_executable(default-sample WIN32)
 target_sources(default-sample
     PRIVATE
+        src/utilities.hpp
+
         src/vkdebug.hpp
         src/vkdebug.cpp
 
@@ -79,6 +125,12 @@ target_sources(default-sample
 
         src/vkapplication.hpp
         src/vkapplication.cpp
+
+        src/vksurface.hpp
+        src/vksurface.cpp
+
+        src/dearimgui/dearimguishowcase.hpp
+        src/dearimgui/dearimguishowcase.cpp
 
         src/vulkanbuffer.hpp
         src/vulkanbuffer.cpp
@@ -98,8 +150,7 @@ target_sources(default-sample
         # src/vulkandearimgui_imguiframe.cpp
 
         $<$<PLATFORM_ID:Windows>:src/win32_main.cpp>
-        $<$<PLATFORM_ID:Windows>:src/win32_vkapplication.hpp>
-        $<$<PLATFORM_ID:Windows>:src/win32_vkapplication.cpp>
+        $<$<PLATFORM_ID:Windows>:src/win32_vkutilities.hpp>
         $<$<PLATFORM_ID:Windows>:src/win32_vkdebug.cpp>
 )
 
@@ -109,48 +160,6 @@ target_include_directories(default-sample
         ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-#  If defined, the following flags inhibit definition
-#     of the indicated items.
-#
-#  NOGDICAPMASKS     - CC_*, LC_*, PC_*, CP_*, TC_*, RC_
-#  NOVIRTUALKEYCODES - VK_*
-#  NOWINMESSAGES     - WM_*, EM_*, LB_*, CB_*
-#  NOWINSTYLES       - WS_*, CS_*, ES_*, LBS_*, SBS_*, CBS_*
-#  NOSYSMETRICS      - SM_*
-#  NOMENUS           - MF_*
-#  NOICONS           - IDI_*
-#  NOKEYSTATES       - MK_*
-#  NOSYSCOMMANDS     - SC_*
-#  NORASTEROPS       - Binary and Tertiary raster ops
-#  NOSHOWWINDOW      - SW_*
-#  OEMRESOURCE       - OEM Resource values
-#  NOATOM            - Atom Manager routines
-#  NOCLIPBOARD       - Clipboard routines
-#  NOCOLOR           - Screen colors
-#  NOCTLMGR          - Control and Dialog routines
-#  NODRAWTEXT        - DrawText() and DT_*
-#  NOGDI             - All GDI defines and routines
-#  NOKERNEL          - All KERNEL defines and routines
-#  NOUSER            - All USER defines and routines
-#  NONLS             - All NLS defines and routines
-#  NOMB              - MB_* and MessageBox()
-#  NOMEMMGR          - GMEM_*, LMEM_*, GHND, LHND, associated routines
-#  NOMETAFILE        - typedef METAFILEPICT
-#  NOMINMAX          - Macros min(a,b) and max(a,b)
-#  NOMSG             - typedef MSG and associated routines
-#  NOOPENFILE        - OpenFile(), OemToAnsi, AnsiToOem, and OF_*
-#  NOSCROLL          - SB_* and scrolling routines
-#  NOSERVICE         - All Service Controller routines, SERVICE_ equates, etc.
-#  NOSOUND           - Sound driver routines
-#  NOTEXTMETRIC      - typedef TEXTMETRIC and associated routines
-#  NOWH              - SetWindowsHook and WH_*
-#  NOWINOFFSETS      - GWL_*, GCL_*, associated routines
-#  NOCOMM            - COMM driver routines
-#  NOKANJI           - Kanji support stuff.
-#  NOHELP            - Help engine interface.
-#  NOPROFILER        - Profiler interface.
-#  NODEFERWINDOWPOS  - DeferWindowPos routines
-#  NOMCX             - Modem Configuration Extensions
 target_compile_definitions(default-sample
     PRIVATE
         $<$<PLATFORM_ID:Windows>:

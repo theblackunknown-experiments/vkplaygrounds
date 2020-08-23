@@ -10,11 +10,9 @@
 #include "./vkdebug.hpp"
 #include "./vkapplication.hpp"
 
-VulkanApplication::VulkanApplication()
+VulkanApplication::VulkanApplication(Version version)
+    : mVersion(version)
 {
-    { // Version
-        CHECK(vkEnumerateInstanceVersion(&mVersion.mPacked));
-    }
     { // Layers / Extensions
         std::uint32_t count;
         CHECK(vkEnumerateInstanceLayerProperties(&count, nullptr));
@@ -57,7 +55,7 @@ VulkanApplication::VulkanApplication()
         const VkApplicationInfo info_application{
             .sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO,
             .pNext              = nullptr,
-            .pApplicationName   = "theblackunknown - Playground",
+            .pApplicationName   = "theblackunknown - vkplaygrounds",
             .applicationVersion = VK_MAKE_VERSION(0,0,0),
             .pEngineName        = "theblackunknown",
             .engineVersion      = VK_MAKE_VERSION(0,0,0),
@@ -142,6 +140,22 @@ VulkanApplication::VulkanApplication()
                 .sType           = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
                 .pNext           = nullptr,
                 .flags           = 0,
+                .messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
+                    | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
+                    | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
+                .messageType     = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
+                    | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
+                    | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
+                .pfnUserCallback = StandardErrorDebugCallback,
+                .pUserData       = nullptr,
+            };
+            CHECK(vkCreateDebugUtilsMessengerEXT(mInstance, &info, nullptr, &mStandardErrorMessenger));
+        }
+        {
+            const VkDebugUtilsMessengerCreateInfoEXT info{
+                .sType           = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+                .pNext           = nullptr,
+                .flags           = 0,
                 .messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
                     | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
                 .messageType     = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
@@ -152,20 +166,6 @@ VulkanApplication::VulkanApplication()
             };
             CHECK(vkCreateDebugUtilsMessengerEXT(mInstance, &info, nullptr, &mDebuggerMessenger));
         }
-        // {
-        //     const VkDebugUtilsMessengerCreateInfoEXT info{
-        //         .sType           = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
-        //         .pNext           = nullptr,
-        //         .flags           = 0,
-        //         .messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT,
-        //         .messageType     = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
-        //             | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
-        //             | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
-        //         .pfnUserCallback = StandardErrorDebugCallback,
-        //         .pUserData       = nullptr,
-        //     };
-        //     CHECK(vkCreateDebugUtilsMessengerEXT(mInstance, &info, nullptr, &mStandardErrorMessenger));
-        // }
     }
 }
 
@@ -173,8 +173,8 @@ VulkanApplication::~VulkanApplication()
 {
     {
         auto vkDestroyDebugUtilsMessengerEXT = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(mInstance, "vkDestroyDebugUtilsMessengerEXT"));
-        // vkDestroyDebugUtilsMessengerEXT(mInstance, mStandardErrorMessenger, nullptr);
         vkDestroyDebugUtilsMessengerEXT(mInstance, mDebuggerMessenger, nullptr);
+        vkDestroyDebugUtilsMessengerEXT(mInstance, mStandardErrorMessenger, nullptr);
     }
     vkDestroyInstance(mInstance, nullptr);
 }

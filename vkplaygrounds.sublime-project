@@ -2,8 +2,8 @@
     "build_systems":
     [
         {
-            "file_regex": "^[ ]*(.+?)\\(([0-9]+)\\): (.*)$",
-            "name": "vkplaygrounds (All)",
+            "file_regex": "^[ ]*(.+?)\\(([0-9]+)\\)[ ]*: (.*)$",
+            "name": "vkplaygrounds",
 
             /*  add target and syntax */
             "target": "ansi_color_build",
