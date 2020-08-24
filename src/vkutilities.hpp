@@ -40,6 +40,33 @@ struct Version
     }
 };
 
+struct ImageData {
+    VkImage              image        = VK_NULL_HANDLE;
+    VkImageView          view         = VK_NULL_HANDLE;
+    VkMemoryRequirements requirements;
+};
+
+struct BufferData {
+    std::uint32_t        offset       = 0;
+    std::uint32_t        current_size = 0;
+    VkBuffer             buffer       = VK_NULL_HANDLE;
+    VkMemoryRequirements requirements;
+};
+
+struct MemoryData {
+    std::uint32_t  free   = 0;
+    VkDeviceMemory memory = VK_NULL_HANDLE;
+};
+
+struct PresentationData {
+    VkSwapchainKHR               swapchain     = VK_NULL_HANDLE;
+    std::uint32_t                count         = {};
+    std::vector<VkImage>         images        ;
+    std::vector<VkImageView>     views         ;
+    std::vector<VkCommandBuffer> commandbuffers;
+    std::vector<VkFence>         wait_fences   ;
+};
+
 inline
 bool has_extension(const std::span<VkExtensionProperties>& extensions, const std::string_view& extension)
 {

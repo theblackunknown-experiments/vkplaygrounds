@@ -36,7 +36,7 @@
 
 namespace
 {
-    constexpr const VkExtent2D kWindowExtent = { 1280, 720 };
+    constexpr const VkExtent2D kResolution = { 1280, 720 };
     constexpr const bool       kVSync = true;
 
     bool sResizing = false;
@@ -139,8 +139,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         RECT window_rectange{
             .left   = 0,
             .top    = 0,
-            .right  = kWindowExtent.width,
-            .bottom = kWindowExtent.height,
+            .right  = kResolution.width,
+            .bottom = kResolution.height,
         };
         // WS_EX_OVERLAPPEDWINDOW
         DWORD window_style = WS_OVERLAPPEDWINDOW;
@@ -226,7 +226,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         std::cout << "Selected GPU: " << vkproperties.deviceName << std::endl;
     }
 
-    DearImGuiShowcase showcase(application, surface, vkphysicaldevice);
+    DearImGuiShowcase showcase(application, surface, vkphysicaldevice, kResolution);
 
     showcase.initialize();
     showcase.initialize_resources();
@@ -234,7 +234,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     showcase.allocate_memory();
     showcase.allocate_descriptorset();
 
+    showcase.create_swapchain();
+
     showcase.bind_resources();
+
     showcase.initialize_views();
 
     showcase.update_descriptorset();
@@ -245,7 +248,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     VulkanPresentation vkpresentation(
         vkphysicaldevice, vkdevice,
         vkqueuefamilyindices.presentation, queues_presentation,
-        surface, kWindowExtent, kVSync
+        surface, kResolution, kVSync
     );
 
     VulkanGenerativeShader vkgenerativeshader(

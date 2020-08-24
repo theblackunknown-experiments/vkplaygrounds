@@ -6,11 +6,17 @@
 
 #include <vector>
 
+#include "./vkutilities.hpp"
+
 struct ImGuiContext;
 
 struct DearImGuiShowcase
 {
-    explicit DearImGuiShowcase(VkInstance vkinstance, VkSurfaceKHR vksurface, VkPhysicalDevice vkphysicaldevice);
+    explicit DearImGuiShowcase(
+        VkInstance vkinstance,
+        VkSurfaceKHR vksurface,
+        VkPhysicalDevice vkphysicaldevice,
+        const VkExtent2D& resolution);
     ~DearImGuiShowcase();
 
     static
@@ -23,6 +29,8 @@ struct DearImGuiShowcase
     void allocate_memory();
     void allocate_descriptorset();
 
+    void create_swapchain();
+
     void bind_resources();
 
     // void reallocate_buffers();
@@ -32,6 +40,8 @@ struct DearImGuiShowcase
     VkInstance                           mInstance                     = VK_NULL_HANDLE;
     VkSurfaceKHR                         mSurface                      = VK_NULL_HANDLE;
     VkPhysicalDevice                     mPhysicalDevice               = VK_NULL_HANDLE;
+
+    VkExtent2D                           mResolution;
 
     VkPhysicalDeviceFeatures             mFeatures;
     VkPhysicalDeviceProperties           mProperties;
@@ -70,23 +80,13 @@ struct DearImGuiShowcase
     VkSemaphore                          mSemaphorePresentComplete     = VK_NULL_HANDLE;
     VkSemaphore                          mSemaphoreRenderComplete      = VK_NULL_HANDLE;
 
-    struct {
-        VkImage              image = VK_NULL_HANDLE;
-        VkImageView          view  = VK_NULL_HANDLE;
-        VkMemoryRequirements requirements;
-    } mFont;
+    ImageData                            mFont;
 
-    struct {
-        std::uint32_t        offset       = 0;
-        std::uint32_t        current_size = 0;
-        VkBuffer             buffer       = VK_NULL_HANDLE;
-        VkMemoryRequirements requirements;
-    } mVertexBuffer, mIndexBuffer;
+    BufferData                           mVertexBuffer, mIndexBuffer;
 
-    struct {
-        std::uint32_t  free = 0;
-        VkDeviceMemory memory = VK_NULL_HANDLE;
-    } mMemoryGPU, mMemoryCPUCoherent;
+    MemoryData                           mMemoryGPU, mMemoryCPUCoherent;
+
+    PresentationData                     mPresentation;
 
     VkDescriptorSet                      mDescriptorSet                = VK_NULL_HANDLE;
 };

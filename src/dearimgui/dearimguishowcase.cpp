@@ -16,6 +16,8 @@
 #include <cinttypes>
 #include <cstddef>
 
+#include <limits>
+
 #include <iterator>
 #include <vector>
 #include <array>
@@ -37,10 +39,15 @@ namespace
     };
 }
 
-DearImGuiShowcase::DearImGuiShowcase(VkInstance vkinstance, VkSurfaceKHR vksurface, VkPhysicalDevice vkphysicaldevice)
+DearImGuiShowcase::DearImGuiShowcase(
+    VkInstance vkinstance,
+    VkSurfaceKHR vksurface,
+    VkPhysicalDevice vkphysicaldevice,
+    const VkExtent2D& resolution)
     : mInstance(vkinstance)
     , mSurface(vksurface)
     , mPhysicalDevice(vkphysicaldevice)
+    , mResolution(resolution)
     , mContext(ImGui::CreateContext())
 {
     vkGetPhysicalDeviceFeatures(mPhysicalDevice, &mFeatures);
@@ -148,12 +155,9 @@ DearImGuiShowcase::DearImGuiShowcase(VkInstance vkinstance, VkSurfaceKHR vksurfa
             .variableMultisampleRate                 = VK_FALSE,
             .inheritedQueries                        = VK_FALSE,
         };
-        std::vector<const char*> enabled_extensions{};
-        // TODO Fint out why this is needed
-        if (has_extension(mExtensions, VK_EXT_DEBUG_MARKER_EXTENSION_NAME))
-        {// Debug Marker
-            enabled_extensions.emplace_back(VK_EXT_DEBUG_MARKER_EXTENSION_NAME);
-        }
+        constexpr const std::array<const char*, 1> kEnabledExtensions{
+            VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+        };
         constexpr const float kQueuePriorities = 1.0f;
         const VkDeviceQueueCreateInfo info_queue = VkDeviceQueueCreateInfo{
             .sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
@@ -171,8 +175,8 @@ DearImGuiShowcase::DearImGuiShowcase(VkInstance vkinstance, VkSurfaceKHR vksurfa
             .pQueueCreateInfos       = &info_queue,
             .enabledLayerCount       = 0,
             .ppEnabledLayerNames     = nullptr,
-            .enabledExtensionCount   = static_cast<std::uint32_t>(enabled_extensions.size()),
-            .ppEnabledExtensionNames = enabled_extensions.data(),
+            .enabledExtensionCount   = kEnabledExtensions.size(),
+            .ppEnabledExtensionNames = kEnabledExtensions.data(),
             .pEnabledFeatures        = &features,
         };
         CHECK(vkCreateDevice(mPhysicalDevice, &info, nullptr, &mDevice));
@@ -212,6 +216,10 @@ DearImGuiShowcase::DearImGuiShowcase(VkInstance vkinstance, VkSurfaceKHR vksurfa
 
 DearImGuiShowcase::~DearImGuiShowcase()
 {
+    for(auto&& view : mPresentation.views)
+        vkDestroyImageView(mDevice, view, nullptr);
+    vkDestroySwapchainKHR(mDevice, mPresentation.swapchain, nullptr);
+
     vkFreeMemory(mDevice, mMemoryCPUCoherent.memory, nullptr);
     vkFreeMemory(mDevice, mMemoryGPU.memory, nullptr);
 
@@ -783,6 +791,116 @@ void DearImGuiShowcase::allocate_descriptorset()
         .pSetLayouts        = &mDescriptorSetLayout,
     };
     CHECK(vkAllocateDescriptorSets(mDevice, &info, &mDescriptorSet));
+}
+
+void DearImGuiShowcase::create_swapchain()
+{
+    VkSurfaceCapabilitiesKHR capabilities;
+    CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(mPhysicalDevice, mSurface, &capabilities));
+
+    mResolution = (capabilities.currentExtent.width == std::numeric_limits<std::uint32_t>::max())
+        ? mResolution
+        : capabilities.currentExtent;
+
+    {// Creation
+        VkSwapchainKHR previous_swapchain = mPresentation.swapchain;
+
+        const std::uint32_t image_count = (capabilities.maxImageCount > 0)
+            ? std::min(capabilities.minImageCount + 1, capabilities.maxImageCount)
+            : capabilities.minImageCount + 1;
+
+        const VkSurfaceTransformFlagBitsKHR transform = (capabilities.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR)
+            ? VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR
+            : capabilities.currentTransform;
+
+        constexpr const VkCompositeAlphaFlagBitsKHR kPreferredCompositeAlphaFlags[] = {
+            VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+            VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR,
+            VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
+            VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR,
+        };
+        auto finder_composite_alpha = std::find_if(
+            std::begin(kPreferredCompositeAlphaFlags), std::end(kPreferredCompositeAlphaFlags),
+            [&capabilities](const VkCompositeAlphaFlagBitsKHR& f) {
+                return capabilities.supportedCompositeAlpha & f;
+            }
+        );
+        assert(finder_composite_alpha != std::end(kPreferredCompositeAlphaFlags));
+
+        const VkCompositeAlphaFlagBitsKHR composite_alpha = *finder_composite_alpha;
+
+        VkImageUsageFlags usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+        // be greedy
+        if (capabilities.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT)
+            usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+
+        // be greedy
+        if (capabilities.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT)
+            usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+
+        const VkSwapchainCreateInfoKHR info{
+            .sType                 = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+            .pNext                 = nullptr,
+            .flags                 = 0,
+            .surface               = mSurface,
+            .minImageCount         = image_count,
+            .imageFormat           = mColorAttachmentFormat,
+            .imageColorSpace       = mColorSpace,
+            .imageExtent           = mResolution,
+            .imageArrayLayers      = 1,
+            .imageUsage            = usage,
+            .imageSharingMode      = VK_SHARING_MODE_EXCLUSIVE,
+            .queueFamilyIndexCount = 0,
+            .pQueueFamilyIndices   = nullptr,
+            .preTransform          = transform,
+            .compositeAlpha        = composite_alpha,
+            .presentMode           = mPresentMode,
+            .clipped               = VK_TRUE,
+            .oldSwapchain          = previous_swapchain,
+        };
+        CHECK(vkCreateSwapchainKHR(mDevice, &info, nullptr, &(mPresentation.swapchain)));
+
+        if (previous_swapchain != VK_NULL_HANDLE)
+        {// Cleaning
+            for(auto&& view : mPresentation.views)
+                vkDestroyImageView(mDevice, view, nullptr);
+            vkDestroySwapchainKHR(mDevice, previous_swapchain, nullptr);
+        }
+    }
+    {// Views
+        std::uint32_t count;
+        CHECK(vkGetSwapchainImagesKHR(mDevice, mPresentation.swapchain, &count, nullptr));
+        mPresentation.images.resize(count);
+        mPresentation.views.resize(count);
+        CHECK(vkGetSwapchainImagesKHR(mDevice, mPresentation.swapchain, &count, mPresentation.images.data()));
+
+        for (auto&& [image, view] : IteratorRange(mPresentation.images, mPresentation.views))
+        {
+            const VkImageViewCreateInfo info{
+                .sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                .pNext            = nullptr,
+                .flags            = 0,
+                .image            = image,
+                .viewType         = VK_IMAGE_VIEW_TYPE_2D,
+                .format           = mColorAttachmentFormat,
+                .components       = VkComponentMapping{
+                    .r = VK_COMPONENT_SWIZZLE_R,
+                    .g = VK_COMPONENT_SWIZZLE_G,
+                    .b = VK_COMPONENT_SWIZZLE_B,
+                    .a = VK_COMPONENT_SWIZZLE_A,
+                },
+                .subresourceRange = VkImageSubresourceRange{
+                    .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .baseMipLevel   = 0,
+                    .levelCount     = 1,
+                    .baseArrayLayer = 0,
+                    .layerCount     = 1,
+                },
+            };
+            CHECK(vkCreateImageView(mDevice, &info, nullptr, &view));
+        }
+    }
 }
 
 void DearImGuiShowcase::bind_resources()
