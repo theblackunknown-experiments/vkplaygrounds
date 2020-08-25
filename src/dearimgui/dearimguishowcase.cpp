@@ -1,6 +1,5 @@
 #include "./dearimguishowcase.hpp"
 
-#include "../utilities.hpp"
 #include "../vkutilities.hpp"
 #include "../vkdebug.hpp"
 
@@ -11,6 +10,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include <imgui.h>
+#include <utilities.hpp>
 
 #include <cassert>
 #include <cinttypes>
@@ -217,6 +217,9 @@ DearImGuiShowcase::DearImGuiShowcase(
 
 DearImGuiShowcase::~DearImGuiShowcase()
 {
+    for(auto&& vkframebuffer : mFrameBuffers)
+        vkDestroyFramebuffer(mDevice, vkframebuffer, nullptr);
+
     for(auto&& view : mPresentation.views)
         vkDestroyImageView(mDevice, view, nullptr);
     vkDestroySwapchainKHR(mDevice, mPresentation.swapchain, nullptr);
@@ -229,6 +232,9 @@ DearImGuiShowcase::~DearImGuiShowcase()
 
     vkDestroyImageView(mDevice, mFont.view, nullptr);
     vkDestroyImage(mDevice, mFont.image, nullptr);
+
+    vkDestroyImageView(mDevice, mDepth.view, nullptr);
+    vkDestroyImage(mDevice, mDepth.image, nullptr);
 
     vkDestroySemaphore(mDevice, mSemaphoreRenderComplete, nullptr);
     vkDestroySemaphore(mDevice, mSemaphorePresentComplete, nullptr);
@@ -968,6 +974,31 @@ void DearImGuiShowcase::create_swapchain()
             };
             CHECK(vkCreateImageView(mDevice, &info, nullptr, &view));
         }
+    }
+}
+
+void DearImGuiShowcase::create_framebuffers()
+{
+    mFrameBuffers.resize(mPresentation.views.size());
+    for (auto&& [vkview, vkframebuffer] : ZipRange(mPresentation.views, mFrameBuffers))
+    {
+        const std::array<VkImageView, 2> attachments{
+            vkview,
+            // NOTE(andrea.machizaud) Is it safe to re-use depth here ?
+            mDepth.view
+        };
+        const VkFramebufferCreateInfo info{
+            .sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+            .pNext           = nullptr,
+            .flags           = 0u,
+            .renderPass      = mRenderPass,
+            .attachmentCount = attachments.size(),
+            .pAttachments    = attachments.data(),
+            .width           = mResolution.width,
+            .height          = mResolution.height,
+            .layers          = 1,
+        };
+        CHECK(vkCreateFramebuffer(mDevice, &info, nullptr, &vkframebuffer));
     }
 }
 

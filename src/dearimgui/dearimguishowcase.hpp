@@ -30,12 +30,18 @@ struct DearImGuiShowcase
     void allocate_descriptorset();
 
     void create_swapchain();
+    void create_framebuffers();
 
     void bind_resources();
 
     // void reallocate_buffers();
 
     void update_descriptorset();
+
+    AcquiredPresentationImage acquire();
+
+    void present(const AcquiredPresentationImage& );
+
 
     VkInstance                           mInstance                     = VK_NULL_HANDLE;
     VkSurfaceKHR                         mSurface                      = VK_NULL_HANDLE;
@@ -80,14 +86,14 @@ struct DearImGuiShowcase
     VkSemaphore                          mSemaphorePresentComplete     = VK_NULL_HANDLE;
     VkSemaphore                          mSemaphoreRenderComplete      = VK_NULL_HANDLE;
 
-    ImageData                            mFont;
-    ImageData                            mDepth;
+    VkDescriptorSet                      mDescriptorSet                = VK_NULL_HANDLE;
 
+    ImageData                            mFont, mDepth;
     BufferData                           mVertexBuffer, mIndexBuffer;
 
     std::vector<MemoryData>              mMemoryChunks;
 
     PresentationData                     mPresentation;
 
-    VkDescriptorSet                      mDescriptorSet                = VK_NULL_HANDLE;
+    std::vector<VkFramebuffer>           mFrameBuffers;
 };

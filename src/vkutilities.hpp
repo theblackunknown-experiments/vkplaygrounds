@@ -71,6 +71,11 @@ struct PresentationData {
     std::vector<VkFence>         wait_fences   ;
 };
 
+struct AcquiredPresentationImage
+{
+    std::uint32_t index = ~0;
+};
+
 inline
 bool has_extension(const std::span<VkExtensionProperties>& extensions, const std::string_view& extension)
 {

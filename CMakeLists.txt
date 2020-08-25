@@ -113,11 +113,23 @@ target_compile_definitions(dearimgui
 ##         Targets          ##
 ##############################
 
+add_library(utilities INTERFACE)
+
+target_sources(utilities
+    INTERFACE
+        utilities/utilities.hpp
+        utilities/ziprange.hpp
+        utilities/enumeraterange.hpp
+)
+
+target_include_directories(utilities
+    INTERFACE
+        utilities
+)
+
 add_executable(default-sample WIN32)
 target_sources(default-sample
     PRIVATE
-        src/utilities.hpp
-
         src/vkdebug.hpp
         src/vkdebug.cpp
 
@@ -172,6 +184,7 @@ target_compile_definitions(default-sample
 target_link_libraries(default-sample
     PRIVATE
         dearimgui
+        utilities
         Vulkan::Vulkan
 )
 

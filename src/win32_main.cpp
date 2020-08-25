@@ -230,15 +230,14 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
     showcase.initialize();
     showcase.initialize_resources();
-
-    showcase.allocate_memory();
     showcase.allocate_descriptorset();
 
-    showcase.create_swapchain();
-
+    showcase.allocate_memory();
     showcase.bind_resources();
-
     showcase.initialize_views();
+
+    showcase.create_swapchain();
+    showcase.create_framebuffers();
 
     showcase.update_descriptorset();
 
