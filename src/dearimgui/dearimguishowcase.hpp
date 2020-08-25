@@ -81,10 +81,11 @@ struct DearImGuiShowcase
     VkSemaphore                          mSemaphoreRenderComplete      = VK_NULL_HANDLE;
 
     ImageData                            mFont;
+    ImageData                            mDepth;
 
     BufferData                           mVertexBuffer, mIndexBuffer;
 
-    MemoryData                           mMemoryGPU, mMemoryCPUCoherent;
+    std::vector<MemoryData>              mMemoryChunks;
 
     PresentationData                     mPresentation;
 

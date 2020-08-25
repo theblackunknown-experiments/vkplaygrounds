@@ -144,6 +144,25 @@ auto operator<=>(const EnumerateIterator<Iterator, CounterType>& lhs, const Enum
     return lhs.mIterator <=> rhs.mIterator;
 }
 
+template<typename Container, typename CounterType = std::uint32_t>
+struct EnumerateRange
+{
+    using Iterator = EnumerateIterator<typename Container::iterator, CounterType>;
+
+    Iterator mStart, mEnd;
+
+    explicit EnumerateRange(Container& container, CounterType start = {})
+        : mStart(std::begin(container), start)
+        , mEnd(std::end(container), {})
+    {
+    }
+
+    Iterator begin() { return mStart; }
+    const Iterator cbegin() const { return mStart; }
+    Iterator end() { return mEnd; }
+    const Iterator cend() const { return mEnd; }
+};
+
 template<typename IteratorA, typename IteratorB>
 struct ZipIterator
 {
@@ -279,17 +298,13 @@ auto operator<=>(const ZipIterator<IteratorA, IteratorB>& lhs, const ZipIterator
 }
 
 template<typename ContainerA, typename ContainerB>
-struct IteratorRange
+struct ZipRange
 {
-    // NOTE(andrea.machizaud) arbitrary pick ContainerA as reference
-    using container_iterator       = typename ContainerA::iterator;
-    using container_const_iterator = typename ContainerA::const_iterator;
-
     using Iterator = ZipIterator<typename ContainerA::iterator, typename ContainerB::iterator>;
 
     Iterator mStart, mEnd;
 
-    explicit IteratorRange(ContainerA& containerA, ContainerB& containerB)
+    explicit ZipRange(ContainerA& containerA, ContainerB& containerB)
         : mStart(std::begin(containerA), std::begin(containerB))
         , mEnd(std::end(containerA), std::end(containerB))
     {

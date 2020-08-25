@@ -41,21 +41,25 @@ struct Version
 };
 
 struct ImageData {
+    std::uint32_t        offset       = 0;
     VkImage              image        = VK_NULL_HANDLE;
     VkImageView          view         = VK_NULL_HANDLE;
     VkMemoryRequirements requirements;
+    std::uint32_t        memory_chunk_index = ~0;
 };
 
 struct BufferData {
     std::uint32_t        offset       = 0;
-    std::uint32_t        current_size = 0;
+    std::uint32_t        occupied     = 0;
     VkBuffer             buffer       = VK_NULL_HANDLE;
     VkMemoryRequirements requirements;
+    std::uint32_t        memory_chunk_index = ~0;
 };
 
 struct MemoryData {
-    std::uint32_t  free   = 0;
-    VkDeviceMemory memory = VK_NULL_HANDLE;
+    VkDeviceMemory memory            = VK_NULL_HANDLE;
+    std::uint32_t  memory_type_index = ~0;
+    std::uint32_t  free              = 0;
 };
 
 struct PresentationData {
