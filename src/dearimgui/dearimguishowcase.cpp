@@ -227,6 +227,7 @@ DearImGuiShowcase::~DearImGuiShowcase()
     for(auto&& chunk : mMemoryChunks)
         vkFreeMemory(mDevice, chunk.memory, nullptr);
 
+    vkDestroyBuffer(mDevice, mStaging.buffer, nullptr);
     vkDestroyBuffer(mDevice, mIndexBuffer.buffer, nullptr);
     vkDestroyBuffer(mDevice, mVertexBuffer.buffer, nullptr);
 
@@ -236,10 +237,16 @@ DearImGuiShowcase::~DearImGuiShowcase()
     vkDestroyImageView(mDevice, mDepth.view, nullptr);
     vkDestroyImage(mDevice, mDepth.image, nullptr);
 
-    vkDestroySemaphore(mDevice, mSemaphoreRenderComplete, nullptr);
-    vkDestroySemaphore(mDevice, mSemaphorePresentComplete, nullptr);
+    vkFreeCommandBuffers(mDevice, mCommandPoolOneOff, 1, &mStagingCommandBuffer);
+
+    vkDestroyFence(mDevice, mStagingFence, nullptr);
+
+    vkDestroySemaphore(mDevice, mStagingSemaphore, nullptr);
+    vkDestroySemaphore(mDevice, mRenderSemaphore, nullptr);
+    vkDestroySemaphore(mDevice, mPresentSemaphore, nullptr);
 
     vkDestroyDescriptorPool(mDevice, mDescriptorPool, nullptr);
+    vkDestroyCommandPool(mDevice, mCommandPoolOneOff, nullptr);
     vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
 
     vkDestroyPipelineCache(mDevice, mPipelineCache, nullptr);
@@ -609,6 +616,15 @@ void DearImGuiShowcase::initialize()
             };
             CHECK(vkCreateCommandPool(mDevice, &info, nullptr, &mCommandPool));
         }
+        {// Command Pools - One Off
+            const VkCommandPoolCreateInfo info{
+                .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+                .pNext            = nullptr,
+                .flags            = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
+                .queueFamilyIndex = mQueueFamily,
+            };
+            CHECK(vkCreateCommandPool(mDevice, &info, nullptr, &mCommandPoolOneOff));
+        }
         {// Descriptor Pools
             constexpr const std::uint32_t kMaxAllocatedSets = 1;
             constexpr const std::array<VkDescriptorPoolSize, 1> pool_sizes{
@@ -641,8 +657,27 @@ void DearImGuiShowcase::initialize()
             .pNext = &info_type,
             .flags = 0,
         };
-        CHECK(vkCreateSemaphore(mDevice, &info_semaphore, nullptr, &mSemaphorePresentComplete));
-        CHECK(vkCreateSemaphore(mDevice, &info_semaphore, nullptr, &mSemaphoreRenderComplete));
+        CHECK(vkCreateSemaphore(mDevice, &info_semaphore, nullptr, &mPresentSemaphore));
+        CHECK(vkCreateSemaphore(mDevice, &info_semaphore, nullptr, &mRenderSemaphore));
+        CHECK(vkCreateSemaphore(mDevice, &info_semaphore, nullptr, &mStagingSemaphore));
+    }
+    {// Fences
+        const VkFenceCreateInfo info{
+            .sType              = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+            .pNext              = nullptr,
+            .flags              = 0,
+        };
+        CHECK(vkCreateFence(mDevice, &info, nullptr, &mStagingFence));
+    }
+    {// Command Buffers
+        const VkCommandBufferAllocateInfo info{
+            .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            .pNext              = nullptr,
+            .commandPool        = mCommandPoolOneOff,
+            .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            .commandBufferCount = 1,
+        };
+        CHECK(vkAllocateCommandBuffers(mDevice, &info, &mStagingCommandBuffer));
     }
 }
 
@@ -739,6 +774,20 @@ void DearImGuiShowcase::initialize_resources()
             CHECK(vkCreateBuffer(mDevice, &info, nullptr, &mIndexBuffer.buffer));
             vkGetBufferMemoryRequirements(mDevice, mIndexBuffer.buffer, &mIndexBuffer.requirements);
         }
+        {// Staging
+            constexpr const VkBufferCreateInfo info{
+                .sType                 = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+                .pNext                 = nullptr,
+                .flags                 = 0,
+                .size                  = kInitialIndexBufferSize,
+                .usage                 = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                .sharingMode           = VK_SHARING_MODE_EXCLUSIVE,
+                .queueFamilyIndexCount = 0,
+                .pQueueFamilyIndices   = nullptr,
+            };
+            CHECK(vkCreateBuffer(mDevice, &info, nullptr, &mStaging.buffer));
+            vkGetBufferMemoryRequirements(mDevice, mStaging.buffer, &mStaging.requirements);
+        }
     }
 }
 
@@ -818,16 +867,22 @@ void DearImGuiShowcase::allocate_memory()
         mMemoryProperties, mIndexBuffer.requirements.memoryTypeBits,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
     );
+    auto memory_cpu_staging = get_memory_type(
+        mMemoryProperties, mStaging.requirements.memoryTypeBits,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+    );
     assert(memory_gpu_font.has_value());
     assert(memory_gpu_depth.has_value());
     assert(memory_cpu_vertex.has_value());
     assert(memory_cpu_index.has_value());
+    assert(memory_cpu_staging.has_value());
 
     std::unordered_map<std::uint32_t, VkDeviceSize> packed_sizes;
-    packed_sizes[memory_gpu_font  .value()] += mFont.requirements.size;
-    packed_sizes[memory_gpu_depth .value()] += mDepth.requirements.size;
-    packed_sizes[memory_cpu_vertex.value()] += mVertexBuffer.requirements.size;
-    packed_sizes[memory_cpu_index .value()] += mIndexBuffer.requirements.size;
+    packed_sizes[memory_gpu_font   .value()] += mFont.requirements.size;
+    packed_sizes[memory_gpu_depth  .value()] += mDepth.requirements.size;
+    packed_sizes[memory_cpu_vertex .value()] += mVertexBuffer.requirements.size;
+    packed_sizes[memory_cpu_index  .value()] += mIndexBuffer.requirements.size;
+    packed_sizes[memory_cpu_staging.value()] += mStaging.requirements.size;
 
     mMemoryChunks.resize(packed_sizes.size());
     for(auto&& [chunk, entry] : ZipRange(mMemoryChunks, packed_sizes))
@@ -852,6 +907,8 @@ void DearImGuiShowcase::allocate_memory()
             mVertexBuffer.memory_chunk_index = idx;
         if (chunk.memory_type_index == memory_cpu_index.value())
             mIndexBuffer.memory_chunk_index = idx;
+        if (chunk.memory_type_index == memory_cpu_staging.value())
+            mStaging.memory_chunk_index = idx;
     }
 }
 
@@ -865,6 +922,155 @@ void DearImGuiShowcase::allocate_descriptorset()
         .pSetLayouts        = &mDescriptorSetLayout,
     };
     CHECK(vkAllocateDescriptorSets(mDevice, &info, &mDescriptorSet));
+}
+
+void DearImGuiShowcase::upload_font_image()
+{
+    ImGuiIO& io = ImGui::GetIO();
+    int width = 0, height = 0;
+    unsigned char* data = nullptr;
+    io.Fonts->GetTexDataAsAlpha8(&data, &width, &height);
+
+    // Simply to illustrate operation are deferred unti submission, record commandbuffer first
+    {// Staging Command Buffer Recording
+        {// Start
+            const VkCommandBufferBeginInfo info{
+                .sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+                .pNext            = nullptr,
+                .flags            = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+                .pInheritanceInfo = nullptr,
+            };
+            CHECK(vkBeginCommandBuffer(mStagingCommandBuffer, &info));
+        }
+        {// Image Barrier VK_IMAGE_LAYOUT_UNDEFINED -> VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+            const std::array<VkImageMemoryBarrier, 1> imagebarriers{
+                VkImageMemoryBarrier
+                {
+                    .sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                    .pNext               = nullptr,
+                    .srcAccessMask       = 0,
+                    .dstAccessMask       = VK_ACCESS_TRANSFER_WRITE_BIT,
+                    .oldLayout           = VK_IMAGE_LAYOUT_UNDEFINED,
+                    .newLayout           = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .image               = mFont.image,
+                    .subresourceRange    = VkImageSubresourceRange{
+                        .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
+                        .baseMipLevel   = 0,
+                        .levelCount     = 1,
+                        .baseArrayLayer = 0,
+                        .layerCount     = 1,
+                    },
+                }
+            };
+            vkCmdPipelineBarrier(
+                mStagingCommandBuffer,
+                VK_PIPELINE_STAGE_HOST_BIT,
+                VK_PIPELINE_STAGE_TRANSFER_BIT,
+                0,
+                0, nullptr,
+                0, nullptr,
+                imagebarriers.size(), imagebarriers.data()
+            );
+        }
+        {// Copy Staging Buffer -> Font Image
+            const std::array<VkBufferImageCopy, 1> regions{
+                VkBufferImageCopy{
+                    .bufferOffset      = 0,
+                    .bufferRowLength   = 0,
+                    .bufferImageHeight = 0,
+                    .imageSubresource  = VkImageSubresourceLayers{
+                        .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
+                        .mipLevel       = 0,
+                        .baseArrayLayer = 0,
+                        .layerCount     = 1,
+                    },
+                    .imageOffset = VkOffset3D{
+                        .x = 0,
+                        .y = 0,
+                        .z = 0,
+                    },
+                    .imageExtent = VkExtent3D{
+                        .width  = static_cast<std::uint32_t>(width),
+                        .height = static_cast<std::uint32_t>(height),
+                        .depth  = 1,
+                    },
+                }
+            };
+            vkCmdCopyBufferToImage(
+                mStagingCommandBuffer,
+                mStaging.buffer,
+                mFont.image,
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                regions.size(),
+                regions.data()
+            );
+        }
+        {// Image Barrier VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL -> VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+            const std::array<VkImageMemoryBarrier, 1> imagebarriers{
+                VkImageMemoryBarrier
+                {
+                    .sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                    .pNext               = nullptr,
+                    .srcAccessMask       = VK_ACCESS_TRANSFER_WRITE_BIT,
+                    .dstAccessMask       = VK_ACCESS_SHADER_READ_BIT,
+                    .oldLayout           = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    .newLayout           = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .image               = mFont.image,
+                    .subresourceRange    = VkImageSubresourceRange{
+                        .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
+                        .baseMipLevel   = 0,
+                        .levelCount     = 1,
+                        .baseArrayLayer = 0,
+                        .layerCount     = 1,
+                    },
+                }
+            };
+            vkCmdPipelineBarrier(
+                mStagingCommandBuffer,
+                VK_PIPELINE_STAGE_TRANSFER_BIT,
+                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                0,
+                0, nullptr,
+                0, nullptr,
+                imagebarriers.size(), imagebarriers.data()
+            );
+        }
+        CHECK(vkEndCommandBuffer(mStagingCommandBuffer));
+    }
+
+    {// Memory mapping
+        // NOTE(andrea.machizaud) Coherent memory no invalidate/flush
+        unsigned char* mapped_address = nullptr;
+        CHECK(vkMapMemory(
+            mDevice,
+            mMemoryChunks.at(mStaging.memory_chunk_index).memory,
+            mStaging.offset,
+            mStaging.requirements.size,
+            0,
+            reinterpret_cast<void**>(&mapped_address)
+        ));
+
+        std::copy_n(data, width * height, mapped_address);
+        vkUnmapMemory(mDevice, mMemoryChunks.at(mStaging.memory_chunk_index).memory);
+    }
+    {// Submission
+        const VkSubmitInfo info{
+            .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .pNext                = nullptr,
+            .waitSemaphoreCount   = 0,
+            .pWaitSemaphores      = nullptr,
+            .pWaitDstStageMask    = nullptr,
+            .commandBufferCount   = 1,
+            .pCommandBuffers      = &mStagingCommandBuffer,
+            .signalSemaphoreCount = 1,
+            .pSignalSemaphores    = &mStagingSemaphore,
+        };
+        CHECK(vkQueueSubmit(mQueue, 1, &info, mStagingFence));
+    }
 }
 
 void DearImGuiShowcase::create_swapchain()
@@ -1031,11 +1237,14 @@ void DearImGuiShowcase::bind_resources()
     }
     {// Buffers
         mVertexBuffer.offset = 0;
-        mIndexBuffer.offset = 0;
+        mIndexBuffer .offset = 0;
+        mStaging     .offset = 0;
         // TODO(andrea.machizaud) we leave a gap for vertex buffer to be filled
         if (mVertexBuffer.memory_chunk_index == mIndexBuffer.memory_chunk_index)
-            mIndexBuffer.offset = kInitialVertexBufferSize;
-        const std::array<VkBindBufferMemoryInfo, 2> bindings{
+            mIndexBuffer.offset = mVertexBuffer.offset + kInitialVertexBufferSize;
+        if (mIndexBuffer.memory_chunk_index == mStaging.memory_chunk_index)
+            mStaging.offset = mIndexBuffer.offset + kInitialIndexBufferSize;
+        const std::array<VkBindBufferMemoryInfo, 3> bindings{
             VkBindBufferMemoryInfo{
                 .sType        = VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO,
                 .pNext        = nullptr,
@@ -1050,10 +1259,18 @@ void DearImGuiShowcase::bind_resources()
                 .memory       = mMemoryChunks.at(mIndexBuffer.memory_chunk_index).memory,
                 .memoryOffset = mIndexBuffer.offset,
             },
+            VkBindBufferMemoryInfo{
+                .sType        = VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO,
+                .pNext        = nullptr,
+                .buffer       = mStaging.buffer,
+                .memory       = mMemoryChunks.at(mStaging.memory_chunk_index).memory,
+                .memoryOffset = mStaging.offset,
+            },
         };
         CHECK(vkBindBufferMemory2(mDevice, bindings.size(), bindings.data()));
-        mMemoryChunks.at(mVertexBuffer.memory_chunk_index ).free -= mVertexBuffer.requirements.size;
-        mMemoryChunks.at(mIndexBuffer.memory_chunk_index).free -= mIndexBuffer.requirements.size;
+        mMemoryChunks.at(mVertexBuffer.memory_chunk_index).free -= mVertexBuffer.requirements.size;
+        mMemoryChunks.at(mIndexBuffer.memory_chunk_index ).free -= mIndexBuffer.requirements.size;
+        mMemoryChunks.at(mStaging.memory_chunk_index     ).free -= mStaging.requirements.size;
     }
 }
 
@@ -1077,4 +1294,9 @@ void DearImGuiShowcase::update_descriptorset()
         .pTexelBufferView = nullptr,
     };
     vkUpdateDescriptorSets(mDevice, 1, &write, 0, nullptr);
+}
+
+void DearImGuiShowcase::wait_pending_operations()
+{
+    vkWaitForFences(mDevice, 1, &mStagingFence, VK_TRUE, 10e9);
 }

@@ -29,6 +29,8 @@ struct DearImGuiShowcase
     void allocate_memory();
     void allocate_descriptorset();
 
+    void upload_font_image();
+
     void create_swapchain();
     void create_framebuffers();
 
@@ -42,6 +44,7 @@ struct DearImGuiShowcase
 
     void present(const AcquiredPresentationImage& );
 
+    void wait_pending_operations();
 
     VkInstance                           mInstance                     = VK_NULL_HANDLE;
     VkSurfaceKHR                         mSurface                      = VK_NULL_HANDLE;
@@ -80,16 +83,21 @@ struct DearImGuiShowcase
     VkPipelineCache                      mPipelineCache                = VK_NULL_HANDLE;
 
     VkCommandPool                        mCommandPool                  = VK_NULL_HANDLE;
+    VkCommandPool                        mCommandPoolOneOff            = VK_NULL_HANDLE;
     VkDescriptorPool                     mDescriptorPool               = VK_NULL_HANDLE;
 
     // NOTE To scale, we would need to have an array of semaphore present/complete if we want to process frame as fast as possible
-    VkSemaphore                          mSemaphorePresentComplete     = VK_NULL_HANDLE;
-    VkSemaphore                          mSemaphoreRenderComplete      = VK_NULL_HANDLE;
+    VkSemaphore                          mPresentSemaphore     = VK_NULL_HANDLE;
+    VkSemaphore                          mRenderSemaphore      = VK_NULL_HANDLE;
 
     VkDescriptorSet                      mDescriptorSet                = VK_NULL_HANDLE;
 
     ImageData                            mFont, mDepth;
-    BufferData                           mVertexBuffer, mIndexBuffer;
+    BufferData                           mVertexBuffer, mIndexBuffer, mStaging;
+
+    VkFence                              mStagingFence = VK_NULL_HANDLE;
+    VkSemaphore                          mStagingSemaphore = VK_NULL_HANDLE;
+    VkCommandBuffer                      mStagingCommandBuffer = VK_NULL_HANDLE;
 
     std::vector<MemoryData>              mMemoryChunks;
 

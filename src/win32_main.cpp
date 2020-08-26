@@ -234,6 +234,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
     showcase.allocate_memory();
     showcase.bind_resources();
+
+    // upload early !
+    showcase.upload_font_image();
+
     showcase.initialize_views();
 
     showcase.create_swapchain();
@@ -242,165 +246,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     showcase.update_descriptorset();
 
     #if 0
-    // Components
-
-    VulkanPresentation vkpresentation(
-        vkphysicaldevice, vkdevice,
-        vkqueuefamilyindices.presentation, queues_presentation,
-        surface, kResolution, kVSync
-    );
-
-    VulkanGenerativeShader vkgenerativeshader(
-        vkphysicaldevice, vkdevice,
-        vkqueuefamilyindices.generativeshader, queues_generativeshader
-    );
-
-    // VulkanDearImGui vkdearimgui(
-    //     vkphysicaldevice, vkdevice,
-    //     vkqueuefamilyindices.dearimgui, queues_dearimgui,
-    //     &vkpresentation
-    // );
-
-    VulkanEngine vkengine(
-        vkphysicaldevice, vkdevice,
-        vkqueuefamilyindices.engine, queues_engine,
-        &vkpresentation
-    );
-
-    {// Font Uploading
-        auto [vkextent, data] = vkdearimgui.get_font_data_8bits();
-
-        const VkDeviceSize vksize = vkextent.width * vkextent.height * sizeof(unsigned char);
-
-        auto [vkstagingbuffer, vkstagingmemory] = vkdearimgui.create_staging_font_buffer(vksize);
-
-        {// Memory Mapping
-            constexpr const VkDeviceSize offset = 0;
-            constexpr const VkDeviceSize size   = VK_WHOLE_SIZE;
-
-            unsigned char* mapped_memory = nullptr;
-            CHECK(vkMapMemory(
-                vkdearimgui.mDevice,
-                vkstagingmemory, offset, size, 0, reinterpret_cast<void**>(&mapped_memory)));
-
-            std::copy(data, std::next(data, size), mapped_memory);
-
-            vkUnmapMemory(vkdearimgui.mDevice, vkstagingmemory);
-
-            const VkMappedMemoryRange range{
-                .sType  = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
-                .pNext  = nullptr,
-                .memory = vkstagingmemory,
-                .offset = offset,
-                .size   = size
-            };
-            CHECK(vkFlushMappedMemoryRanges(vkdearimgui.mDevice, 1, &range));
-        }
-        {// Command Buffer
-            VkFence vkfence;
-            VkCommandBuffer vkcmdbuffer;
-
-            {// Command Buffer
-                const VkCommandBufferAllocateInfo info{
-                    .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-                    .pNext              = nullptr,
-                    .commandPool        = vkdearimgui.mCommandPool,
-                    .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-                    .commandBufferCount = 1,
-                };
-                CHECK(vkAllocateCommandBuffers(vkdearimgui.mDevice, &info, &vkcmdbuffer));
-            }
-            {// Fence
-                const VkFenceCreateInfo info{
-                    .sType              = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-                    .pNext              = nullptr,
-                    .flags              = 0,
-                };
-                CHECK(vkCreateFence(vkdearimgui.mDevice, &info, nullptr, &vkfence));
-            }
-            {// Start
-                const VkCommandBufferBeginInfo info{
-                    .sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-                    .pNext            = nullptr,
-                    .flags            = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-                    .pInheritanceInfo = nullptr,
-                };
-                CHECK(vkBeginCommandBuffer(vkcmdbuffer, &info));
-            }
-
-            vkdearimgui.record_font_optimal_image(vkextent ,vkcmdbuffer, vkstagingbuffer);
-
-            {// End
-                CHECK(vkEndCommandBuffer(vkcmdbuffer));
-            }
-            {// Submission
-                const VkSubmitInfo info{
-                    .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-                    .pNext                = nullptr,
-                    .waitSemaphoreCount   = 0,
-                    .pWaitSemaphores      = nullptr,
-                    .pWaitDstStageMask    = nullptr,
-                    .commandBufferCount   = 1,
-                    .pCommandBuffers      = &vkcmdbuffer,
-                    .signalSemaphoreCount = 0,
-                    .pSignalSemaphores    = nullptr,
-                };
-            }
-
-            CHECK(vkWaitForFences(vkdearimgui.mDevice, 1, &vkfence, VK_TRUE, 10e9));
-
-            vkDestroyFence(vkdearimgui.mDevice, vkfence, nullptr);
-            vkFreeCommandBuffers(vkdearimgui.mDevice, vkdearimgui.mCommandPool, 1, &vkcmdbuffer);
-        }
-
-        vkdearimgui.destroy_staging_font_buffer(vkstagingbuffer, vkstagingmemory);
-    }
-
-    vkpresentation.recreate_swapchain();
-
-    vkengine.recreate_depth(vkpresentation.mResolution);
-
-    // vkdearimgui.recreate_graphics_pipeline(vkpresentation.mResolution);
-    #endif
-
-    #if 0
-    VulkanDevice device(application.mInstance, vkphysicaldevice, vkdevice, queue_family_index);
-
-
-    // TODO Current limitation because we use a single device for now
-    assert(queue_family_index == surface.mQueueFamilyIndex);
-
-    VulkanDearImGui imgui(application.mInstance, vkphysicaldevice, vkdevice);
-    ImGui::GetIO().ImeWindowHandle = hWindow;
-    sDearImGui = &imgui;
-
-    // VulkanGenerativeShader generative_shader(application.mInstance, vkphysicaldevice, vkdevice);
-
-    VkFormat framebuffer_color_format = surface.mColorFormat;
-
-    surface.generate_swapchain();
-
-    // Depth Format
-    auto optional_format = imgui.select_best_depth_format();
-    assert(optional_format);
-    VkFormat depth_format = optional_format.value();
-
-    imgui.setup_render_pass(surface.mColorFormat, depth_format);
-    imgui.setup_depth(surface.mResolution, depth_format);
-
-    std::vector<VkImageView> color_views;
-    color_views.reserve(surface.mBuffers.size());
-    for (auto&& buffer : surface.mBuffers)
-        color_views.push_back(buffer.view);
-    imgui.setup_framebuffers(surface.mResolution, color_views);
-
-    // TODO Store the Graphics queue into the surface object
-    imgui.setup_queues(queue_family_index);
-    imgui.setup_font();
-    imgui.setup_shaders();
-    imgui.setup_descriptors();
     imgui.setup_graphics_pipeline(surface.mResolution);
-
     imgui.mBenchmark.frame_tick = std::chrono::high_resolution_clock::now();
     #endif
 
@@ -429,6 +275,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     vkDeviceWaitIdle(vkdevice);
     #endif
     FreeConsole();
+
+    showcase.wait_pending_operations();
 
     return static_cast<int>(msg.wParam);
 }
