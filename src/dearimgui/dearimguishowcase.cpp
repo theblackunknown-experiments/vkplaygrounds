@@ -27,6 +27,18 @@ namespace
 {
     constexpr const bool kVSync = true;
 
+    constexpr const std::uint32_t kSubpassUI = 0;
+    constexpr const std::uint32_t kSubpassScene = 1;
+
+    constexpr const std::uint32_t kAttachmentColor = 0;
+    constexpr const std::uint32_t kAttachmentDepth = 1;
+
+
+    constexpr const std::uint32_t kVertexInputBindingPosUVColor = 0;
+    constexpr const std::uint32_t kUIShaderLocationPos   = 0;
+    constexpr const std::uint32_t kUIShaderLocationUV    = 1;
+    constexpr const std::uint32_t kUIShaderLocationColor = 2;
+
     constexpr const std::uint32_t kShaderBindingFontTexture = 0;
 
     // TODO(andrea.machizaud) use literals...
@@ -193,15 +205,13 @@ DearImGuiShowcase::DearImGuiShowcase(
         }
         {// IO
             ImGuiIO& io = ImGui::GetIO();
+            io.DisplaySize             = ImVec2(mResolution.width, mResolution.height);
             io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
             io.BackendFlags |= ImGuiBackendFlags_HasSetMousePos;
             io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
             io.BackendPlatformName = "Win32";
             io.BackendRendererName = "vkplaygrounds";
-        }
-        {// Font
-            ImGuiIO& io = ImGui::GetIO();
-            {
+            {// Font
                 ImFontConfig config;
                 std::strncpy(config.Name, kFontName, (sizeof(config.Name) / sizeof(config.Name[0])) - 1);
                 config.FontDataOwnedByAtlas = false;
@@ -217,6 +227,9 @@ DearImGuiShowcase::DearImGuiShowcase(
 
 DearImGuiShowcase::~DearImGuiShowcase()
 {
+    for(auto&& vkpipeline : mPipelines)
+        vkDestroyPipeline(mDevice, vkpipeline, nullptr);
+
     for(auto&& vkframebuffer : mFrameBuffers)
         vkDestroyFramebuffer(mDevice, vkframebuffer, nullptr);
 
@@ -252,9 +265,6 @@ DearImGuiShowcase::~DearImGuiShowcase()
     vkDestroyPipelineCache(mDevice, mPipelineCache, nullptr);
     vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
     vkDestroyDescriptorSetLayout(mDevice, mDescriptorSetLayout, nullptr);
-
-    vkDestroyShaderModule(mDevice, mShaderModuleUIFragment, nullptr);
-    vkDestroyShaderModule(mDevice, mShaderModuleUIVertex, nullptr);
 
     vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
 
@@ -466,8 +476,6 @@ void DearImGuiShowcase::initialize()
                 .finalLayout    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
             },
         };
-        constexpr const std::uint32_t kAttachmentColor = 0;
-        constexpr const std::uint32_t kAttachmentDepth = 1;
         constexpr const VkAttachmentReference color_reference{
             .attachment = kAttachmentColor,
             .layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
@@ -476,8 +484,6 @@ void DearImGuiShowcase::initialize()
             .attachment = kAttachmentDepth,
             .layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
         };
-        constexpr const std::uint32_t kSubpassUI = 0;
-        constexpr const std::uint32_t kSubpassScene = 1;
         constexpr const std::array<VkSubpassDescription, 2> subpasses{
             // Pass 0 : Draw UI    (write depth, write color)
             VkSubpassDescription{
@@ -529,28 +535,6 @@ void DearImGuiShowcase::initialize()
             .pDependencies   = dependencies.data(),
         };
         CHECK(vkCreateRenderPass(mDevice, &info, nullptr, &mRenderPass));
-    }
-    {// Shader Modules
-        {// UI Vertex
-            constexpr const VkShaderModuleCreateInfo info{
-                .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-                .pNext    = nullptr,
-                .flags    = 0,
-                .codeSize = sizeof(shader_ui_vertex),
-                .pCode    = shader_ui_vertex,
-            };
-            CHECK(vkCreateShaderModule(mDevice, &info, nullptr, &mShaderModuleUIVertex));
-        }
-        {// UI Fragment
-            constexpr const VkShaderModuleCreateInfo info{
-                .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-                .pNext    = nullptr,
-                .flags    = 0,
-                .codeSize = sizeof(shader_ui_fragment),
-                .pCode    = shader_ui_fragment,
-            };
-            CHECK(vkCreateShaderModule(mDevice, &info, nullptr, &mShaderModuleUIFragment));
-        }
     }
     {// Descriptor Layouts
         // 1 sampler : font texture
@@ -1206,6 +1190,273 @@ void DearImGuiShowcase::create_framebuffers()
         };
         CHECK(vkCreateFramebuffer(mDevice, &info, nullptr, &vkframebuffer));
     }
+}
+
+void DearImGuiShowcase::create_graphic_pipelines()
+{
+    VkShaderModule shader_uivertex   = VK_NULL_HANDLE;
+    VkShaderModule shader_uifragment = VK_NULL_HANDLE;
+
+    {// Shader - UI Vertex
+        constexpr const VkShaderModuleCreateInfo info{
+            .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+            .pNext    = nullptr,
+            .flags    = 0,
+            .codeSize = sizeof(shader_ui_vertex),
+            .pCode    = shader_ui_vertex,
+        };
+        CHECK(vkCreateShaderModule(mDevice, &info, nullptr, &shader_uivertex));
+    }
+    {// Shader - UI Fragment
+        constexpr const VkShaderModuleCreateInfo info{
+            .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+            .pNext    = nullptr,
+            .flags    = 0,
+            .codeSize = sizeof(shader_ui_fragment),
+            .pCode    = shader_ui_fragment,
+        };
+        CHECK(vkCreateShaderModule(mDevice, &info, nullptr, &shader_uifragment));
+    }
+
+    const std::array<VkPipelineShaderStageCreateInfo, 2> stages{
+        VkPipelineShaderStageCreateInfo{
+            .sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            .pNext               = nullptr,
+            .flags               = 0,
+            .stage               = VK_SHADER_STAGE_VERTEX_BIT,
+            .module              = shader_uivertex,
+            .pName               = "main",
+            .pSpecializationInfo = nullptr,
+        },
+        VkPipelineShaderStageCreateInfo{
+            .sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            .pNext               = nullptr,
+            .flags               = 0,
+            .stage               = VK_SHADER_STAGE_FRAGMENT_BIT,
+            .module              = shader_uifragment,
+            .pName               = "main",
+            .pSpecializationInfo = nullptr,
+        },
+    };
+
+    constexpr const std::array<VkVertexInputBindingDescription, 1> vertex_bindings{
+        VkVertexInputBindingDescription
+        {
+            .binding   = kVertexInputBindingPosUVColor,
+            .stride    = sizeof(ImDrawVert),
+            .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+        }
+    };
+
+    constexpr const std::array<VkVertexInputAttributeDescription, 3> vertex_attributes{
+        VkVertexInputAttributeDescription{
+            .location = kUIShaderLocationPos,
+            .binding  = kVertexInputBindingPosUVColor,
+            .format   = VK_FORMAT_R32G32_SFLOAT,
+            .offset   = offsetof(ImDrawVert, pos),
+        },
+        VkVertexInputAttributeDescription{
+            .location = kUIShaderLocationUV,
+            .binding  = kVertexInputBindingPosUVColor,
+            .format   = VK_FORMAT_R32G32_SFLOAT,
+            .offset   = offsetof(ImDrawVert, uv),
+        },
+        VkVertexInputAttributeDescription{
+            .location = kUIShaderLocationColor,
+            .binding  = kVertexInputBindingPosUVColor,
+            .format   = VK_FORMAT_R8G8B8A8_UNORM,
+            .offset   = offsetof(ImDrawVert, col),
+        },
+    };
+
+    constexpr const VkPipelineVertexInputStateCreateInfo vertexinput{
+        .sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+        .pNext                           = nullptr,
+        .flags                           = 0,
+        .vertexBindingDescriptionCount   = vertex_bindings.size(),
+        .pVertexBindingDescriptions      = vertex_bindings.data(),
+        .vertexAttributeDescriptionCount = vertex_attributes.size(),
+        .pVertexAttributeDescriptions    = vertex_attributes.data(),
+    };
+
+    constexpr const VkPipelineInputAssemblyStateCreateInfo assembly{
+        .sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+        .pNext                  = nullptr,
+        .flags                  = 0,
+        .topology               = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+        .primitiveRestartEnable = VK_FALSE,
+    };
+
+    const VkPipelineViewportStateCreateInfo viewport{
+        .sType         = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+        .pNext         = nullptr,
+        .flags         = 0,
+        .viewportCount = 1,
+        .pViewports    = nullptr, // dynamic state
+        .scissorCount  = 1,
+        .pScissors     = nullptr, // dynamic state
+    };
+
+    constexpr const VkPipelineRasterizationStateCreateInfo rasterization{
+        .sType                   = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+        .pNext                   = nullptr,
+        .flags                   = 0,
+        .depthClampEnable        = VK_FALSE,
+        .rasterizerDiscardEnable = VK_FALSE,
+        .polygonMode             = VK_POLYGON_MODE_FILL,
+        .cullMode                = VK_CULL_MODE_NONE,
+        .frontFace               = VK_FRONT_FACE_COUNTER_CLOCKWISE,
+        .depthBiasEnable         = VK_FALSE,
+        .lineWidth               = 1.0f,
+    };
+
+    constexpr const VkPipelineMultisampleStateCreateInfo multisample{
+        .sType                 = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+        .pNext                 = nullptr,
+        .flags                 = 0,
+        .rasterizationSamples  = VK_SAMPLE_COUNT_1_BIT,
+        .sampleShadingEnable   = VK_FALSE,
+        .minSampleShading      = 0.0f,
+        .pSampleMask           = nullptr,
+        .alphaToCoverageEnable = VK_FALSE,
+        .alphaToOneEnable      = VK_FALSE,
+    };
+
+    constexpr const VkPipelineDepthStencilStateCreateInfo depthstencil_writedepth{
+        .sType                 = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+        .pNext                 = nullptr,
+        .flags                 = 0,
+        .depthTestEnable       = VK_TRUE,
+        .depthWriteEnable      = VK_TRUE,
+        .depthCompareOp        = VK_COMPARE_OP_ALWAYS,
+        .depthBoundsTestEnable = VK_FALSE,
+        .stencilTestEnable     = VK_FALSE,
+    };
+
+    constexpr const VkPipelineDepthStencilStateCreateInfo depthstencil_testdepth{
+        .sType                 = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+        .pNext                 = nullptr,
+        .flags                 = 0,
+        .depthTestEnable       = VK_TRUE,
+        .depthWriteEnable      = VK_FALSE,
+        .depthCompareOp        = VK_COMPARE_OP_LESS,
+        .depthBoundsTestEnable = VK_FALSE,
+        .stencilTestEnable     = VK_FALSE,
+    };
+
+    constexpr const std::array<VkPipelineColorBlendAttachmentState, 1> colorblendattachments_passthrough{
+        VkPipelineColorBlendAttachmentState{
+            .blendEnable         = VK_FALSE,
+            .colorWriteMask      =
+                VK_COLOR_COMPONENT_R_BIT |
+                VK_COLOR_COMPONENT_G_BIT |
+                VK_COLOR_COMPONENT_B_BIT |
+                VK_COLOR_COMPONENT_A_BIT,
+        }
+    };
+
+    constexpr const std::array<VkPipelineColorBlendAttachmentState, 1> colorblendattachments_blend{
+        VkPipelineColorBlendAttachmentState{
+            .blendEnable         = VK_TRUE,
+            .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+            .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+            .colorBlendOp        = VK_BLEND_OP_ADD,
+            .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+            .dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
+            .alphaBlendOp        = VK_BLEND_OP_ADD,
+            .colorWriteMask      =
+                VK_COLOR_COMPONENT_R_BIT |
+                VK_COLOR_COMPONENT_G_BIT |
+                VK_COLOR_COMPONENT_B_BIT |
+                VK_COLOR_COMPONENT_A_BIT,
+        }
+    };
+
+    constexpr const VkPipelineColorBlendStateCreateInfo colorblend_passthrough{
+        .sType                   = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+        .pNext                   = nullptr,
+        .flags                   = 0,
+        .logicOpEnable           = VK_FALSE,
+        .logicOp                 = VK_LOGIC_OP_CLEAR,
+        .attachmentCount         = colorblendattachments_passthrough.size(),
+        .pAttachments            = colorblendattachments_passthrough.data(),
+    };
+
+    constexpr const VkPipelineColorBlendStateCreateInfo colorblend_blend{
+        .sType                   = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+        .pNext                   = nullptr,
+        .flags                   = 0,
+        .logicOpEnable           = VK_FALSE,
+        .logicOp                 = VK_LOGIC_OP_CLEAR,
+        .attachmentCount         = colorblendattachments_blend.size(),
+        .pAttachments            = colorblendattachments_blend.data(),
+        .blendConstants          = { 0.0f, 0.0f, 0.0f, 0.0f },
+    };
+
+    constexpr const std::array<VkDynamicState, 2> states{
+        VK_DYNAMIC_STATE_VIEWPORT,
+        VK_DYNAMIC_STATE_SCISSOR,
+    };
+
+    constexpr const VkPipelineDynamicStateCreateInfo dynamics{
+        .sType                   = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+        .pNext                   = nullptr,
+        .flags                   = 0,
+        .dynamicStateCount       = states.size(),
+        .pDynamicStates          = states.data(),
+    };
+
+    const std::array<VkGraphicsPipelineCreateInfo, 2> infos{
+        VkGraphicsPipelineCreateInfo
+        {
+            .sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+            .pNext               = nullptr,
+            .flags               = 0,
+            .stageCount          = stages.size(),
+            .pStages             = stages.data(),
+            .pVertexInputState   = &vertexinput,
+            .pInputAssemblyState = &assembly,
+            .pTessellationState  = nullptr,
+            .pViewportState      = &viewport,
+            .pRasterizationState = &rasterization,
+            .pMultisampleState   = &multisample,
+            .pDepthStencilState  = &depthstencil_writedepth,
+            .pColorBlendState    = &colorblend_passthrough,
+            .pDynamicState       = &dynamics,
+            .layout              = mPipelineLayout,
+            .renderPass          = mRenderPass,
+            .subpass             = kSubpassUI,
+            .basePipelineHandle  = VK_NULL_HANDLE,
+            .basePipelineIndex   = -1,
+        },
+        VkGraphicsPipelineCreateInfo
+        {
+            .sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+            .pNext               = nullptr,
+            .flags               = 0,
+            .stageCount          = stages.size(),
+            .pStages             = stages.data(),
+            .pVertexInputState   = &vertexinput,
+            .pInputAssemblyState = &assembly,
+            .pTessellationState  = nullptr,
+            .pViewportState      = &viewport,
+            .pRasterizationState = &rasterization,
+            .pMultisampleState   = &multisample,
+            .pDepthStencilState  = &depthstencil_testdepth,
+            .pColorBlendState    = &colorblend_blend,
+            .pDynamicState       = &dynamics,
+            .layout              = mPipelineLayout,
+            .renderPass          = mRenderPass,
+            .subpass             = kSubpassScene,
+            .basePipelineHandle  = VK_NULL_HANDLE,
+            .basePipelineIndex   = -1,
+        },
+    };
+
+    CHECK(vkCreateGraphicsPipelines(mDevice, mPipelineCache, infos.size(), infos.data(), nullptr, mPipelines.data()));
+
+    vkDestroyShaderModule(mDevice, shader_uifragment, nullptr);
+    vkDestroyShaderModule(mDevice, shader_uivertex, nullptr);
 }
 
 void DearImGuiShowcase::bind_resources()

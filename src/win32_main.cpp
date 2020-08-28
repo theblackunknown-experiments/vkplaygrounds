@@ -242,6 +242,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
     showcase.create_swapchain();
     showcase.create_framebuffers();
+    showcase.create_graphic_pipelines();
 
     showcase.update_descriptorset();
 

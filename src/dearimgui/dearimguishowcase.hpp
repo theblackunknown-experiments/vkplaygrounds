@@ -4,6 +4,7 @@
 
 #include <cinttypes>
 
+#include <array>
 #include <vector>
 
 #include "./vkutilities.hpp"
@@ -33,6 +34,7 @@ struct DearImGuiShowcase
 
     void create_swapchain();
     void create_framebuffers();
+    void create_graphic_pipelines();
 
     void bind_resources();
 
@@ -74,13 +76,12 @@ struct DearImGuiShowcase
 
     VkRenderPass                         mRenderPass                   = VK_NULL_HANDLE;
 
-    VkShaderModule                       mShaderModuleUIVertex         = VK_NULL_HANDLE;
-    VkShaderModule                       mShaderModuleUIFragment       = VK_NULL_HANDLE;
-
     VkDescriptorSetLayout                mDescriptorSetLayout          = VK_NULL_HANDLE;
     VkPipelineLayout                     mPipelineLayout               = VK_NULL_HANDLE;
 
     VkPipelineCache                      mPipelineCache                = VK_NULL_HANDLE;
+
+    std::array<VkPipeline, 2>            mPipelines;
 
     VkCommandPool                        mCommandPool                  = VK_NULL_HANDLE;
     VkCommandPool                        mCommandPoolOneOff            = VK_NULL_HANDLE;
