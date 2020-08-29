@@ -40,14 +40,12 @@ namespace
     constexpr const bool       kVSync = true;
 
     bool sResizing = false;
-    // VulkanSurface* sSurface = nullptr;
-    // VulkanDearImGui* sDearImGui = nullptr;
 }
 
 static
 LRESULT CALLBACK MinimalWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 static
-LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
 {
@@ -235,25 +233,22 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     showcase.allocate_memory();
     showcase.bind_resources();
 
-    // upload early !
-    showcase.upload_font_image();
-
     showcase.initialize_views();
 
     showcase.create_swapchain();
     showcase.create_framebuffers();
+    showcase.create_commandbuffers();
     showcase.create_graphic_pipelines();
 
+    showcase.upload_font_image();
     showcase.update_descriptorset();
-
-    #if 0
-    imgui.setup_graphics_pipeline(surface.mResolution);
-    imgui.mBenchmark.frame_tick = std::chrono::high_resolution_clock::now();
-    #endif
 
     ShowWindow(hWindow, nCmdShow);
     SetForegroundWindow(hWindow);
     SetFocus(hWindow);
+
+    SetWindowLongPtr(hWindow, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(&showcase));
+    SetWindowLongPtr(hWindow, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(MainWindowProcedure));
 
     MSG msg = { };
     while (msg.message != WM_QUIT)
@@ -263,21 +258,15 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
-        #if 0
         else if(!IsIconic(hWindow))
-        // if(!IsIconic(hWindow))
         {
-            imgui.render_frame(surface);
+            showcase.render_frame();
         }
-        #endif
     }
 
-    #if 0
-    vkDeviceWaitIdle(vkdevice);
-    #endif
-    FreeConsole();
-
     showcase.wait_pending_operations();
+
+    FreeConsole();
 
     return static_cast<int>(msg.wParam);
 }
@@ -306,19 +295,16 @@ LRESULT CALLBACK MinimalWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPA
     return 0;
 }
 
-LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+    DearImGuiShowcase* showcase = reinterpret_cast<DearImGuiShowcase*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
+    assert(showcase);
+
     switch (uMsg)
     {
-    #if 0
     case WM_PAINT:
-        if (!sDearImGui)
-            break;
-
-        if (!sSurface)
-            break;
-
-        sDearImGui->render_frame(*sSurface);
+        // TODO Fetch RenderArea
+        showcase->render_frame();
         ValidateRect(hWnd, NULL);
         break;
     case WM_KEYDOWN:
@@ -379,46 +365,28 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     //     }
     //     break;
     case WM_LBUTTONDOWN:
-        if (!sDearImGui)
-            break;
-
-        sDearImGui->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
-        sDearImGui->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
-        sDearImGui->mMouse.buttons.left = true;
+        showcase->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
+        showcase->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
+        showcase->mMouse.buttons.left = true;
         break;
     case WM_RBUTTONDOWN:
-        if (!sDearImGui)
-            break;
-
-        sDearImGui->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
-        sDearImGui->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
-        sDearImGui->mMouse.buttons.right = true;
+        showcase->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
+        showcase->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
+        showcase->mMouse.buttons.right = true;
         break;
     case WM_MBUTTONDOWN:
-        if (!sDearImGui)
-            break;
-
-        sDearImGui->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
-        sDearImGui->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
-        sDearImGui->mMouse.buttons.middle = true;
+        showcase->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
+        showcase->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
+        showcase->mMouse.buttons.middle = true;
         break;
     case WM_LBUTTONUP:
-        if (!sDearImGui)
-            break;
-
-        sDearImGui->mMouse.buttons.left = false;
+        showcase->mMouse.buttons.left = false;
         break;
     case WM_RBUTTONUP:
-        if (!sDearImGui)
-            break;
-
-        sDearImGui->mMouse.buttons.right = false;
+        showcase->mMouse.buttons.right = false;
         break;
     case WM_MBUTTONUP:
-        if (!sDearImGui)
-            break;
-
-        sDearImGui->mMouse.buttons.middle = false;
+        showcase->mMouse.buttons.middle = false;
         break;
     // case WM_MOUSEWHEEL:
     // {
@@ -430,11 +398,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     // }
     case WM_MOUSEMOVE:
     {
-        if (!sDearImGui)
-            break;
-
-        sDearImGui->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
-        sDearImGui->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
+        showcase->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
+        showcase->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
         break;
     }
     case WM_SIZE:
@@ -442,6 +407,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         {
             if ((sResizing) || ((wParam == SIZE_MAXIMIZED) || (wParam == SIZE_RESTORED)))
             {
+                #if 0
                 // TODO Update Camera
                 if (sSurface)
                 {
@@ -449,15 +415,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                         .width  = LOWORD(lParam),
                         .height = HIWORD(lParam)
                     };
-                    if (sDearImGui)
+                    if (showcase)
                     {
-                        sDearImGui->invalidate_surface(*sSurface);
+                        showcase->invalidate_surface(*sSurface);
                     }
                     else
                     {
                         sSurface->generate_swapchain();
                     }
                 }
+                #endif
             }
         }
         break;
@@ -474,7 +441,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     case WM_EXITSIZEMOVE:
         sResizing = false;
         break;
-    #endif
     default:
         return MinimalWindowProcedure(hWnd, uMsg, wParam, lParam);
     }

@@ -73,7 +73,28 @@ struct PresentationData {
 
 struct AcquiredPresentationImage
 {
-    std::uint32_t index = ~0;
+    const std::uint32_t index         = ~0;
+    VkCommandBuffer     commandbuffer = VK_NULL_HANDLE;
+
+    operator std::uint32_t() const
+    {
+        return index;
+    }
+};
+
+struct Mouse
+{
+    struct Buttons
+    {
+        bool left   = false;
+        bool middle = false;
+        bool right  = false;
+    } buttons;
+    struct Positions
+    {
+        float x = 0.0f;
+        float y = 0.0f;
+    } offset;
 };
 
 inline

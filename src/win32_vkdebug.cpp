@@ -10,7 +10,7 @@
 
 void CHECK(const VkResult& v)
 {
-    if (!(v == VK_SUCCESS) && IsDebuggerPresent())
+    if ((v != VK_SUCCESS) && IsDebuggerPresent())
     {
         DebugBreak();
     }
