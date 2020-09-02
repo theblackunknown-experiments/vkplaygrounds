@@ -462,7 +462,7 @@ void DearImGuiShowcase::initialize()
                 .samples        = VK_SAMPLE_COUNT_1_BIT,
                 .loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR,
                 .storeOp        = VK_ATTACHMENT_STORE_OP_STORE,
-                .stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+                .stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_CLEAR,
                 .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
                 .initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED,
                 .finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
@@ -473,7 +473,7 @@ void DearImGuiShowcase::initialize()
                 .samples        = VK_SAMPLE_COUNT_1_BIT,
                 .loadOp         = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
                 .storeOp        = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-                .stencilLoadOp  = /*VK_ATTACHMENT_LOAD_OP_CLEAR*/VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+                .stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
                 .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
                 .initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED,
                 .finalLayout    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
@@ -1745,6 +1745,39 @@ void DearImGuiShowcase::record(AcquiredPresentationImage& presentationimage)
     {// Render Passes
         { // Subpass 0 ; ImGui
             #if 0
+            constexpr const std::array kClearValues{
+                VkClearValue {
+                    .color = VkClearColorValue{
+                        .float32 = { 0.2f, 0.2f, 0.2f, 1.0f }
+                    },
+                },
+                VkClearValue {
+                    .depthStencil = VkClearDepthStencilValue{
+                        .depth = 0.0,
+                        .stencil = 0
+                    },
+                }
+            };
+            #else
+            VkClearColorValue kClearValuesColor;
+            VkClearDepthStencilValue kClearValuesDepthStencil;
+            kClearValuesColor.float32[0] = 0.2f;
+            kClearValuesColor.float32[1] = 0.2f;
+            kClearValuesColor.float32[2] = 0.2f;
+            kClearValuesColor.float32[3] = 1.0f;
+            kClearValuesDepthStencil.depth   = 0.0f;
+            kClearValuesDepthStencil.stencil = 0;
+
+            const VkClearValue kClearValues[] = {
+                VkClearValue {
+                    .color = kClearValuesColor,
+                },
+                VkClearValue {
+                    .depthStencil = kClearValuesDepthStencil,
+                }
+            };
+            #endif
+            #if 0
             const VkRenderPassBeginInfo info{
                 .sType            = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
                 .pNext            = nullptr,
@@ -1769,8 +1802,10 @@ void DearImGuiShowcase::record(AcquiredPresentationImage& presentationimage)
             info.renderArea.offset.x = 0;
             info.renderArea.offset.y = 0;
             info.renderArea.extent   = mResolution;
-            info.clearValueCount     = 0;
-            info.pClearValues        = nullptr;
+            // info.clearValueCount     = kClearValues.size();
+            // info.pClearValues        = kClearValues.data();
+            info.clearValueCount     = 2;
+            info.pClearValues        = kClearValues;
             #endif
             vkCmdBeginRenderPass(cmdbuffer, &info, VK_SUBPASS_CONTENTS_INLINE);
 
