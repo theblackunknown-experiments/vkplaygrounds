@@ -242,3 +242,22 @@ if(INSTALL_HEADERS)
         TYPE INCLUDE
     )
 endif()
+
+##############################
+##          Fixes           ##
+##############################
+
+# https://gitlab.kitware.com/cmake/cmake/-/issues/18399#note_459496
+set_property(
+    SOURCE
+        ${CMAKE_CURRENT_BINARY_DIR}/shaders/ui-shader.hpp
+    PROPERTY
+        GENERATED 1
+)
+
+set_property(
+    SOURCE
+        ${CMAKE_CURRENT_BINARY_DIR}/fonts/font.hpp
+    PROPERTY
+        GENERATED 1
+)

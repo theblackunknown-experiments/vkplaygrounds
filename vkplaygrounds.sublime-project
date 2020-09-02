@@ -1,112 +1,145 @@
 {
-    "build_systems":
-    [
-        {
-            "file_regex": "^[ ]*(.+?)\\(([0-9]+)\\)[ ]*: (.*)$",
-            "name": "vkplaygrounds",
-
-            /*  add target and syntax */
-            "target": "ansi_color_build",
-            "syntax": "Packages/ANSIescape/ANSI.sublime-syntax",
-
-            "env": {
-                "CLICOLOR_FORCE": "1"
-            },
-
-            "cmd":
-            [
-                "ninja",
-                "-k",
-                "20"
-            ],
-            "variants":
-            [
-                {
-                    "cmd":
-                    [
-                        "ninja",
-                        "-t",
-                        "clean"
-                    ],
-                    "name": "Clean"
-                },
-                {
-                    "cmd":
-                    [
-                        "ninja",
-                        "-k",
-                        "20",
-                        "$file^"
-                    ],
-                    "name": "Current",
-                    "selector": "source.c++"
-                }
-            ],
-            "working_dir": "C:/builds/vkplaygrounds"
-        }
-    ],
-    "folders":
-    [
-        {
-            "path": ".",
-            "name": "vkplaygrounds (source)"
-        },
-        {
-            "path": "C:/builds/vkplaygrounds",
-            "name": "vkplaygrounds (build)"
-        },
-        {
-            "path": "../vcpkg/installed/x64-windows"
-        },
-        {
-            "path": "C:/VulkanSDK/1.2.141.2/Demos"
-        },
-        {
-            "path": "C:/VulkanSDK/1.2.141.2/Include"
-        },
-        {
-            "path": "../SaschaWillemsVulkanExamples"
-        },
-        {
-            "name": "Microsoft Visual Studio - MSVC - 14.26.28801 - ATLMFC",
-            "path": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.26.28801/ATLMFC/include"
-        },
-        {
-            "name": "Microsoft Visual Studio - MSVC - 14.26.28801",
-            "path": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.26.28801/include"
-        },
-        {
-            "name": "Windows Kits - NETFXSDK - 4.8 (um)",
-            "path": "C:/Program Files (x86)/Windows Kits/NETFXSDK/4.8/include/um"
-        },
-        {
-            "name": "Windows Kits - 10.0.18362.0 (ucrt)",
-            "path": "C:/Program Files (x86)/Windows Kits/10/Include/10.0.18362.0/ucrt"
-        },
-        {
-            "name": "Windows Kits - 10.0.18362.0 (shared)",
-            "path": "C:/Program Files (x86)/Windows Kits/10/Include/10.0.18362.0/shared"
-        },
-        {
-            "name": "Windows Kits - 10.0.18362.0 (um)",
-            "path": "C:/Program Files (x86)/Windows Kits/10/Include/10.0.18362.0/um"
-        },
-        {
-            "name": "Windows Kits - 10.0.18362.0 (winrt)",
-            "path": "C:/Program Files (x86)/Windows Kits/10/Include/10.0.18362.0/winrt"
-        },
-        {
-            "name": "Windows Kits - 10.0.18362.0 (cppwinrt)",
-            "path": "C:/Program Files (x86)/Windows Kits/10/Include/10.0.18362.0/cppwinrt"
-        },
-        {
-            "path": "C:/Program Files/CMake/share/cmake-3.17/Modules"
-        },
-        {
-            "path": "../shade_runner"
-        },
-        {
-            "path": "../imgui"
-        }
-    ]
+	"build_systems":
+	[
+		{
+			"cmd":
+			[
+				"ninja",
+				"-k",
+				"20"
+			],
+			"env":
+			{
+				"CLICOLOR_FORCE": "1"
+			},
+			"file_regex": "^[ ]*(.+?)\\(([0-9]+)\\)[ ]*: (.*)$",
+			"name": "vkplaygrounds",
+			"syntax": "Packages/ANSIescape/ANSI.sublime-syntax",
+			"target": "ansi_color_build",
+			"variants":
+			[
+				{
+					"cmd":
+					[
+						"ninja",
+						"-t",
+						"clean"
+					],
+					"name": "Clean"
+				},
+				{
+					"cmd":
+					[
+						"ninja",
+						"-v",
+						"spirv2header"
+					],
+					"name": "spirv2header"
+				},
+				{
+					"cmd":
+					[
+						"ninja",
+						"-v",
+						"shaders_compile_stages"
+					],
+					"name": "shaders_compile_stages"
+				},
+				{
+					"cmd":
+					[
+						"ninja",
+						"-v",
+						"shaders_link_modules"
+					],
+					"name": "shaders_link_modules"
+				},
+				{
+					"cmd":
+					[
+						"ninja",
+						"-v",
+						"shaders_headers"
+					],
+					"name": "shaders_headers"
+				},
+				{
+					"cmd":
+					[
+						"ninja",
+						"-k",
+						"20",
+						"$file^"
+					],
+					"name": "Current",
+					"selector": "source.c++"
+				}
+			],
+			"working_dir": "C:/builds/vkplaygrounds"
+		}
+	],
+	"folders":
+	[
+		{
+			"name": "vkplaygrounds (source)",
+			"path": "."
+		},
+		{
+			"name": "vkplaygrounds (build)",
+			"path": "C:/builds/vkplaygrounds"
+		},
+		{
+			"path": "C:/devel/vcpkg/installed/x64-windows"
+		},
+		{
+			"path": "C:/VulkanSDK/1.2.141.2/Demos"
+		},
+		{
+			"path": "C:/VulkanSDK/1.2.141.2/Include"
+		},
+		{
+			"path": "C:/devel/SaschaWillemsVulkanExamples"
+		},
+		{
+			"name": "Microsoft Visual Studio - MSVC - 14.26.28801 - ATLMFC",
+			"path": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.26.28801/ATLMFC/include"
+		},
+		{
+			"name": "Microsoft Visual Studio - MSVC - 14.26.28801",
+			"path": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.26.28801/include"
+		},
+		{
+			"name": "Windows Kits - NETFXSDK - 4.8 (um)",
+			"path": "C:/Program Files (x86)/Windows Kits/NETFXSDK/4.8/include/um"
+		},
+		{
+			"name": "Windows Kits - 10.0.18362.0 (ucrt)",
+			"path": "C:/Program Files (x86)/Windows Kits/10/Include/10.0.18362.0/ucrt"
+		},
+		{
+			"name": "Windows Kits - 10.0.18362.0 (shared)",
+			"path": "C:/Program Files (x86)/Windows Kits/10/Include/10.0.18362.0/shared"
+		},
+		{
+			"name": "Windows Kits - 10.0.18362.0 (um)",
+			"path": "C:/Program Files (x86)/Windows Kits/10/Include/10.0.18362.0/um"
+		},
+		{
+			"name": "Windows Kits - 10.0.18362.0 (winrt)",
+			"path": "C:/Program Files (x86)/Windows Kits/10/Include/10.0.18362.0/winrt"
+		},
+		{
+			"name": "Windows Kits - 10.0.18362.0 (cppwinrt)",
+			"path": "C:/Program Files (x86)/Windows Kits/10/Include/10.0.18362.0/cppwinrt"
+		},
+		{
+			"path": "C:/Program Files/CMake/share/cmake-3.17/Modules"
+		},
+		{
+			"path": "C:/devel/shade_runner"
+		},
+		{
+			"path": "C:/devel/imgui"
+		}
+	]
 }

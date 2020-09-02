@@ -4,8 +4,7 @@
 #include "../vkdebug.hpp"
 
 #include "font.hpp"
-#include "ui.vertex.hpp"
-#include "ui.fragment.hpp"
+#include "ui-shader.hpp"
 
 #include <vulkan/vulkan_core.h>
 
@@ -1214,28 +1213,17 @@ void DearImGuiShowcase::create_commandbuffers()
 
 void DearImGuiShowcase::create_graphic_pipelines()
 {
-    VkShaderModule shader_uivertex   = VK_NULL_HANDLE;
-    VkShaderModule shader_uifragment = VK_NULL_HANDLE;
+    VkShaderModule shader_ui = VK_NULL_HANDLE;
 
-    {// Shader - UI Vertex
+    {// Shader - UI
         constexpr const VkShaderModuleCreateInfo info{
             .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
             .pNext    = nullptr,
             .flags    = 0,
-            .codeSize = sizeof(shader_ui_vertex),
-            .pCode    = shader_ui_vertex,
+            .codeSize = kShaderUI.size() * sizeof(std::uint32_t),
+            .pCode    = kShaderUI.data(),
         };
-        CHECK(vkCreateShaderModule(mDevice, &info, nullptr, &shader_uivertex));
-    }
-    {// Shader - UI Fragment
-        constexpr const VkShaderModuleCreateInfo info{
-            .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-            .pNext    = nullptr,
-            .flags    = 0,
-            .codeSize = sizeof(shader_ui_fragment),
-            .pCode    = shader_ui_fragment,
-        };
-        CHECK(vkCreateShaderModule(mDevice, &info, nullptr, &shader_uifragment));
+        CHECK(vkCreateShaderModule(mDevice, &info, nullptr, &shader_ui));
     }
 
     const std::array<VkPipelineShaderStageCreateInfo, 2> stages{
@@ -1244,8 +1232,8 @@ void DearImGuiShowcase::create_graphic_pipelines()
             .pNext               = nullptr,
             .flags               = 0,
             .stage               = VK_SHADER_STAGE_VERTEX_BIT,
-            .module              = shader_uivertex,
-            .pName               = "main",
+            .module              = shader_ui,
+            .pName               = "ui_main",
             .pSpecializationInfo = nullptr,
         },
         VkPipelineShaderStageCreateInfo{
@@ -1253,8 +1241,8 @@ void DearImGuiShowcase::create_graphic_pipelines()
             .pNext               = nullptr,
             .flags               = 0,
             .stage               = VK_SHADER_STAGE_FRAGMENT_BIT,
-            .module              = shader_uifragment,
-            .pName               = "main",
+            .module              = shader_ui,
+            .pName               = "ui_main",
             .pSpecializationInfo = nullptr,
         },
     };
@@ -1470,14 +1458,13 @@ void DearImGuiShowcase::create_graphic_pipelines()
             .subpass             = kSubpassScene,
             .basePipelineHandle  = VK_NULL_HANDLE,
             .basePipelineIndex   = -1,
-        },*/
+        },
     };
 
     CHECK(vkCreateGraphicsPipelines(mDevice, mPipelineCache, infos.size(), infos.data(), nullptr, mPipelines.data()));
     mPipelines.at(1) = VK_NULL_HANDLE;
 
-    vkDestroyShaderModule(mDevice, shader_uifragment, nullptr);
-    vkDestroyShaderModule(mDevice, shader_uivertex, nullptr);
+    vkDestroyShaderModule(mDevice, shader_ui, nullptr);
 }
 
 void DearImGuiShowcase::bind_resources()
