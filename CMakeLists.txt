@@ -251,6 +251,7 @@ endif()
 set_property(
     SOURCE
         ${CMAKE_CURRENT_BINARY_DIR}/shaders/ui-shader.hpp
+        ${CMAKE_CURRENT_BINARY_DIR}/shaders/triangle-shader.hpp
     PROPERTY
         GENERATED 1
 )
