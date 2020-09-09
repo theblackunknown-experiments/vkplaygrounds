@@ -27,13 +27,6 @@
 
 #include "./dearimgui/dearimguishowcase.hpp"
 
-#include "./vulkanqueuefamilyindices.hpp"
-
-#include "./vulkanengine.hpp"
-#include "./vulkandearimgui.hpp"
-#include "./vulkanpresentation.hpp"
-#include "./vulkangenerativeshader.hpp"
-
 namespace
 {
     constexpr const VkExtent2D kResolution = { 1280, 720 };
