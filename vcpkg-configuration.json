@@ -1,0 +1,14 @@
+{
+    "default-registry": {
+        "kind": "builtin"
+    },
+    "registries": [
+        {
+            "kind": "directory",
+            "path": "../vcpkg-ports/ports",
+            "packages": [
+                "dearimgui"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,12 @@
+{
+    "name": "vkplaygrounds",
+    "version-string": "0.0.0-dev",
+    "homepage": "https://github.com/theblackunknown-experiments/vkplaygrounds",
+    "maintainers": [
+        "Andréa Machizaud <andrea.machizaud@gmail.com>"
+    ],
+    "description": "Journey on Vulkan concepts through various small examples.",
+    "dependencies": [
+        "vulkan"
+    ]
+}
