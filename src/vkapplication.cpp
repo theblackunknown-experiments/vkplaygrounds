@@ -4,6 +4,8 @@
 
 #include <algorithm>
 
+#include <array>
+
 #include <sstream>
 #include <iostream>
 
@@ -34,23 +36,14 @@ VulkanApplication::VulkanApplication(Version version)
         }
     }
     { // Instance
-        std::vector<const char*> extensions(mExtensions.size());
-        std::transform(
-            mExtensions.begin(), mExtensions.end(),
-            extensions.begin(),
-            [](const VkExtensionProperties& e) {
-                return e.extensionName;
-            }
-        );
-        auto it = std::find_if(
-            std::begin(extensions), std::end(extensions),
-            [](const char* v) {
-                return std::strncmp(v, VK_EXT_DEBUG_UTILS_EXTENSION_NAME, std::strlen(v)) == 0;
-            }
-        );
-        assert(it != std::end(extensions));
-        const char* const layers[] = {
-            "VK_LAYER_KHRONOS_validation"
+        constexpr const std::array kExtensions{
+            VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
+            "VK_KHR_surface",
+            "VK_KHR_win32_surface",
+        };
+        constexpr const std::array kLayers{
+            "VK_LAYER_KHRONOS_validation",
+            "VK_LAYER_LUNARG_standard_validation",
         };
         const VkApplicationInfo info_application{
             .sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO,
@@ -73,33 +66,6 @@ VulkanApplication::VulkanApplication(Version version)
         //     .disabledValidationCheckCount = sizeof(kDisabledChecks) / sizeof(*kDisabledChecks),
         //     .pDisabledValidationChecks    = kDisabledChecks,
         // };
-
-        constexpr const VkValidationFeatureEnableEXT kFeaturesEnabled[] = {
-            VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT,
-            VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT,
-            VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT,
-            // NOTE Cannot be used with VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT
-            // VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT,
-        };
-        // constexpr const VkValidationFeatureDisableEXT kFeaturesDisabled[] = {
-        //     VK_VALIDATION_FEATURE_DISABLE_ALL_EXT,
-        //     VK_VALIDATION_FEATURE_DISABLE_SHADERS_EXT,
-        //     VK_VALIDATION_FEATURE_DISABLE_THREAD_SAFETY_EXT,
-        //     VK_VALIDATION_FEATURE_DISABLE_API_PARAMETERS_EXT,
-        //     VK_VALIDATION_FEATURE_DISABLE_OBJECT_LIFETIMES_EXT,
-        //     VK_VALIDATION_FEATURE_DISABLE_CORE_CHECKS_EXT,
-        //     VK_VALIDATION_FEATURE_DISABLE_UNIQUE_HANDLES_EXT,
-        // };
-        const VkValidationFeaturesEXT info_validation_features{
-            .sType                          = VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT,
-            .pNext                          = nullptr,
-            .enabledValidationFeatureCount  = sizeof(kFeaturesEnabled) / sizeof(*kFeaturesEnabled),
-            .pEnabledValidationFeatures     = kFeaturesEnabled,
-            // .disabledValidationFeatureCount = sizeof(kFeaturesDisabled) / sizeof(*kFeaturesDisabled),
-            // .pDisabledValidationFeatures    = kFeaturesDisabled,
-            .disabledValidationFeatureCount = 0,
-            .pDisabledValidationFeatures    = nullptr,
-        };
 
         // NOTE
         //  - https://www.lunarg.com/new-tutorial-for-vulkan-debug-utilities-extension/
@@ -126,10 +92,10 @@ VulkanApplication::VulkanApplication(Version version)
             .pNext                   = &info_debug,
             .flags                   = 0,
             .pApplicationInfo        = &info_application,
-            .enabledLayerCount       = 1,
-            .ppEnabledLayerNames     = &layers[0],
-            .enabledExtensionCount   = static_cast<std::uint32_t>(extensions.size()),
-            .ppEnabledExtensionNames = extensions.data(),
+            .enabledLayerCount       = kLayers.size(),
+            .ppEnabledLayerNames     = kLayers.data(),
+            .enabledExtensionCount   = kExtensions.size(),
+            .ppEnabledExtensionNames = kExtensions.data(),
         };
         CHECK(vkCreateInstance(&info_instance, nullptr, &mInstance));
     }
