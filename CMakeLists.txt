@@ -144,23 +144,6 @@ target_sources(default-sample
         src/dearimgui/dearimguishowcase.hpp
         src/dearimgui/dearimguishowcase.cpp
 
-        src/vulkanbuffer.hpp
-        src/vulkanbuffer.cpp
-
-        src/vulkanengine.hpp
-        src/vulkanengine.cpp
-
-        src/vulkangenerativeshader.hpp
-        src/vulkangenerativeshader.cpp
-
-        src/vulkanpresentation.hpp
-        src/vulkanpresentation.cpp
-
-        src/vulkandearimgui.hpp
-        src/vulkandearimgui.cpp
-        # src/vulkandearimgui_rendering.cpp
-        # src/vulkandearimgui_imguiframe.cpp
-
         $<$<PLATFORM_ID:Windows>:src/win32_main.cpp>
         $<$<PLATFORM_ID:Windows>:src/win32_vkutilities.hpp>
         $<$<PLATFORM_ID:Windows>:src/win32_vkdebug.cpp>
