@@ -266,7 +266,8 @@ DearImGuiShowcase::~DearImGuiShowcase()
     vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
 
     vkDestroyPipelineCache(mDevice, mPipelineCache, nullptr);
-    vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
+    vkDestroyPipelineLayout(mDevice, mUIPipelineLayout, nullptr);
+    vkDestroyPipelineLayout(mDevice, mScenePipelineLayout, nullptr);
     vkDestroyDescriptorSetLayout(mDevice, mDescriptorSetLayout, nullptr);
 
     vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
@@ -561,27 +562,41 @@ void DearImGuiShowcase::initialize()
         CHECK(vkCreateDescriptorSetLayout(mDevice, &info, nullptr, &mDescriptorSetLayout));
     }
     {// Pipeline Layouts
-        constexpr std::size_t kAlignOf = alignof(DearImGuiConstants);
-        constexpr std::size_t kMaxAlignOf = alignof(std::max_align_t);
-        constexpr std::size_t kSizeOf = sizeof(DearImGuiConstants);
+        {// UI
+            constexpr std::size_t kAlignOf = alignof(DearImGuiConstants);
+            constexpr std::size_t kMaxAlignOf = alignof(std::max_align_t);
+            constexpr std::size_t kSizeOf = sizeof(DearImGuiConstants);
 
-        constexpr const std::array<VkPushConstantRange, 1> ranges{
-            VkPushConstantRange{
-                .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-                .offset     = 0,
-                .size       = sizeof(DearImGuiConstants),
-            },
-        };
-        const VkPipelineLayoutCreateInfo info{
-            .sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            .pNext                  = nullptr,
-            .flags                  = 0,
-            .setLayoutCount         = 1,
-            .pSetLayouts            = &mDescriptorSetLayout,
-            .pushConstantRangeCount = ranges.size(),
-            .pPushConstantRanges    = ranges.data(),
-        };
-        CHECK(vkCreatePipelineLayout(mDevice, &info, nullptr, &mPipelineLayout));
+            constexpr const std::array<VkPushConstantRange, 1> ranges{
+                VkPushConstantRange{
+                    .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                    .offset     = 0,
+                    .size       = sizeof(DearImGuiConstants),
+                },
+            };
+            const VkPipelineLayoutCreateInfo info{
+                .sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+                .pNext                  = nullptr,
+                .flags                  = 0,
+                .setLayoutCount         = 1,
+                .pSetLayouts            = &mDescriptorSetLayout,
+                .pushConstantRangeCount = ranges.size(),
+                .pPushConstantRanges    = ranges.data(),
+            };
+            CHECK(vkCreatePipelineLayout(mDevice, &info, nullptr, &mUIPipelineLayout));
+        }
+        {// Scene
+            const VkPipelineLayoutCreateInfo info{
+                .sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+                .pNext                  = nullptr,
+                .flags                  = 0,
+                .setLayoutCount         = 0,
+                .pSetLayouts            = nullptr,
+                .pushConstantRangeCount = 0,
+                .pPushConstantRanges    = nullptr,
+            };
+            CHECK(vkCreatePipelineLayout(mDevice, &info, nullptr, &mScenePipelineLayout));
+        }
     }
     {// Pipeline Cache
         const VkPipelineCacheCreateInfo info{
@@ -1299,7 +1314,7 @@ void DearImGuiShowcase::create_graphic_pipelines()
         },
     };
 
-    constexpr const VkPipelineVertexInputStateCreateInfo vertexinput{
+    constexpr const VkPipelineVertexInputStateCreateInfo uivertexinput{
         .sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
         .pNext                           = nullptr,
         .flags                           = 0,
@@ -1307,6 +1322,16 @@ void DearImGuiShowcase::create_graphic_pipelines()
         .pVertexBindingDescriptions      = vertex_bindings.data(),
         .vertexAttributeDescriptionCount = vertex_attributes.size(),
         .pVertexAttributeDescriptions    = vertex_attributes.data(),
+    };
+
+    constexpr const VkPipelineVertexInputStateCreateInfo scenevertexinput{
+        .sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+        .pNext                           = nullptr,
+        .flags                           = 0,
+        .vertexBindingDescriptionCount   = 0,
+        .pVertexBindingDescriptions      = nullptr,
+        .vertexAttributeDescriptionCount = 0,
+        .pVertexAttributeDescriptions    = nullptr,
     };
 
     constexpr const VkPipelineInputAssemblyStateCreateInfo assembly{
@@ -1473,7 +1498,7 @@ void DearImGuiShowcase::create_graphic_pipelines()
             .flags               = 0,
             .stageCount          = uistages.size(),
             .pStages             = uistages.data(),
-            .pVertexInputState   = &vertexinput,
+            .pVertexInputState   = &uivertexinput,
             .pInputAssemblyState = &assembly,
             .pTessellationState  = nullptr,
             .pViewportState      = &uiviewport,
@@ -1482,7 +1507,7 @@ void DearImGuiShowcase::create_graphic_pipelines()
             .pDepthStencilState  = &uidepthstencil,
             .pColorBlendState    = &uicolorblend,
             .pDynamicState       = &uidynamics,
-            .layout              = mPipelineLayout,
+            .layout              = mUIPipelineLayout,
             .renderPass          = mRenderPass,
             .subpass             = kSubpassUI,
             .basePipelineHandle  = VK_NULL_HANDLE,
@@ -1495,7 +1520,7 @@ void DearImGuiShowcase::create_graphic_pipelines()
             .flags               = 0,
             .stageCount          = trianglestages.size(),
             .pStages             = trianglestages.data(),
-            .pVertexInputState   = &vertexinput,
+            .pVertexInputState   = &scenevertexinput,
             .pInputAssemblyState = &assembly,
             .pTessellationState  = nullptr,
             .pViewportState      = &sceneviewport,
@@ -1505,7 +1530,7 @@ void DearImGuiShowcase::create_graphic_pipelines()
             // .pDepthStencilState  = &scenedepthstencil,
             .pColorBlendState    = &scenecolorblend,
             .pDynamicState       = nullptr,
-            .layout              = mPipelineLayout,
+            .layout              = mScenePipelineLayout,
             .renderPass          = mRenderPass,
             .subpass             = kSubpassScene,
             .basePipelineHandle  = VK_NULL_HANDLE,
@@ -1810,7 +1835,7 @@ void DearImGuiShowcase::record(AcquiredPresentationImage& presentationimage)
             vkCmdBeginRenderPass(cmdbuffer, &info, VK_SUBPASS_CONTENTS_INLINE);
 
             vkCmdBindPipeline(cmdbuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelines.at(0));
-            vkCmdBindDescriptorSets(cmdbuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelineLayout,
+            vkCmdBindDescriptorSets(cmdbuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mUIPipelineLayout,
                 0,
                 1, &mDescriptorSet,
                 0, nullptr
@@ -1828,7 +1853,7 @@ void DearImGuiShowcase::record(AcquiredPresentationImage& presentationimage)
                 constants.scale    [1] =  2.0f / data->DisplaySize.y;
                 constants.translate[0] = -1.0f - data->DisplayPos.x * constants.scale[0];
                 constants.translate[1] = -1.0f - data->DisplayPos.y * constants.scale[1];
-                vkCmdPushConstants(cmdbuffer, mPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(constants), &constants);
+                vkCmdPushConstants(cmdbuffer, mUIPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(constants), &constants);
             }
             if (data->TotalVtxCount > 0)
             {// Buffer Bindings

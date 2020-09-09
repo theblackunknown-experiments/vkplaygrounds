@@ -87,7 +87,8 @@ struct DearImGuiShowcase
     VkRenderPass                         mRenderPass                   = VK_NULL_HANDLE;
 
     VkDescriptorSetLayout                mDescriptorSetLayout          = VK_NULL_HANDLE;
-    VkPipelineLayout                     mPipelineLayout               = VK_NULL_HANDLE;
+    VkPipelineLayout                     mUIPipelineLayout             = VK_NULL_HANDLE;
+    VkPipelineLayout                     mScenePipelineLayout          = VK_NULL_HANDLE;
 
     VkPipelineCache                      mPipelineCache                = VK_NULL_HANDLE;
 
