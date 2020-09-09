@@ -169,6 +169,56 @@ DearImGuiShowcase::DearImGuiShowcase(
             .variableMultisampleRate                 = VK_FALSE,
             .inheritedQueries                        = VK_FALSE,
         };
+        constexpr const VkPhysicalDeviceVulkan12Features vk12features{
+            .sType                                              = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+            .pNext                                              = nullptr,
+            .samplerMirrorClampToEdge                           = VK_FALSE,
+            .drawIndirectCount                                  = VK_FALSE,
+            .storageBuffer8BitAccess                            = VK_FALSE,
+            .uniformAndStorageBuffer8BitAccess                  = VK_FALSE,
+            .storagePushConstant8                               = VK_FALSE,
+            .shaderBufferInt64Atomics                           = VK_FALSE,
+            .shaderSharedInt64Atomics                           = VK_FALSE,
+            .shaderFloat16                                      = VK_FALSE,
+            .shaderInt8                                         = VK_FALSE,
+            .descriptorIndexing                                 = VK_FALSE,
+            .shaderInputAttachmentArrayDynamicIndexing          = VK_FALSE,
+            .shaderUniformTexelBufferArrayDynamicIndexing       = VK_FALSE,
+            .shaderStorageTexelBufferArrayDynamicIndexing       = VK_FALSE,
+            .shaderUniformBufferArrayNonUniformIndexing         = VK_FALSE,
+            .shaderSampledImageArrayNonUniformIndexing          = VK_FALSE,
+            .shaderStorageBufferArrayNonUniformIndexing         = VK_FALSE,
+            .shaderStorageImageArrayNonUniformIndexing          = VK_FALSE,
+            .shaderInputAttachmentArrayNonUniformIndexing       = VK_FALSE,
+            .shaderUniformTexelBufferArrayNonUniformIndexing    = VK_FALSE,
+            .shaderStorageTexelBufferArrayNonUniformIndexing    = VK_FALSE,
+            .descriptorBindingUniformBufferUpdateAfterBind      = VK_FALSE,
+            .descriptorBindingSampledImageUpdateAfterBind       = VK_FALSE,
+            .descriptorBindingStorageImageUpdateAfterBind       = VK_FALSE,
+            .descriptorBindingStorageBufferUpdateAfterBind      = VK_FALSE,
+            .descriptorBindingUniformTexelBufferUpdateAfterBind = VK_FALSE,
+            .descriptorBindingStorageTexelBufferUpdateAfterBind = VK_FALSE,
+            .descriptorBindingUpdateUnusedWhilePending          = VK_FALSE,
+            .descriptorBindingPartiallyBound                    = VK_FALSE,
+            .descriptorBindingVariableDescriptorCount           = VK_FALSE,
+            .runtimeDescriptorArray                             = VK_FALSE,
+            .samplerFilterMinmax                                = VK_FALSE,
+            .scalarBlockLayout                                  = VK_FALSE,
+            .imagelessFramebuffer                               = VK_FALSE,
+            .uniformBufferStandardLayout                        = VK_FALSE,
+            .shaderSubgroupExtendedTypes                        = VK_FALSE,
+            .separateDepthStencilLayouts                        = VK_TRUE,
+            .hostQueryReset                                     = VK_FALSE,
+            .timelineSemaphore                                  = VK_FALSE,
+            .bufferDeviceAddress                                = VK_FALSE,
+            .bufferDeviceAddressCaptureReplay                   = VK_FALSE,
+            .bufferDeviceAddressMultiDevice                     = VK_FALSE,
+            .vulkanMemoryModel                                  = VK_FALSE,
+            .vulkanMemoryModelDeviceScope                       = VK_FALSE,
+            .vulkanMemoryModelAvailabilityVisibilityChains      = VK_FALSE,
+            .shaderOutputViewportIndex                          = VK_FALSE,
+            .shaderOutputLayer                                  = VK_FALSE,
+        };
         constexpr const std::array<const char*, 1> kEnabledExtensions{
             VK_KHR_SWAPCHAIN_EXTENSION_NAME,
         };
@@ -183,7 +233,7 @@ DearImGuiShowcase::DearImGuiShowcase(
         };
         const VkDeviceCreateInfo info{
             .sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-            .pNext                   = nullptr,
+            .pNext                   = &vk12features,
             .flags                   = 0,
             .queueCreateInfoCount    = 1,
             .pQueueCreateInfos       = &info_queue,
@@ -456,14 +506,14 @@ void DearImGuiShowcase::initialize()
         //  Depth discarded
         //  Color kept
         //  Transition to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR to optimize transition before presentation
-        const std::array<VkAttachmentDescription, 2> attachments{
+        const std::array attachments{
             VkAttachmentDescription{
                 .flags          = 0,
                 .format         = mColorAttachmentFormat,
                 .samples        = VK_SAMPLE_COUNT_1_BIT,
                 .loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR,
                 .storeOp        = VK_ATTACHMENT_STORE_OP_STORE,
-                .stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                .stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
                 .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
                 .initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED,
                 .finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
@@ -474,45 +524,48 @@ void DearImGuiShowcase::initialize()
                 .samples        = VK_SAMPLE_COUNT_1_BIT,
                 .loadOp         = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
                 .storeOp        = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-                .stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+                .stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_CLEAR,
                 .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
                 .initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED,
-                .finalLayout    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                .finalLayout    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
             },
         };
-        constexpr const VkAttachmentReference color_reference{
+        constexpr const VkAttachmentReference write_color_reference{
             .attachment = kAttachmentColor,
             .layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
         };
-        constexpr const VkAttachmentReference depth_reference{
+        constexpr const VkAttachmentReference write_stencil_reference{
             .attachment = kAttachmentDepth,
-            .layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+            .layout     = VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL,
+        };
+        constexpr const VkAttachmentReference read_stencil_reference{
+            .attachment = kAttachmentDepth,
+            .layout     = VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL,
         };
         constexpr const std::array<VkSubpassDescription, 2> subpasses{
-            // Pass 0 : Draw UI    (write depth, write color)
+            // Pass 0 : Draw UI    (write stencil, write color)
             VkSubpassDescription{
                 .flags                   = 0,
                 .pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS,
                 .inputAttachmentCount    = 0,
                 .pInputAttachments       = nullptr,
                 .colorAttachmentCount    = 1,
-                .pColorAttachments       = &color_reference,
+                .pColorAttachments       = &write_color_reference,
                 .pResolveAttachments     = nullptr,
-                .pDepthStencilAttachment = &depth_reference,
+                .pDepthStencilAttachment = &write_stencil_reference,
                 .preserveAttachmentCount = 0,
                 .pPreserveAttachments    = nullptr,
             },
-            // Pass 1 : Draw Scene (read depth, write color)
+            // Pass 1 : Draw Scene (read stencil, write color)
             VkSubpassDescription{
                 .flags                   = 0,
                 .pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS,
                 .inputAttachmentCount    = 0,
                 .pInputAttachments       = nullptr,
                 .colorAttachmentCount    = 1,
-                .pColorAttachments       = &color_reference,
+                .pColorAttachments       = &write_color_reference,
                 .pResolveAttachments     = nullptr,
-                .pDepthStencilAttachment = nullptr,
-                // .pDepthStencilAttachment = &depth_reference,
+                .pDepthStencilAttachment = &read_stencil_reference,
                 .preserveAttachmentCount = 0,
                 .pPreserveAttachments    = nullptr,
             },
@@ -1410,11 +1463,29 @@ void DearImGuiShowcase::create_graphic_pipelines()
         .sType                 = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
         .pNext                 = nullptr,
         .flags                 = 0,
-        .depthTestEnable       = VK_TRUE,
-        .depthWriteEnable      = VK_TRUE,
-        .depthCompareOp        = VK_COMPARE_OP_ALWAYS,
+        .depthTestEnable       = VK_FALSE,
+        .depthWriteEnable      = VK_FALSE,
+        // .depthCompareOp        = VK_COMPARE_OP_ALWAYS,
         .depthBoundsTestEnable = VK_FALSE,
-        .stencilTestEnable     = VK_FALSE,
+        .stencilTestEnable     = VK_TRUE,
+        .front                 = VkStencilOpState{
+            .failOp      = VK_STENCIL_OP_KEEP,
+            .passOp      = VK_STENCIL_OP_REPLACE,
+            .depthFailOp = VK_STENCIL_OP_KEEP,
+            .compareOp   = VK_COMPARE_OP_ALWAYS,
+            .compareMask = 0xFF,
+            .writeMask   = 0xFF,
+            .reference   = 0x01,
+        },
+        .back                  = VkStencilOpState{
+            .failOp      = VK_STENCIL_OP_KEEP,
+            .passOp      = VK_STENCIL_OP_REPLACE,
+            .depthFailOp = VK_STENCIL_OP_KEEP,
+            .compareOp   = VK_COMPARE_OP_ALWAYS,
+            .compareMask = 0xFF,
+            .writeMask   = 0xFF,
+            .reference   = 0x01,
+        },
     };
 
     constexpr const VkPipelineDepthStencilStateCreateInfo scenedepthstencil{
@@ -1423,9 +1494,25 @@ void DearImGuiShowcase::create_graphic_pipelines()
         .flags                 = 0,
         .depthTestEnable       = VK_FALSE,
         .depthWriteEnable      = VK_FALSE,
-        .depthCompareOp        = VK_COMPARE_OP_ALWAYS,
+        // .depthCompareOp        = VK_COMPARE_OP_ALWAYS,
         .depthBoundsTestEnable = VK_FALSE,
-        .stencilTestEnable     = VK_FALSE,
+        .stencilTestEnable     = VK_TRUE,
+        .front                 = VkStencilOpState{
+            .failOp      = VK_STENCIL_OP_KEEP,
+            .passOp      = VK_STENCIL_OP_KEEP,
+            .depthFailOp = VK_STENCIL_OP_KEEP,
+            .compareOp   = VK_COMPARE_OP_NOT_EQUAL,
+            .compareMask = 0xFF,
+            .reference   = 0x01,
+        },
+        .back                  = VkStencilOpState{
+            .failOp      = VK_STENCIL_OP_KEEP,
+            .passOp      = VK_STENCIL_OP_KEEP,
+            .depthFailOp = VK_STENCIL_OP_KEEP,
+            .compareOp   = VK_COMPARE_OP_NOT_EQUAL,
+            .compareMask = 0xFF,
+            .reference   = 0x01,
+        },
     };
 
     constexpr const std::array<VkPipelineColorBlendAttachmentState, 1> colorblendattachments_passthrough{
@@ -1526,8 +1613,7 @@ void DearImGuiShowcase::create_graphic_pipelines()
             .pViewportState      = &sceneviewport,
             .pRasterizationState = &rasterization,
             .pMultisampleState   = &multisample,
-            .pDepthStencilState  = nullptr,
-            // .pDepthStencilState  = &scenedepthstencil,
+            .pDepthStencilState  = &scenedepthstencil,
             .pColorBlendState    = &scenecolorblend,
             .pDynamicState       = nullptr,
             .layout              = mScenePipelineLayout,
@@ -1769,31 +1855,26 @@ void DearImGuiShowcase::record(AcquiredPresentationImage& presentationimage)
     }
     {// Render Passes
         { // Subpass 0 ; ImGui
-            #if 0
-            constexpr const std::array kClearValues{
-                VkClearValue {
-                    .color = VkClearColorValue{
-                        .float32 = { 0.2f, 0.2f, 0.2f, 1.0f }
-                    },
-                },
-                VkClearValue {
-                    .depthStencil = VkClearDepthStencilValue{
-                        .depth = 0.0,
-                        .stencil = 0
-                    },
-                }
-            };
-            #else
             VkClearColorValue kClearValuesColor;
-            VkClearDepthStencilValue kClearValuesDepthStencil;
             kClearValuesColor.float32[0] = 0.2f;
             kClearValuesColor.float32[1] = 0.2f;
             kClearValuesColor.float32[2] = 0.2f;
             kClearValuesColor.float32[3] = 1.0f;
+            VkClearDepthStencilValue kClearValuesDepthStencil;
             kClearValuesDepthStencil.depth   = 0.0f;
             kClearValuesDepthStencil.stencil = 0;
 
-            const VkClearValue kClearValues[] = {
+            #if 0
+            constexpr const std::array kClearValues{
+                VkClearValue {
+                    .color = kClearValuesColor,
+                },
+                VkClearValue {
+                    .depthStencil = kClearValuesDepthStencil,
+                }
+            };
+            #else
+            const std::array kClearValues{
                 VkClearValue {
                     .color = kClearValuesColor,
                 },
@@ -1827,10 +1908,8 @@ void DearImGuiShowcase::record(AcquiredPresentationImage& presentationimage)
             info.renderArea.offset.x = 0;
             info.renderArea.offset.y = 0;
             info.renderArea.extent   = mResolution;
-            // info.clearValueCount     = kClearValues.size();
-            // info.pClearValues        = kClearValues.data();
-            info.clearValueCount     = 2;
-            info.pClearValues        = kClearValues;
+            info.clearValueCount     = kClearValues.size();
+            info.pClearValues        = kClearValues.data();
             #endif
             vkCmdBeginRenderPass(cmdbuffer, &info, VK_SUBPASS_CONTENTS_INLINE);
 
