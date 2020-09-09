@@ -37,10 +37,11 @@ VkBool32 OutputStreamDebugCallback(
     std::ostream& stream) {
     stream
         << VkDebugUtilsMessageSeverityFlagBitsEXTString(messageSeverity) << " : "
-        << VkDebugUtilsMessageTypeFlagsEXTString(messageType) << " - "
-        << "Message ID Number " << pCallbackData->messageIdNumber << ", "
-        << "Message ID String " << pCallbackData->pMessageIdName << '\n'
-        << pCallbackData->pMessage;
+        << VkDebugUtilsMessageTypeFlagsEXTString(messageType) << std::endl;
+    stream
+        << "Message ID Number " << pCallbackData->messageIdNumber << std::endl
+        << "Message ID String " << pCallbackData->pMessageIdName  << std::endl
+        << pCallbackData->pMessage << std::endl;
 
     if (pCallbackData->objectCount > 0) {
         stream
