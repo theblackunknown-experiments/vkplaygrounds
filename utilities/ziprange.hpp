@@ -8,20 +8,17 @@
 template<typename IteratorA, typename IteratorB>
 struct ZipIterator
 {
+    IteratorA                 mIteratorA;
+    IteratorB                 mIteratorB;
+
     // NOTE(andrea.machizaud) arbitrary pick IteratorA as reference
-    using iterator_category = typename IteratorA::iterator_category;
-    using value_type        = std::tuple<typename IteratorA::reference, typename IteratorB::reference>;
-    using difference_type   = typename IteratorA::difference_type;
+    // using iterator_category = typename IteratorA::iterator_category;
+    using value_type        = std::tuple<decltype(*mIteratorA), decltype(*mIteratorB)>;
+    using difference_type   = decltype(std::distance(mIteratorA, mIteratorA + 1));
     using pointer           = value_type*;
     using const_pointer     = const value_type*;
     using reference         = value_type;
     using const_reference   = const value_type;
-
-    IteratorA                 mIteratorA;
-    IteratorB                 mIteratorB;
-    // TODO(andrea.machizaud) we may relax this requirement dependending on the iterator category/user input
-    // to satisfy operator* which returns a reference, we need to fetch data from iterator, however we delay this operatiom
-    mutable std::optional<value_type> mData;
 
     ZipIterator(IteratorA iteratorA, IteratorB iteratorB)
         : mIteratorA(iteratorA)
@@ -140,13 +137,13 @@ auto operator<=>(const ZipIterator<IteratorA, IteratorB>& lhs, const ZipIterator
 }
 
 template<typename ContainerA, typename ContainerB>
-struct ZipRange
+struct MutableZipRange
 {
     using Iterator = ZipIterator<typename ContainerA::iterator, typename ContainerB::iterator>;
 
     Iterator mStart, mEnd;
 
-    explicit ZipRange(ContainerA& containerA, ContainerB& containerB)
+    explicit MutableZipRange(ContainerA& containerA, ContainerB& containerB)
         : mStart(std::begin(containerA), std::begin(containerB))
         , mEnd(std::end(containerA), std::end(containerB))
     {
@@ -157,3 +154,40 @@ struct ZipRange
     Iterator end() { return mEnd; }
     const Iterator cend() const { return mEnd; }
 };
+
+template<typename ContainerA, typename ContainerB>
+struct ConstZipRange
+{
+    using Iterator = ZipIterator<typename ContainerA::const_iterator, typename ContainerB::const_iterator>;
+
+    Iterator mStart, mEnd;
+
+    explicit ConstZipRange(const ContainerA& containerA, const ContainerB& containerB)
+        : mStart(std::begin(containerA), std::begin(containerB))
+        , mEnd(std::end(containerA), std::end(containerB))
+    {
+    }
+
+    Iterator begin() { return mStart; }
+    const Iterator cbegin() const { return mStart; }
+    Iterator end() { return mEnd; }
+    const Iterator cend() const { return mEnd; }
+};
+
+template<typename ContainerA, typename ContainerB>
+auto zip(const ContainerA& containerA, const ContainerB& containerB)
+{
+    return ConstZipRange(containerA, containerB);
+}
+
+template<typename ContainerA, typename ContainerB>
+auto zip(ContainerA& containerA, ContainerB& containerB)
+{
+    return MutableZipRange(containerA, containerB);
+}
+
+template<typename ContainerA, typename ContainerB>
+auto zip(ContainerA&& containerA, ContainerB&& containerB)
+{
+    return MutableZipRange(containerA, containerB);
+}

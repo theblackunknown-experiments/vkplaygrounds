@@ -7,13 +7,25 @@
 
 #include <span>
 #include <vector>
+#include <string_view>
+
 #include <iterator>
 #include <optional>
 #include <algorithm>
 
-#include <string_view>
-
 #include "./vkdebug.hpp"
+
+#define STRING2(x) #x
+#define STRING(x) STRING2(x)
+
+#if __has_include(<bit>)
+// #  pragma message( __FILE__ "(" STRING(__LINE__) "): <bits> available"  )
+#  include <bit>
+#  define HAVE_HEADER_BIT 1
+#else
+// #  pragma message( __FILE__ "(" STRING(__LINE__) "): <bits> *NOT* available"  )
+#  define HAVE_HEADER_BIT 0
+#endif
 
 struct Version
 {
@@ -38,28 +50,6 @@ struct Version
     {
         return VK_VERSION_PATCH(mPacked);
     }
-};
-
-struct ImageData {
-    std::uint32_t        offset       = 0;
-    VkImage              image        = VK_NULL_HANDLE;
-    VkImageView          view         = VK_NULL_HANDLE;
-    VkMemoryRequirements requirements;
-    std::uint32_t        memory_chunk_index = ~0;
-};
-
-struct BufferData {
-    std::uint32_t        offset       = 0;
-    std::uint32_t        occupied     = 0;
-    VkBuffer             buffer       = VK_NULL_HANDLE;
-    VkMemoryRequirements requirements;
-    std::uint32_t        memory_chunk_index = ~0;
-};
-
-struct MemoryData {
-    VkDeviceMemory memory            = VK_NULL_HANDLE;
-    std::uint32_t  memory_type_index = ~0;
-    std::uint32_t  free              = 0;
 };
 
 struct PresentationData {
@@ -96,6 +86,51 @@ struct Mouse
         float y = 0.0f;
     } offset;
 };
+
+inline
+constexpr std::uint32_t next_pow2_dummy(std::uint32_t v)
+{
+    std::uint32_t p = 1;
+    while (p < v) p *= 2;
+    return p;
+}
+
+inline
+constexpr std::uint32_t next_pow2_portable(std::uint32_t v)
+{
+    --v;
+    v |= v >>  1;
+    v |= v >>  2;
+    v |= v >>  4;
+    v |= v >>  8;
+    v |= v >> 16;
+    ++v;
+    return v;
+}
+
+#if HAVE_HEADER_BIT
+inline
+constexpr std::uint32_t next_pow2_modern(std::uint32_t v)
+{
+    return v == 1
+        ? v
+        : 1 << (32 - std::countl_zero(v - 1));
+    --v;
+    v |= v >>  1;
+    v |= v >>  2;
+    v |= v >>  4;
+    v |= v >>  8;
+    v |= v >> 16;
+    ++v;
+    return v;
+}
+
+inline
+constexpr std::uint32_t next_pow2_cpp20(std::uint32_t v)
+{
+    return std::bit_ceil(v);
+}
+#endif
 
 inline
 bool has_extension(const std::span<VkExtensionProperties>& extensions, const std::string_view& extension)

@@ -9,6 +9,10 @@
 #include <vector>
 
 #include "./vkutilities.hpp"
+#include "./vkphysicaldevice.hpp"
+#include "./vkdevice.hpp"
+#include "./vkbuffer.hpp"
+#include "./vkimage.hpp"
 
 struct ImGuiContext;
 
@@ -33,7 +37,7 @@ struct DearImGuiShowcase
     void initialize_resources();
     void initialize_views();
 
-    void allocate_memory();
+    void allocate_memory_and_bind_resources();
     void allocate_descriptorset();
 
     void upload_font_image();
@@ -42,8 +46,6 @@ struct DearImGuiShowcase
     void create_framebuffers();
     void create_commandbuffers();
     void create_graphic_pipelines();
-
-    void bind_resources();
 
     // void reallocate_buffers();
 
@@ -60,18 +62,13 @@ struct DearImGuiShowcase
 
     VkInstance                           mInstance                     = VK_NULL_HANDLE;
     VkSurfaceKHR                         mSurface                      = VK_NULL_HANDLE;
-    VkPhysicalDevice                     mPhysicalDevice               = VK_NULL_HANDLE;
+    blk::PhysicalDevice                  mPhysicalDevice;
 
     VkExtent2D                           mResolution;
 
-    VkPhysicalDeviceFeatures             mFeatures;
-    VkPhysicalDeviceProperties           mProperties;
-    VkPhysicalDeviceMemoryProperties     mMemoryProperties;
-    std::vector<VkQueueFamilyProperties> mQueueFamiliesProperties;
-    std::vector<VkExtensionProperties>   mExtensions;
 
-    std::uint32_t                        mQueueFamily                        ;
-    VkDevice                             mDevice                       = VK_NULL_HANDLE;
+    std::uint32_t                        mQueueFamily;
+    blk::Device                          mDevice;
     VkQueue                              mQueue                        = VK_NULL_HANDLE;
 
     ImGuiContext*                        mContext                      = nullptr;
@@ -104,14 +101,15 @@ struct DearImGuiShowcase
 
     VkDescriptorSet                      mDescriptorSet                = VK_NULL_HANDLE;
 
-    ImageData                            mFont, mDepth;
-    BufferData                           mVertexBuffer, mIndexBuffer, mStaging;
+    blk::Image                           mFontImage, mDepthImage;
+    blk::ImageView                       mFontImageView, mDepthImageView;
+    blk::Buffer                          mVertexBuffer, mIndexBuffer, mStagingBuffer;
 
     VkFence                              mStagingFence = VK_NULL_HANDLE;
     VkSemaphore                          mStagingSemaphore = VK_NULL_HANDLE;
     VkCommandBuffer                      mStagingCommandBuffer = VK_NULL_HANDLE;
 
-    std::vector<MemoryData>              mMemoryChunks;
+    std::vector<blk::Memory>             mMemoryChunks;
 
     PresentationData                     mPresentation;
 

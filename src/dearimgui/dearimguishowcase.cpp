@@ -18,34 +18,36 @@
 
 #include <chrono>
 #include <limits>
+#include <numeric>
 #include <iterator>
 
 #include <array>
 #include <vector>
+#include <variant>
 #include <unordered_map>
 
 namespace
 {
-    constexpr const bool kVSync = true;
+    constexpr bool kVSync = true;
 
-    constexpr const std::uint32_t kSubpassUI = 0;
-    constexpr const std::uint32_t kSubpassScene = 1;
+    constexpr std::uint32_t kSubpassUI = 0;
+    constexpr std::uint32_t kSubpassScene = 1;
 
-    constexpr const std::uint32_t kAttachmentColor = 0;
-    constexpr const std::uint32_t kAttachmentDepth = 1;
+    constexpr std::uint32_t kAttachmentColor = 0;
+    constexpr std::uint32_t kAttachmentDepth = 1;
 
 
-    constexpr const std::uint32_t kVertexInputBindingPosUVColor = 0;
-    constexpr const std::uint32_t kUIShaderLocationPos   = 0;
-    constexpr const std::uint32_t kUIShaderLocationUV    = 1;
-    constexpr const std::uint32_t kUIShaderLocationColor = 2;
+    constexpr std::uint32_t kVertexInputBindingPosUVColor = 0;
+    constexpr std::uint32_t kUIShaderLocationPos   = 0;
+    constexpr std::uint32_t kUIShaderLocationUV    = 1;
+    constexpr std::uint32_t kUIShaderLocationColor = 2;
 
-    constexpr const std::uint32_t kShaderBindingFontTexture = 0;
+    constexpr std::uint32_t kShaderBindingFontTexture = 0;
 
     // TODO(andrea.machizaud) use literals...
     // TODO(andrea.machizaud) pre-allocate a reasonable amount for buffers
-    constexpr const std::size_t kInitialVertexBufferSize = 2 << 20; // 1 Mb
-    constexpr const std::size_t kInitialIndexBufferSize  = 2 << 20; // 1 Mb
+    constexpr std::size_t kInitialVertexBufferSize = 2 << 20; // 1 Mb
+    constexpr std::size_t kInitialIndexBufferSize  = 2 << 20; // 1 Mb
 
     struct alignas(4) DearImGuiConstants {
         float scale    [2];
@@ -63,33 +65,13 @@ DearImGuiShowcase::DearImGuiShowcase(
     , mPhysicalDevice(vkphysicaldevice)
     , mResolution(resolution)
     , mContext(ImGui::CreateContext())
+    , mVertexBuffer(kInitialVertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)
+    , mIndexBuffer(kInitialIndexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT)
+    , mStagingBuffer(kInitialIndexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT)
 {
-    vkGetPhysicalDeviceFeatures(mPhysicalDevice, &mFeatures);
-    vkGetPhysicalDeviceProperties(mPhysicalDevice, &mProperties);
-    vkGetPhysicalDeviceMemoryProperties(mPhysicalDevice, &mMemoryProperties);
-    {// Queue Family Properties
-        std::uint32_t count;
-        vkGetPhysicalDeviceQueueFamilyProperties(mPhysicalDevice, &count, nullptr);
-        assert(count > 0);
-        mQueueFamiliesProperties.resize(count);
-        vkGetPhysicalDeviceQueueFamilyProperties(mPhysicalDevice, &count, mQueueFamiliesProperties.data());
-    }
-    {// Extensions
-        std::uint32_t count;
-        CHECK(vkEnumerateDeviceExtensionProperties(mPhysicalDevice, nullptr, &count, nullptr));
-        mExtensions.resize(count);
-        CHECK(vkEnumerateDeviceExtensionProperties(mPhysicalDevice, nullptr, &count, mExtensions.data()));
-    }
     {// Queue Family
-        std::uint32_t count;
-        vkGetPhysicalDeviceQueueFamilyProperties(mPhysicalDevice, &count, nullptr);
-        assert(count > 0);
-
-        std::vector<VkQueueFamilyProperties> queue_families(count);
-        vkGetPhysicalDeviceQueueFamilyProperties(mPhysicalDevice, &count, queue_families.data());
-
-        EnumerateIterator begin(std::begin(queue_families));
-        EnumerateIterator end(std::end(queue_families));
+        EnumerateIterator begin(std::begin(mPhysicalDevice.mQueueFamiliesProperties));
+        EnumerateIterator end(std::end(mPhysicalDevice.mQueueFamiliesProperties));
 
         auto finderSuitableQueueFamily = std::find_if(
             begin, end,
@@ -112,7 +94,7 @@ DearImGuiShowcase::DearImGuiShowcase(
         mQueueFamily = std::distance(begin, finderSuitableQueueFamily);
     }
     {// Device
-        constexpr const VkPhysicalDeviceFeatures features{
+        constexpr VkPhysicalDeviceFeatures features{
             .robustBufferAccess                      = VK_FALSE,
             .fullDrawIndexUint32                     = VK_FALSE,
             .imageCubeArray                          = VK_FALSE,
@@ -169,7 +151,7 @@ DearImGuiShowcase::DearImGuiShowcase(
             .variableMultisampleRate                 = VK_FALSE,
             .inheritedQueries                        = VK_FALSE,
         };
-        constexpr const VkPhysicalDeviceVulkan12Features vk12features{
+        constexpr VkPhysicalDeviceVulkan12Features vk12features{
             .sType                                              = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
             .pNext                                              = nullptr,
             .samplerMirrorClampToEdge                           = VK_FALSE,
@@ -219,10 +201,10 @@ DearImGuiShowcase::DearImGuiShowcase(
             .shaderOutputViewportIndex                          = VK_FALSE,
             .shaderOutputLayer                                  = VK_FALSE,
         };
-        constexpr const std::array<const char*, 1> kEnabledExtensions{
+        constexpr std::array kEnabledExtensions{
             VK_KHR_SWAPCHAIN_EXTENSION_NAME,
         };
-        constexpr const float kQueuePriorities = 1.0f;
+        constexpr float kQueuePriorities = 1.0f;
         const VkDeviceQueueCreateInfo info_queue = VkDeviceQueueCreateInfo{
             .sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
             .pNext            = nullptr,
@@ -231,7 +213,7 @@ DearImGuiShowcase::DearImGuiShowcase(
             .queueCount       = 1,
             .pQueuePriorities = &kQueuePriorities,
         };
-        const VkDeviceCreateInfo info{
+        mDevice = blk::Device(VkDeviceCreateInfo{
             .sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
             .pNext                   = &vk12features,
             .flags                   = 0,
@@ -242,8 +224,8 @@ DearImGuiShowcase::DearImGuiShowcase(
             .enabledExtensionCount   = kEnabledExtensions.size(),
             .ppEnabledExtensionNames = kEnabledExtensions.data(),
             .pEnabledFeatures        = &features,
-        };
-        CHECK(vkCreateDevice(mPhysicalDevice, &info, nullptr, &mDevice));
+        });
+        mDevice.create(mPhysicalDevice);
         vkGetDeviceQueue(mDevice, mQueueFamily, 0, &mQueue);
     }
     {// Dear ImGui
@@ -290,19 +272,6 @@ DearImGuiShowcase::~DearImGuiShowcase()
         vkDestroyImageView(mDevice, view, nullptr);
     vkDestroySwapchainKHR(mDevice, mPresentation.swapchain, nullptr);
 
-    for(auto&& chunk : mMemoryChunks)
-        vkFreeMemory(mDevice, chunk.memory, nullptr);
-
-    vkDestroyBuffer(mDevice, mStaging.buffer, nullptr);
-    vkDestroyBuffer(mDevice, mIndexBuffer.buffer, nullptr);
-    vkDestroyBuffer(mDevice, mVertexBuffer.buffer, nullptr);
-
-    vkDestroyImageView(mDevice, mFont.view, nullptr);
-    vkDestroyImage(mDevice, mFont.image, nullptr);
-
-    vkDestroyImageView(mDevice, mDepth.view, nullptr);
-    vkDestroyImage(mDevice, mDepth.image, nullptr);
-
     vkFreeCommandBuffers(mDevice, mCommandPoolOneOff, 1, &mStagingCommandBuffer);
 
     vkDestroyFence(mDevice, mStagingFence, nullptr);
@@ -323,8 +292,6 @@ DearImGuiShowcase::~DearImGuiShowcase()
     vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
 
     vkDestroySampler(mDevice, mSampler, nullptr);
-
-    vkDestroyDevice(mDevice, nullptr);
 
     ImGui::DestroyContext(mContext);
 }
@@ -390,7 +357,7 @@ void DearImGuiShowcase::initialize()
             std::vector<VkPresentModeKHR> present_modes(count);
             CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(mPhysicalDevice, mSurface, &count, present_modes.data()));
 
-            constexpr const auto kPreferredPresentModes = {
+            constexpr auto kPreferredPresentModes = {
                 VK_PRESENT_MODE_MAILBOX_KHR,
                 VK_PRESENT_MODE_IMMEDIATE_KHR,
                 VK_PRESENT_MODE_FIFO_KHR,
@@ -422,7 +389,7 @@ void DearImGuiShowcase::initialize()
             vkGetPhysicalDeviceSurfaceFormatsKHR(mPhysicalDevice, mSurface, &count, formats.data());
 
             // NOTE(andrea.machizaud) Arbitrary : it happens to be supported on my device
-            constexpr const VkFormat kPreferredFormat = VK_FORMAT_B8G8R8A8_UNORM;
+            constexpr VkFormat kPreferredFormat = VK_FORMAT_B8G8R8A8_UNORM;
             if((count == 1) && (formats.front().format == VK_FORMAT_UNDEFINED))
             {
                 // NOTE No preferred format, pick what you want
@@ -456,7 +423,7 @@ void DearImGuiShowcase::initialize()
             // NVIDIA - https://developer.nvidia.com/blog/vulkan-dos-donts/
             //  > Prefer using 24 bit depth formats for optimal performance
             //  > Prefer using packed depth/stencil formats. This is a common cause for notable performance differences between an OpenGL and Vulkan implementation.
-            constexpr const VkFormat kDEPTH_FORMATS[] = {
+            constexpr VkFormat kDEPTH_FORMATS[] = {
                 VK_FORMAT_D24_UNORM_S8_UINT,
                 VK_FORMAT_D16_UNORM_S8_UINT,
                 VK_FORMAT_D32_SFLOAT_S8_UINT,
@@ -478,7 +445,7 @@ void DearImGuiShowcase::initialize()
         }
     }
     {// Sampler
-        constexpr const VkSamplerCreateInfo info{
+        constexpr VkSamplerCreateInfo info{
             .sType                   = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
             .pNext                   = nullptr,
             .flags                   = 0,
@@ -530,19 +497,19 @@ void DearImGuiShowcase::initialize()
                 .finalLayout    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
             },
         };
-        constexpr const VkAttachmentReference write_color_reference{
+        constexpr VkAttachmentReference write_color_reference{
             .attachment = kAttachmentColor,
             .layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
         };
-        constexpr const VkAttachmentReference write_stencil_reference{
+        constexpr VkAttachmentReference write_stencil_reference{
             .attachment = kAttachmentDepth,
             .layout     = VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL,
         };
-        constexpr const VkAttachmentReference read_stencil_reference{
+        constexpr VkAttachmentReference read_stencil_reference{
             .attachment = kAttachmentDepth,
             .layout     = VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL,
         };
-        constexpr const std::array<VkSubpassDescription, 2> subpasses{
+        constexpr std::array<VkSubpassDescription, 2> subpasses{
             // Pass 0 : Draw UI    (write stencil, write color)
             VkSubpassDescription{
                 .flags                   = 0,
@@ -570,7 +537,7 @@ void DearImGuiShowcase::initialize()
                 .pPreserveAttachments    = nullptr,
             },
         };
-        constexpr const std::array<VkSubpassDependency, 1> dependencies{
+        constexpr std::array<VkSubpassDependency, 1> dependencies{
             VkSubpassDependency{
                 .srcSubpass      = kSubpassUI,
                 .dstSubpass      = kSubpassScene,
@@ -620,7 +587,7 @@ void DearImGuiShowcase::initialize()
             constexpr std::size_t kMaxAlignOf = alignof(std::max_align_t);
             constexpr std::size_t kSizeOf = sizeof(DearImGuiConstants);
 
-            constexpr const std::array<VkPushConstantRange, 1> ranges{
+            constexpr std::array<VkPushConstantRange, 1> ranges{
                 VkPushConstantRange{
                     .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
                     .offset     = 0,
@@ -682,15 +649,15 @@ void DearImGuiShowcase::initialize()
             CHECK(vkCreateCommandPool(mDevice, &info, nullptr, &mCommandPoolOneOff));
         }
         {// Descriptor Pools
-            constexpr const std::uint32_t kMaxAllocatedSets = 1;
-            constexpr const std::array<VkDescriptorPoolSize, 1> pool_sizes{
+            constexpr std::uint32_t kMaxAllocatedSets = 1;
+            constexpr std::array<VkDescriptorPoolSize, 1> pool_sizes{
                 // 1 sampler : font texture
                 VkDescriptorPoolSize{
                     .type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                     .descriptorCount = 1,
                 }
             };
-            constexpr const VkDescriptorPoolCreateInfo info{
+            constexpr VkDescriptorPoolCreateInfo info{
                 .sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
                 .pNext         = nullptr,
                 .flags         = 0,
@@ -749,222 +716,116 @@ void DearImGuiShowcase::initialize_resources()
                 unsigned char* data = nullptr;
                 io.Fonts->GetTexDataAsAlpha8(&data, &width, &height);
 
-                const VkImageCreateInfo info{
-                    .sType                 = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-                    .pNext                 = nullptr,
-                    .flags                 = 0,
-                    .imageType             = VK_IMAGE_TYPE_2D,
-                    .format                = VK_FORMAT_R8_UNORM,
-                    .extent                = VkExtent3D{
-                        .width  = static_cast<std::uint32_t>(width),
-                        .height = static_cast<std::uint32_t>(height),
-                        .depth  = 1,
-                    },
-                    .mipLevels             = 1,
-                    .arrayLayers           = 1,
-                    .samples               = VK_SAMPLE_COUNT_1_BIT,
-                    .tiling                = VK_IMAGE_TILING_OPTIMAL,
-                    .usage                 = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-                    .sharingMode           = VK_SHARING_MODE_EXCLUSIVE,
-                    .queueFamilyIndexCount = 1,
-                    .pQueueFamilyIndices   = &mQueueFamily,
-                    .initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED,
-                };
-                CHECK(vkCreateImage(mDevice, &info, nullptr, &mFont.image));
-                vkGetImageMemoryRequirements(mDevice, mFont.image, &mFont.requirements);
+                mFontImage = blk::Image(
+                    VkExtent3D{ .width = (std::uint32_t)width, .height = (std::uint32_t)height, .depth = 1 },
+                    VK_IMAGE_TYPE_2D,
+                    VK_FORMAT_R8_UNORM,
+                    VK_SAMPLE_COUNT_1_BIT,
+                    VK_IMAGE_TILING_OPTIMAL,
+                    VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                    VK_IMAGE_LAYOUT_UNDEFINED
+                );
+                mFontImage.create(mDevice);
             }
-            io.Fonts->SetTexID(&mFont);
+            io.Fonts->SetTexID(&mFontImage);
         }
         {// Depth
-            const VkImageCreateInfo info{
-                .sType                 = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-                .pNext                 = nullptr,
-                .flags                 = 0,
-                .imageType             = VK_IMAGE_TYPE_2D,
-                .format                = mDepthStencilAttachmentFormat,
-                .extent                = VkExtent3D{
-                    .width  = mResolution.width,
-                    .height = mResolution.height,
-                    .depth  = 1,
-                },
-                .mipLevels             = 1,
-                .arrayLayers           = 1,
-                .samples               = VK_SAMPLE_COUNT_1_BIT,
-                .tiling                = VK_IMAGE_TILING_OPTIMAL,
-                .usage                 = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                .sharingMode           = VK_SHARING_MODE_EXCLUSIVE,
-                .queueFamilyIndexCount = 0,
-                .pQueueFamilyIndices   = nullptr,
-                .initialLayout         = VK_IMAGE_LAYOUT_UNDEFINED,
-            };
-            CHECK(vkCreateImage(mDevice, &info, nullptr, &mDepth.image));
-            vkGetImageMemoryRequirements(mDevice, mDepth.image, &mDepth.requirements);
+            mDepthImage = blk::Image(
+                VkExtent3D{ .width = mResolution.width, .height = mResolution.height, .depth = 1 },
+                VK_IMAGE_TYPE_2D,
+                mDepthStencilAttachmentFormat,
+                VK_SAMPLE_COUNT_1_BIT,
+                VK_IMAGE_TILING_OPTIMAL,
+                VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                VK_IMAGE_LAYOUT_UNDEFINED
+            );
+            mDepthImage.create(mDevice);
         }
     }
     {// Buffers
-        {// Vertex
-            constexpr const VkBufferCreateInfo info{
-                .sType                 = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-                .pNext                 = nullptr,
-                .flags                 = 0,
-                .size                  = kInitialVertexBufferSize,
-                .usage                 = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                .sharingMode           = VK_SHARING_MODE_EXCLUSIVE,
-                .queueFamilyIndexCount = 0,
-                .pQueueFamilyIndices   = nullptr,
-            };
-            CHECK(vkCreateBuffer(mDevice, &info, nullptr, &mVertexBuffer.buffer));
-            vkGetBufferMemoryRequirements(mDevice, mVertexBuffer.buffer, &mVertexBuffer.requirements);
-        }
-        {// Vertex
-            constexpr const VkBufferCreateInfo info{
-                .sType                 = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-                .pNext                 = nullptr,
-                .flags                 = 0,
-                .size                  = kInitialIndexBufferSize,
-                .usage                 = VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-                .sharingMode           = VK_SHARING_MODE_EXCLUSIVE,
-                .queueFamilyIndexCount = 0,
-                .pQueueFamilyIndices   = nullptr,
-            };
-            CHECK(vkCreateBuffer(mDevice, &info, nullptr, &mIndexBuffer.buffer));
-            vkGetBufferMemoryRequirements(mDevice, mIndexBuffer.buffer, &mIndexBuffer.requirements);
-        }
-        {// Staging
-            constexpr const VkBufferCreateInfo info{
-                .sType                 = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-                .pNext                 = nullptr,
-                .flags                 = 0,
-                .size                  = kInitialIndexBufferSize,
-                .usage                 = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                .sharingMode           = VK_SHARING_MODE_EXCLUSIVE,
-                .queueFamilyIndexCount = 0,
-                .pQueueFamilyIndices   = nullptr,
-            };
-            CHECK(vkCreateBuffer(mDevice, &info, nullptr, &mStaging.buffer));
-            vkGetBufferMemoryRequirements(mDevice, mStaging.buffer, &mStaging.requirements);
-        }
+        mVertexBuffer.create(mDevice);
+        mIndexBuffer.create(mDevice);
+        mStagingBuffer.create(mDevice);
     }
 }
 
 void DearImGuiShowcase::initialize_views()
 {
-    {// Images
-        {// Font
-            const VkImageViewCreateInfo info{
-                .sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-                .pNext            = nullptr,
-                .flags            = 0,
-                .image            = mFont.image,
-                .viewType         = VK_IMAGE_VIEW_TYPE_2D,
-                .format           = VK_FORMAT_R8_UNORM,
-                .components       = VkComponentMapping{
-                    .r = VK_COMPONENT_SWIZZLE_IDENTITY,
-                    .g = VK_COMPONENT_SWIZZLE_IDENTITY,
-                    .b = VK_COMPONENT_SWIZZLE_IDENTITY,
-                    .a = VK_COMPONENT_SWIZZLE_IDENTITY,
-                },
-                .subresourceRange = VkImageSubresourceRange{
-                    .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
-                    .baseMipLevel   = 0,
-                    .levelCount     = 1,
-                    .baseArrayLayer = 0,
-                    .layerCount     = 1,
-                },
-            };
-            CHECK(vkCreateImageView(mDevice, &info, nullptr, &mFont.view));
-        }
-        {// Depth
-            VkImageAspectFlags aspects = VK_IMAGE_ASPECT_DEPTH_BIT;
-            if(mDepthStencilAttachmentFormat >= VK_FORMAT_D16_UNORM_S8_UINT)
-                aspects |= VK_IMAGE_ASPECT_STENCIL_BIT;
-            const VkImageViewCreateInfo info{
-                .sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-                .pNext            = nullptr,
-                .flags            = 0,
-                .image            = mDepth.image,
-                .viewType         = VK_IMAGE_VIEW_TYPE_2D,
-                .format           = mDepthStencilAttachmentFormat,
-                .components       = VkComponentMapping{
-                    .r = VK_COMPONENT_SWIZZLE_IDENTITY,
-                    .g = VK_COMPONENT_SWIZZLE_IDENTITY,
-                    .b = VK_COMPONENT_SWIZZLE_IDENTITY,
-                    .a = VK_COMPONENT_SWIZZLE_IDENTITY,
-                },
-                .subresourceRange = VkImageSubresourceRange{
-                    .aspectMask     = aspects,
-                    .baseMipLevel   = 0,
-                    .levelCount     = 1,
-                    .baseArrayLayer = 0,
-                    .layerCount     = 1,
-                },
-            };
-            CHECK(vkCreateImageView(mDevice, &info, nullptr, &mDepth.view));
-        }
-    }
+    mFontImageView = blk::ImageView(
+        mFontImage,
+        VK_IMAGE_VIEW_TYPE_2D,
+        VK_FORMAT_R8_UNORM,
+        VK_IMAGE_ASPECT_COLOR_BIT
+    );
+    mFontImageView.create(mDevice);
+    mDepthImageView = blk::ImageView(
+        mDepthImage,
+        VK_IMAGE_VIEW_TYPE_2D,
+        mDepthStencilAttachmentFormat,
+        mDepthStencilAttachmentFormat >= VK_FORMAT_D16_UNORM_S8_UINT
+            ? VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT
+            : VK_IMAGE_ASPECT_DEPTH_BIT
+    );
+    mDepthImageView.create(mDevice);
 }
 
-void DearImGuiShowcase::allocate_memory()
+void DearImGuiShowcase::allocate_memory_and_bind_resources()
 {
-    auto memory_gpu_font = get_memory_type(
-        mMemoryProperties, mFont.requirements.memoryTypeBits,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-    );
-    auto memory_gpu_depth = get_memory_type(
-        mMemoryProperties, mDepth.requirements.memoryTypeBits,
-        // NOTE(andrea.machizaud) not present on Windows laptop with my NVIDIA card...
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT /*| VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT*/
-    );
-    auto memory_cpu_vertex = get_memory_type(
-        mMemoryProperties, mVertexBuffer.requirements.memoryTypeBits,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-    );
-    auto memory_cpu_index = get_memory_type(
-        mMemoryProperties, mIndexBuffer.requirements.memoryTypeBits,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-    );
-    auto memory_cpu_staging = get_memory_type(
-        mMemoryProperties, mStaging.requirements.memoryTypeBits,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-    );
-    assert(memory_gpu_font.has_value());
-    assert(memory_gpu_depth.has_value());
-    assert(memory_cpu_vertex.has_value());
-    assert(memory_cpu_index.has_value());
-    assert(memory_cpu_staging.has_value());
+    auto memory_type_font = mPhysicalDevice.mMemories.find_compatible(mFontImage);
+    // NOTE(andrea.machizaud) not present on Windows laptop with my NVIDIA card...
+    auto memory_type_depth = mPhysicalDevice.mMemories.find_compatible(mDepthImage/*, VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT*/);
+    auto memory_type_index = mPhysicalDevice.mMemories.find_compatible(mIndexBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT );
+    auto memory_type_vertex = mPhysicalDevice.mMemories.find_compatible(mVertexBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT );
+    auto memory_type_staging = mPhysicalDevice.mMemories.find_compatible(mStagingBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT );
+    assert(memory_type_font);
+    assert(memory_type_depth);
+    assert(memory_type_index);
+    assert(memory_type_vertex);
+    assert(memory_type_staging);
 
-    std::unordered_map<std::uint32_t, VkDeviceSize> packed_sizes;
-    packed_sizes[memory_gpu_font   .value()] += mFont.requirements.size;
-    packed_sizes[memory_gpu_depth  .value()] += mDepth.requirements.size;
-    packed_sizes[memory_cpu_vertex .value()] += mVertexBuffer.requirements.size;
-    packed_sizes[memory_cpu_index  .value()] += mIndexBuffer.requirements.size;
-    packed_sizes[memory_cpu_staging.value()] += mStaging.requirements.size;
-
-    mMemoryChunks.resize(packed_sizes.size());
-    for(auto&& [chunk, entry] : ZipRange(mMemoryChunks, packed_sizes))
+    struct Resources
     {
-        const VkMemoryAllocateInfo info{
-            .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-            .pNext           = nullptr,
-            .allocationSize  = entry.second,
-            .memoryTypeIndex = entry.first,
-        };
-        CHECK(vkAllocateMemory(mDevice, &info, nullptr, &chunk.memory));
-        chunk.memory_type_index = info.memoryTypeIndex;
-        chunk.free = info.allocationSize;
+        std::vector<blk::Image*> images;
+        std::vector<blk::Buffer*> buffers;
+    };
+
+    // group resource by memory type
+    std::unordered_map<const blk::MemoryType*, Resources> resources_by_types;
+    // auto types = { memory_type_font, memory_type_depth, memory_type_index, memory_type_vertex, memory_type_staging};
+    // auto resources = { Resource(&mFontImage),  Resource(&mDepthImage),  Resource(&mVertexBuffer),  Resource(&mIndexBuffer),  Resource(&mStagingBuffer) };
+    for (auto&& [memory_type, resource] : zip(std::initializer_list<const blk::MemoryType*>{memory_type_font, memory_type_depth}, std::initializer_list<blk::Image*>{&mFontImage, &mDepthImage}))
+    {
+        resources_by_types[memory_type].images.push_back(resource);
     }
-    for (auto&& [idx, chunk] : EnumerateRange(mMemoryChunks))
+    for (auto&& [memory_type, resource] : zip(std::initializer_list<const blk::MemoryType*>{memory_type_index, memory_type_vertex, memory_type_staging}, std::initializer_list<blk::Buffer*>{&mVertexBuffer, &mIndexBuffer, &mStagingBuffer}))
     {
-        if (chunk.memory_type_index == memory_gpu_font.value())
-            mFont.memory_chunk_index = idx;
-        if (chunk.memory_type_index == memory_gpu_depth.value())
-            mDepth.memory_chunk_index = idx;
-        if (chunk.memory_type_index == memory_cpu_vertex.value())
-            mVertexBuffer.memory_chunk_index = idx;
-        if (chunk.memory_type_index == memory_cpu_index.value())
-            mIndexBuffer.memory_chunk_index = idx;
-        if (chunk.memory_type_index == memory_cpu_staging.value())
-            mStaging.memory_chunk_index = idx;
+        resources_by_types[memory_type].buffers.push_back(resource);
+    }
+
+    mMemoryChunks.reserve(resources_by_types.size());
+    for(auto&& entry : resources_by_types)
+    {
+        const VkDeviceSize required_size_images = std::accumulate(
+            std::begin(entry.second.images), std::end(entry.second.images),
+            VkDeviceSize{0},
+            [](VkDeviceSize size, const blk::Image* image) -> VkDeviceSize{
+                return size + image->mRequirements.size;
+            }
+        );
+        const VkDeviceSize required_size_buffers = std::accumulate(
+            std::begin(entry.second.buffers), std::end(entry.second.buffers),
+            VkDeviceSize{0},
+            [](VkDeviceSize size, const blk::Buffer* buffer) -> VkDeviceSize{
+                return size + buffer->mRequirements.size;
+            }
+        );
+
+        blk::Memory& chunk = mMemoryChunks.emplace_back(*entry.first, required_size_images + required_size_buffers);
+        chunk.allocate(mDevice);
+        if (!entry.second.images.empty())
+            chunk.bind(entry.second.images);
+        if (!entry.second.buffers.empty())
+            chunk.bind(entry.second.buffers);
     }
 }
 
@@ -1008,7 +869,7 @@ void DearImGuiShowcase::upload_font_image()
                 .newLayout           = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                 .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
                 .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                .image               = mFont.image,
+                .image               = mFontImage,
                 .subresourceRange    = VkImageSubresourceRange{
                     .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
                     .baseMipLevel   = 0,
@@ -1051,8 +912,8 @@ void DearImGuiShowcase::upload_font_image()
             };
             vkCmdCopyBufferToImage(
                 mStagingCommandBuffer,
-                mStaging.buffer,
-                mFont.image,
+                mStagingBuffer,
+                mFontImage,
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                 1, &region
             );
@@ -1067,7 +928,7 @@ void DearImGuiShowcase::upload_font_image()
                 .newLayout           = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                 .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
                 .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                .image               = mFont.image,
+                .image               = mFontImage,
                 .subresourceRange    = VkImageSubresourceRange{
                     .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
                     .baseMipLevel   = 0,
@@ -1094,17 +955,17 @@ void DearImGuiShowcase::upload_font_image()
         unsigned char* mapped_address = nullptr;
         CHECK(vkMapMemory(
             mDevice,
-            mMemoryChunks.at(mStaging.memory_chunk_index).memory,
-            mStaging.offset,
-            mStaging.requirements.size,
+            *mStagingBuffer.mMemory,
+            mStagingBuffer.mOffset,
+            mStagingBuffer.mRequirements.size,
             0,
             reinterpret_cast<void**>(&mapped_address)
         ));
 
         std::copy_n(data, width * height, mapped_address);
-        vkUnmapMemory(mDevice, mMemoryChunks.at(mStaging.memory_chunk_index).memory);
+        vkUnmapMemory(mDevice, *mStagingBuffer.mMemory);
         // Occupiped to 0 once submit completed
-        mStaging.occupied = width * height * sizeof(unsigned char);
+        mStagingBuffer.mOccupied = width * height * sizeof(unsigned char);
     }
     {// Submission
         const VkSubmitInfo info{
@@ -1142,7 +1003,7 @@ void DearImGuiShowcase::create_swapchain()
             ? VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR
             : capabilities.currentTransform;
 
-        constexpr const VkCompositeAlphaFlagBitsKHR kPreferredCompositeAlphaFlags[] = {
+        constexpr VkCompositeAlphaFlagBitsKHR kPreferredCompositeAlphaFlags[] = {
             VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
             VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR,
             VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
@@ -1204,7 +1065,7 @@ void DearImGuiShowcase::create_swapchain()
         mPresentation.views.resize(count);
         CHECK(vkGetSwapchainImagesKHR(mDevice, mPresentation.swapchain, &count, mPresentation.images.data()));
 
-        for (auto&& [image, view] : ZipRange(mPresentation.images, mPresentation.views))
+        for (auto&& [image, view] : zip(mPresentation.images, mPresentation.views))
         {
             const VkImageViewCreateInfo info{
                 .sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -1235,12 +1096,12 @@ void DearImGuiShowcase::create_swapchain()
 void DearImGuiShowcase::create_framebuffers()
 {
     mFrameBuffers.resize(mPresentation.views.size());
-    for (auto&& [vkview, vkframebuffer] : ZipRange(mPresentation.views, mFrameBuffers))
+    for (auto&& [vkview, vkframebuffer] : zip(mPresentation.views, mFrameBuffers))
     {
         const std::array<VkImageView, 2> attachments{
             vkview,
             // NOTE(andrea.machizaud) Is it safe to re-use depth here ?
-            mDepth.view
+            mDepthImageView
         };
         const VkFramebufferCreateInfo info{
             .sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
@@ -1276,7 +1137,7 @@ void DearImGuiShowcase::create_graphic_pipelines()
     VkShaderModule shader_triangle = VK_NULL_HANDLE;
 
     {// Shader - UI
-        constexpr const VkShaderModuleCreateInfo info{
+        constexpr VkShaderModuleCreateInfo info{
             .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
             .pNext    = nullptr,
             .flags    = 0,
@@ -1286,7 +1147,7 @@ void DearImGuiShowcase::create_graphic_pipelines()
         CHECK(vkCreateShaderModule(mDevice, &info, nullptr, &shader_ui));
     }
     {// Shader - Triangle
-        constexpr const VkShaderModuleCreateInfo info{
+        constexpr VkShaderModuleCreateInfo info{
             .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
             .pNext    = nullptr,
             .flags    = 0,
@@ -1337,7 +1198,7 @@ void DearImGuiShowcase::create_graphic_pipelines()
         },
     };
 
-    constexpr const std::array<VkVertexInputBindingDescription, 1> vertex_bindings{
+    constexpr std::array<VkVertexInputBindingDescription, 1> vertex_bindings{
         VkVertexInputBindingDescription
         {
             .binding   = kVertexInputBindingPosUVColor,
@@ -1346,7 +1207,7 @@ void DearImGuiShowcase::create_graphic_pipelines()
         }
     };
 
-    constexpr const std::array<VkVertexInputAttributeDescription, 3> vertex_attributes{
+    constexpr std::array<VkVertexInputAttributeDescription, 3> vertex_attributes{
         VkVertexInputAttributeDescription{
             .location = kUIShaderLocationPos,
             .binding  = kVertexInputBindingPosUVColor,
@@ -1367,7 +1228,7 @@ void DearImGuiShowcase::create_graphic_pipelines()
         },
     };
 
-    constexpr const VkPipelineVertexInputStateCreateInfo uivertexinput{
+    constexpr VkPipelineVertexInputStateCreateInfo uivertexinput{
         .sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
         .pNext                           = nullptr,
         .flags                           = 0,
@@ -1377,7 +1238,7 @@ void DearImGuiShowcase::create_graphic_pipelines()
         .pVertexAttributeDescriptions    = vertex_attributes.data(),
     };
 
-    constexpr const VkPipelineVertexInputStateCreateInfo scenevertexinput{
+    constexpr VkPipelineVertexInputStateCreateInfo scenevertexinput{
         .sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
         .pNext                           = nullptr,
         .flags                           = 0,
@@ -1387,7 +1248,7 @@ void DearImGuiShowcase::create_graphic_pipelines()
         .pVertexAttributeDescriptions    = nullptr,
     };
 
-    constexpr const VkPipelineInputAssemblyStateCreateInfo assembly{
+    constexpr VkPipelineInputAssemblyStateCreateInfo assembly{
         .sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
         .pNext                  = nullptr,
         .flags                  = 0,
@@ -1395,7 +1256,7 @@ void DearImGuiShowcase::create_graphic_pipelines()
         .primitiveRestartEnable = VK_FALSE,
     };
 
-    constexpr const VkPipelineViewportStateCreateInfo uiviewport{
+    constexpr VkPipelineViewportStateCreateInfo uiviewport{
         .sType         = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
         .pNext         = nullptr,
         .flags         = 0,
@@ -1434,7 +1295,7 @@ void DearImGuiShowcase::create_graphic_pipelines()
         .pScissors     = &fullscissors,
     };
 
-    constexpr const VkPipelineRasterizationStateCreateInfo rasterization{
+    constexpr VkPipelineRasterizationStateCreateInfo rasterization{
         .sType                   = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
         .pNext                   = nullptr,
         .flags                   = 0,
@@ -1447,7 +1308,7 @@ void DearImGuiShowcase::create_graphic_pipelines()
         .lineWidth               = 1.0f,
     };
 
-    constexpr const VkPipelineMultisampleStateCreateInfo multisample{
+    constexpr VkPipelineMultisampleStateCreateInfo multisample{
         .sType                 = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
         .pNext                 = nullptr,
         .flags                 = 0,
@@ -1459,7 +1320,7 @@ void DearImGuiShowcase::create_graphic_pipelines()
         .alphaToOneEnable      = VK_FALSE,
     };
 
-    constexpr const VkPipelineDepthStencilStateCreateInfo uidepthstencil{
+    constexpr VkPipelineDepthStencilStateCreateInfo uidepthstencil{
         .sType                 = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
         .pNext                 = nullptr,
         .flags                 = 0,
@@ -1488,7 +1349,7 @@ void DearImGuiShowcase::create_graphic_pipelines()
         },
     };
 
-    constexpr const VkPipelineDepthStencilStateCreateInfo scenedepthstencil{
+    constexpr VkPipelineDepthStencilStateCreateInfo scenedepthstencil{
         .sType                 = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
         .pNext                 = nullptr,
         .flags                 = 0,
@@ -1515,7 +1376,7 @@ void DearImGuiShowcase::create_graphic_pipelines()
         },
     };
 
-    constexpr const std::array<VkPipelineColorBlendAttachmentState, 1> colorblendattachments_passthrough{
+    constexpr std::array<VkPipelineColorBlendAttachmentState, 1> colorblendattachments_passthrough{
         VkPipelineColorBlendAttachmentState{
             .blendEnable         = VK_FALSE,
             .colorWriteMask      =
@@ -1526,7 +1387,7 @@ void DearImGuiShowcase::create_graphic_pipelines()
         }
     };
 
-    constexpr const std::array<VkPipelineColorBlendAttachmentState, 1> colorblendattachments_blend{
+    constexpr std::array<VkPipelineColorBlendAttachmentState, 1> colorblendattachments_blend{
         VkPipelineColorBlendAttachmentState{
             .blendEnable         = VK_TRUE,
             .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
@@ -1543,7 +1404,7 @@ void DearImGuiShowcase::create_graphic_pipelines()
         }
     };
 
-    constexpr const VkPipelineColorBlendStateCreateInfo uicolorblend{
+    constexpr VkPipelineColorBlendStateCreateInfo uicolorblend{
         .sType                   = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
         .pNext                   = nullptr,
         .flags                   = 0,
@@ -1553,7 +1414,7 @@ void DearImGuiShowcase::create_graphic_pipelines()
         .pAttachments            = colorblendattachments_passthrough.data(),
     };
 
-    constexpr const VkPipelineColorBlendStateCreateInfo scenecolorblend{
+    constexpr VkPipelineColorBlendStateCreateInfo scenecolorblend{
         .sType                   = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
         .pNext                   = nullptr,
         .flags                   = 0,
@@ -1564,12 +1425,12 @@ void DearImGuiShowcase::create_graphic_pipelines()
         .blendConstants          = { 0.0f, 0.0f, 0.0f, 0.0f },
     };
 
-    constexpr const std::array<VkDynamicState, 2> states{
+    constexpr std::array<VkDynamicState, 2> states{
         VK_DYNAMIC_STATE_VIEWPORT,
         VK_DYNAMIC_STATE_SCISSOR,
     };
 
-    constexpr const VkPipelineDynamicStateCreateInfo uidynamics{
+    constexpr VkPipelineDynamicStateCreateInfo uidynamics{
         .sType                   = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
         .pNext                   = nullptr,
         .flags                   = 0,
@@ -1630,77 +1491,11 @@ void DearImGuiShowcase::create_graphic_pipelines()
     vkDestroyShaderModule(mDevice, shader_triangle, nullptr);
 }
 
-void DearImGuiShowcase::bind_resources()
-{
-    {// Images
-        mFont.offset = 0;
-        mDepth.offset = 0;
-        if (mFont.memory_chunk_index == mDepth.memory_chunk_index)
-            mDepth.offset = mFont.requirements.size;
-        const std::array<VkBindImageMemoryInfo, 2> bindings{
-            VkBindImageMemoryInfo{
-                .sType        = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO,
-                .pNext        = nullptr,
-                .image        = mFont.image,
-                .memory       = mMemoryChunks.at(mFont.memory_chunk_index).memory,
-                .memoryOffset = mFont.offset,
-            },
-            VkBindImageMemoryInfo{
-                .sType        = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO,
-                .pNext        = nullptr,
-                .image        = mDepth.image,
-                .memory       = mMemoryChunks.at(mDepth.memory_chunk_index).memory,
-                .memoryOffset = mDepth.offset,
-            },
-        };
-        CHECK(vkBindImageMemory2(mDevice, bindings.size(), bindings.data()));
-        mMemoryChunks.at(mFont.memory_chunk_index ).free -= mFont.requirements.size;
-        mMemoryChunks.at(mDepth.memory_chunk_index).free -= mDepth.requirements.size;
-    }
-    {// Buffers
-        mVertexBuffer.offset = 0;
-        mIndexBuffer .offset = 0;
-        mStaging     .offset = 0;
-        // TODO(andrea.machizaud) we leave a gap for vertex buffer to be filled
-        if (mVertexBuffer.memory_chunk_index == mIndexBuffer.memory_chunk_index)
-            mIndexBuffer.offset = mVertexBuffer.offset + kInitialVertexBufferSize;
-        if (mIndexBuffer.memory_chunk_index == mStaging.memory_chunk_index)
-            mStaging.offset = mIndexBuffer.offset + kInitialIndexBufferSize;
-        const std::array<VkBindBufferMemoryInfo, 3> bindings{
-            VkBindBufferMemoryInfo{
-                .sType        = VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO,
-                .pNext        = nullptr,
-                .buffer       = mVertexBuffer.buffer,
-                .memory       = mMemoryChunks.at(mVertexBuffer.memory_chunk_index).memory,
-                .memoryOffset = mVertexBuffer.offset,
-            },
-            VkBindBufferMemoryInfo{
-                .sType        = VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO,
-                .pNext        = nullptr,
-                .buffer       = mIndexBuffer.buffer,
-                .memory       = mMemoryChunks.at(mIndexBuffer.memory_chunk_index).memory,
-                .memoryOffset = mIndexBuffer.offset,
-            },
-            VkBindBufferMemoryInfo{
-                .sType        = VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO,
-                .pNext        = nullptr,
-                .buffer       = mStaging.buffer,
-                .memory       = mMemoryChunks.at(mStaging.memory_chunk_index).memory,
-                .memoryOffset = mStaging.offset,
-            },
-        };
-        CHECK(vkBindBufferMemory2(mDevice, bindings.size(), bindings.data()));
-        mMemoryChunks.at(mVertexBuffer.memory_chunk_index).free -= mVertexBuffer.requirements.size;
-        mMemoryChunks.at(mIndexBuffer.memory_chunk_index ).free -= mIndexBuffer.requirements.size;
-        mMemoryChunks.at(mStaging.memory_chunk_index     ).free -= mStaging.requirements.size;
-    }
-}
-
 void DearImGuiShowcase::update_descriptorset()
 {
     const VkDescriptorImageInfo info{
         .sampler     = VK_NULL_HANDLE,
-        .imageView   = mFont.view,
+        .imageView   = mFontImageView,
         .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
     };
     const VkWriteDescriptorSet write{
@@ -1762,18 +1557,26 @@ void DearImGuiShowcase::record(AcquiredPresentationImage& presentationimage)
             const VkDeviceSize vertexsize = data->TotalVtxCount * sizeof(ImDrawVert);
             const VkDeviceSize indexsize  = data->TotalIdxCount * sizeof(ImDrawIdx);
 
-            assert(vertexsize <= mVertexBuffer.requirements.size);
-            assert(indexsize  <= mIndexBuffer .requirements.size);
+            assert(vertexsize <= mVertexBuffer.mRequirements.size);
+            assert(indexsize  <= mIndexBuffer .mRequirements.size);
 
             ImDrawVert* address_vertex = nullptr;
             ImDrawIdx*  address_index = nullptr;
-            if ( mVertexBuffer.memory_chunk_index != mIndexBuffer.memory_chunk_index)
+            if ( mVertexBuffer.mMemory != mIndexBuffer.mMemory)
             {
                 CHECK(vkMapMemory(
                     mDevice,
-                    mMemoryChunks.at(mIndexBuffer.memory_chunk_index).memory,
-                    mIndexBuffer.offset,
+                    *mVertexBuffer.mMemory,
+                    mVertexBuffer.mOffset,
                     vertexsize,
+                    0,
+                    reinterpret_cast<void**>(&address_vertex)
+                ));
+                CHECK(vkMapMemory(
+                    mDevice,
+                    *mIndexBuffer.mMemory,
+                    mIndexBuffer.mOffset,
+                    indexsize,
                     0,
                     reinterpret_cast<void**>(&address_index)
                 ));
@@ -1785,14 +1588,16 @@ void DearImGuiShowcase::record(AcquiredPresentationImage& presentationimage)
                     address_vertex += list->VtxBuffer.Size;
                     address_index  += list->IdxBuffer.Size;
                 }
+                vkUnmapMemory(mDevice, *mIndexBuffer.mMemory);
+                vkUnmapMemory(mDevice, *mVertexBuffer.mMemory);
             }
             else
             {
                 {// Vertex
                     CHECK(vkMapMemory(
                         mDevice,
-                        mMemoryChunks.at(mVertexBuffer.memory_chunk_index).memory,
-                        mVertexBuffer.offset,
+                        *mVertexBuffer.mMemory,
+                        mVertexBuffer.mOffset,
                         vertexsize,
                         0,
                         reinterpret_cast<void**>(&address_vertex)
@@ -1803,13 +1608,13 @@ void DearImGuiShowcase::record(AcquiredPresentationImage& presentationimage)
                         std::copy(list->VtxBuffer.Data, std::next(list->VtxBuffer.Data, list->VtxBuffer.Size), address_vertex);
                         address_vertex += list->VtxBuffer.Size;
                     }
-                    vkUnmapMemory(mDevice, mMemoryChunks.at(mVertexBuffer.memory_chunk_index).memory);
+                    vkUnmapMemory(mDevice, *mVertexBuffer.mMemory);
                 }
                 {// Index
                     CHECK(vkMapMemory(
                         mDevice,
-                        mMemoryChunks.at(mIndexBuffer.memory_chunk_index).memory,
-                        mIndexBuffer.offset,
+                        *mIndexBuffer.mMemory,
+                        mIndexBuffer.mOffset,
                         indexsize,
                         0,
                         reinterpret_cast<void**>(&address_index)
@@ -1820,11 +1625,11 @@ void DearImGuiShowcase::record(AcquiredPresentationImage& presentationimage)
                         std::copy(list->IdxBuffer.Data, std::next(list->IdxBuffer.Data, list->IdxBuffer.Size), address_index);
                         address_index  += list->IdxBuffer.Size;
                     }
-                    vkUnmapMemory(mDevice, mMemoryChunks.at(mIndexBuffer.memory_chunk_index).memory);
+                    vkUnmapMemory(mDevice, *mIndexBuffer.mMemory);
                 }
             }
-            mVertexBuffer.occupied = vertexsize;
-            mIndexBuffer .occupied = indexsize;
+            mVertexBuffer.mOccupied = vertexsize;
+            mIndexBuffer .mOccupied = indexsize;
         }
     }
 
@@ -1845,7 +1650,7 @@ void DearImGuiShowcase::record(AcquiredPresentationImage& presentationimage)
     VkCommandBuffer cmdbuffer = presentationimage.commandbuffer;
 
     {// Begin
-        constexpr const VkCommandBufferBeginInfo info{
+        constexpr VkCommandBufferBeginInfo info{
             .sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
             .pNext            = nullptr,
             .flags            = 0,
@@ -1855,6 +1660,28 @@ void DearImGuiShowcase::record(AcquiredPresentationImage& presentationimage)
     }
     {// Render Passes
         { // Subpass 0 ; ImGui
+            #if 0
+            // constexpr VkClearValue kClearValues[2] = {
+            constexpr std::array kClearValues {
+            // constexpr std::array<VkClearValue, 2> kClearValues = std::to_array(VkClearValue[2]{
+                VkClearValue {
+                    .color = VkClearColorValue{
+                        .float32 = { 0.2f, 0.2f, 0.2f, 1.0f }
+                    },
+                    .depthStencil = VkClearDepthStencilValue{
+                    }
+                },
+                VkClearValue {
+                    .color = VkClearColorValue{
+                    },
+                    .depthStencil = VkClearDepthStencilValue{
+                        .depth   = 0.0f,
+                        .stencil = 0,
+                    }
+                }
+            };
+            // });
+            #else
             VkClearColorValue kClearValuesColor;
             kClearValuesColor.float32[0] = 0.2f;
             kClearValuesColor.float32[1] = 0.2f;
@@ -1864,16 +1691,6 @@ void DearImGuiShowcase::record(AcquiredPresentationImage& presentationimage)
             kClearValuesDepthStencil.depth   = 0.0f;
             kClearValuesDepthStencil.stencil = 0;
 
-            #if 0
-            constexpr const std::array kClearValues{
-                VkClearValue {
-                    .color = kClearValuesColor,
-                },
-                VkClearValue {
-                    .depthStencil = kClearValuesDepthStencil,
-                }
-            };
-            #else
             const std::array kClearValues{
                 VkClearValue {
                     .color = kClearValuesColor,
@@ -1936,9 +1753,9 @@ void DearImGuiShowcase::record(AcquiredPresentationImage& presentationimage)
             }
             if (data->TotalVtxCount > 0)
             {// Buffer Bindings
-                constexpr const VkDeviceSize offset = 0;
-                vkCmdBindVertexBuffers(cmdbuffer, kVertexInputBindingPosUVColor, 1, &mVertexBuffer.buffer, &offset);
-                vkCmdBindIndexBuffer(cmdbuffer, mIndexBuffer.buffer, offset, sizeof(ImDrawIdx) == 2 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
+                constexpr VkDeviceSize offset = 0;
+                vkCmdBindVertexBuffers(cmdbuffer, kVertexInputBindingPosUVColor, 1, &mVertexBuffer.mBuffer, &offset);
+                vkCmdBindIndexBuffer(cmdbuffer, mIndexBuffer, offset, sizeof(ImDrawIdx) == 2 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
             }
             {// Draws
                 // Utilities to project scissor/clipping rectangles into framebuffer space
@@ -2034,7 +1851,7 @@ void DearImGuiShowcase::render_frame()
                 {
                     ImGui::Begin("GPU Information");
 
-                    ImGui::TextUnformatted(mProperties.deviceName);
+                    ImGui::TextUnformatted(mPhysicalDevice.mProperties.deviceName);
 
                     // TODO Do it outside ImGui frame
                     // Update frame time display
@@ -2081,7 +1898,7 @@ void DearImGuiShowcase::render_frame()
         auto presentationimage = acquire();
         record(presentationimage);
         {// Submit
-            constexpr const VkPipelineStageFlags kFixedWaitDstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            constexpr VkPipelineStageFlags kFixedWaitDstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
             const std::array<VkSubmitInfo, 1> infos{
                 VkSubmitInfo{
                     .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,

@@ -138,6 +138,21 @@ target_sources(default-sample
         src/vkapplication.hpp
         src/vkapplication.cpp
 
+        src/vkbuffer.hpp
+        # src/vkbuffer.cpp
+
+        src/vkimage.hpp
+        # src/vkimage.cpp
+
+        src/vkmemory.hpp
+        src/vkmemory.cpp
+
+        src/vkdevice.hpp
+        # src/vkdevice.cpp
+
+        src/vkphysicaldevice.hpp
+        # src/vkphysicaldevice.cpp
+
         src/vksurface.hpp
         src/vksurface.cpp
 
@@ -145,8 +160,8 @@ target_sources(default-sample
         src/dearimgui/dearimguishowcase.cpp
 
         $<$<PLATFORM_ID:Windows>:src/win32_main.cpp>
-        $<$<PLATFORM_ID:Windows>:src/win32_vkutilities.hpp>
         $<$<PLATFORM_ID:Windows>:src/win32_vkdebug.cpp>
+        $<$<PLATFORM_ID:Windows>:src/win32_vkutilities.hpp>
 )
 
 target_include_directories(default-sample

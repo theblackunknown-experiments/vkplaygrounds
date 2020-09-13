@@ -31,6 +31,17 @@
 					"cmd":
 					[
 						"ninja",
+						"-k",
+						"20",
+						"$file^"
+					],
+					"name": "Single File",
+					"selector": "source.c++"
+				},
+				{
+					"cmd":
+					[
+						"ninja",
 						"-v",
 						"spirv2header"
 					],
@@ -62,17 +73,6 @@
 						"shaders_headers"
 					],
 					"name": "shaders_headers"
-				},
-				{
-					"cmd":
-					[
-						"ninja",
-						"-k",
-						"20",
-						"$file^"
-					],
-					"name": "Current",
-					"selector": "source.c++"
 				}
 			],
 			"working_dir": "C:/builds/vkplaygrounds"
