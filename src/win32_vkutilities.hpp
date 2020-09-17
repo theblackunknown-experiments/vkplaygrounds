@@ -8,8 +8,8 @@
 
 #include "./vkdebug.hpp"
 
-inline
 [[nodiscard]]
+inline
 VkSurfaceKHR create_surface(VkInstance instance, HINSTANCE hInstance, HWND hWindow)
 {
     const VkWin32SurfaceCreateInfoKHR info{

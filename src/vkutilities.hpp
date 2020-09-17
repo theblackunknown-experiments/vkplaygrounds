@@ -143,8 +143,8 @@ bool has_extension(const std::span<VkExtensionProperties>& extensions, const std
     ) != std::end(extensions);
 }
 
-inline
 [[nodiscard]]
+inline
 std::vector<VkPhysicalDevice> physical_devices(VkInstance instance)
 {
     std::uint32_t count = 0;
@@ -156,8 +156,8 @@ std::vector<VkPhysicalDevice> physical_devices(VkInstance instance)
     return physical_devices;
 }
 
-inline
 [[nodiscard]]
+inline
 std::optional<std::uint32_t> get_memory_type(const VkPhysicalDeviceMemoryProperties& properties, std::uint32_t type_bits, VkMemoryPropertyFlags flags)
 {
     for(std::uint32_t idx = 0; idx < properties.memoryTypeCount; ++idx, type_bits >>= 1)
@@ -172,8 +172,8 @@ std::optional<std::uint32_t> get_memory_type(const VkPhysicalDeviceMemoryPropert
     return { };
 }
 
-inline
 [[nodiscard]]
+inline
 std::optional<std::uint32_t> select_queue_family_index(
     const std::span<VkQueueFamilyProperties>& queue_families_properties,
     VkQueueFlags requirements)
@@ -226,8 +226,8 @@ std::optional<std::uint32_t> select_queue_family_index(
     }
 }
 
-inline
 [[nodiscard]]
+inline
 const char* DeviceType2Text(const VkPhysicalDeviceType& type)
 {
     switch(type)
@@ -241,8 +241,8 @@ const char* DeviceType2Text(const VkPhysicalDeviceType& type)
     }
 }
 
-inline
 [[nodiscard]]
+inline
 VkCommandBuffer create_command_buffer(VkDevice vkdevice, VkCommandPool vkcmdpool, VkCommandBufferLevel level)
 {
     VkCommandBuffer vkcmdbuffer;

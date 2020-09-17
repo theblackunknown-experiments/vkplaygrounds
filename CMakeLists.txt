@@ -6,10 +6,6 @@ project(vkplaygrounds
     LANGUAGES CXX
 )
 
-if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    message(FATAL_ERROR "NYI ${CMAKE_SYSTEM_NAME}")
-endif()
-
 #  If defined, the following flags inhibit definition
 #     of the indicated items.
 #
@@ -56,7 +52,8 @@ endif()
 message(VERBOSE "CMAKE_SYSTEM_NAME: ${CMAKE_SYSTEM_NAME}")
 message(VERBOSE "CMAKE_SYSTEM_VERSION: ${CMAKE_SYSTEM_VERSION}")
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD   20)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 ##############################
 ##         Options          ##

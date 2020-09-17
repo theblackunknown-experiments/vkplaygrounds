@@ -13,11 +13,36 @@
 				"CLICOLOR_FORCE": "1"
 			},
 			"file_regex": "^[ ]*(.+?)\\(([0-9]+)\\)[ ]*: (.*)$",
-			"name": "vkplaygrounds",
+			"name": "vkplaygrounds (MSVC)",
 			"syntax": "Packages/ANSIescape/ANSI.sublime-syntax",
 			"target": "ansi_color_build",
 			"variants":
 			[
+				{
+					"cmd":
+					[
+						"rm", "-rf", "*"
+					],
+					"name": "Delete"
+				},
+				{
+					"cmd":
+					[
+						"cmake",
+						"-Wdev",
+ 						"-Wdeprecated",
+ 						"-Werror=dev",
+ 						"-Werror=deprecated",
+ 						"-S", "C:\\devel\\vkplaygrounds",
+ 						"-B", ".",
+ 						"-G", "Ninja Multi-Config",
+ 						"-DCMAKE_DEFAULT_BUILD_TYPE:STRING=Debug",
+ 						"-DCMAKE_VS_JUST_MY_CODE_DEBUGGING:BOOL=ON",
+ 						"-DCMAKE_TOOLCHAIN_FILE:PATH=C:\\devel\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake",
+ 						"-DVCPKG_TARGET_TRIPLET:STRING=x64-windows"
+					],
+					"name": "Configure"
+				},
 				{
 					"cmd":
 					[
@@ -36,6 +61,18 @@
 						"$file^"
 					],
 					"name": "Single File",
+					"selector": "source.c++"
+				},
+				{
+					"cmd":
+					[
+						"ninja",
+						"-v",
+						"-k",
+						"20",
+						"$file^"
+					],
+					"name": "Single File [verbose]",
 					"selector": "source.c++"
 				},
 				{
@@ -76,6 +113,130 @@
 				}
 			],
 			"working_dir": "C:/builds/vkplaygrounds"
+		},
+		{
+			"cmd":
+			[
+				"ninja",
+				"-k",
+				"20"
+			],
+			"env":
+			{
+				"CLICOLOR_FORCE": "1"
+			},
+			"file_regex": "^[ ]*(.+?):([0-9]+):([0-9]+): (.*)$",
+			"name": "vkplaygrounds (Clang)",
+			"syntax": "Packages/ANSIescape/ANSI.sublime-syntax",
+			"target": "ansi_color_build",
+			"variants":
+			[
+				{
+					"cmd":
+					[
+						"ninja",
+						"-v",
+						"-k",
+						"20"
+					],
+					"name": "[verbose]"
+				},
+				{
+					"cmd":
+					[
+						"rm", "-rf", "*"
+					],
+					"name": "Delete"
+				},
+				{
+					"cmd":
+					[
+						"cmake",
+						"-Wdev",
+ 						"-Wdeprecated",
+ 						"-Werror=dev",
+ 						"-Werror=deprecated",
+ 						"-S", "C:\\devel\\vkplaygrounds",
+ 						"-B", ".",
+ 						"-G", "Ninja Multi-Config",
+ 						"-DCMAKE_DEFAULT_BUILD_TYPE:STRING=Debug",
+ 						"-DCMAKE_VS_JUST_MY_CODE_DEBUGGING:BOOL=ON",
+ 						"-DCMAKE_TOOLCHAIN_FILE:PATH=C:\\devel\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake",
+ 						"-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE:PATH=C:\\devel\\vkplaygrounds\\toolchains\\windows-clang-x86-64.cmake",
+ 						"-DVCPKG_TARGET_TRIPLET:STRING=x64-windows"
+					],
+					"name": "Configure"
+				},
+				{
+					"cmd":
+					[
+						"ninja",
+						"-t",
+						"clean"
+					],
+					"name": "Clean"
+				},
+				{
+					"cmd":
+					[
+						"ninja",
+						"-k",
+						"20",
+						"$file^"
+					],
+					"name": "Single File",
+					"selector": "source.c++"
+				},
+				{
+					"cmd":
+					[
+						"ninja",
+						"-v",
+						"-k",
+						"20",
+						"$file^"
+					],
+					"name": "Single File [verbose]",
+					"selector": "source.c++"
+				},
+				{
+					"cmd":
+					[
+						"ninja",
+						"-v",
+						"spirv2header"
+					],
+					"name": "spirv2header"
+				},
+				{
+					"cmd":
+					[
+						"ninja",
+						"-v",
+						"shaders_compile_stages"
+					],
+					"name": "shaders_compile_stages"
+				},
+				{
+					"cmd":
+					[
+						"ninja",
+						"-v",
+						"shaders_link_modules"
+					],
+					"name": "shaders_link_modules"
+				},
+				{
+					"cmd":
+					[
+						"ninja",
+						"-v",
+						"shaders_headers"
+					],
+					"name": "shaders_headers"
+				}
+			],
+			"working_dir": "C:/builds/vkplaygrounds-windows-clang-x86-64"
 		}
 	],
 	"folders":

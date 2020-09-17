@@ -131,7 +131,7 @@ template<typename IteratorA, typename IteratorB>
 auto operator<=>(const ZipIterator<IteratorA, IteratorB>& lhs, const ZipIterator<IteratorA, IteratorB>& rhs)
 {
     if ((lhs.mIteratorA <=> rhs.mIteratorA) == 0)
-        return (lhs.mIteratorB <=> rhs.mIteratorB)
+        return (lhs.mIteratorB <=> rhs.mIteratorB);
     else
         return 0;
 }

@@ -81,11 +81,11 @@ target_sources(spirv2header
 add_custom_command(OUTPUT
         "${CMAKE_CURRENT_BINARY_DIR}/ui-shader.hpp"
         "${CMAKE_CURRENT_BINARY_DIR}/triangle-shader.hpp"
-    COMMAND spirv2header
+    COMMAND $<TARGET_FILE:spirv2header>
         "${CMAKE_CURRENT_BINARY_DIR}/ui.spv"
         --variable-name kShaderUI
         -o "${CMAKE_CURRENT_BINARY_DIR}/ui-shader.hpp"
-    COMMAND spirv2header
+    COMMAND $<TARGET_FILE:spirv2header>
         "${CMAKE_CURRENT_BINARY_DIR}/triangle.spv"
         --variable-name kShaderTriangle
         -o "${CMAKE_CURRENT_BINARY_DIR}/triangle-shader.hpp"

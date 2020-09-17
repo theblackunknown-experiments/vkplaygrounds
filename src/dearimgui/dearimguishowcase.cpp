@@ -12,6 +12,8 @@
 #include <imgui.h>
 #include <utilities.hpp>
 
+#include <string.h>
+
 #include <cassert>
 #include <cstddef>
 #include <cinttypes>
@@ -246,7 +248,7 @@ DearImGuiShowcase::DearImGuiShowcase(
             io.BackendRendererName = "vkplaygrounds";
             {// Font
                 ImFontConfig config;
-                std::strncpy(config.Name, kFontName, (sizeof(config.Name) / sizeof(config.Name[0])) - 1);
+                strncpy_s(config.Name, kFontName, (sizeof(config.Name) / sizeof(config.Name[0])) - 1);
                 config.FontDataOwnedByAtlas = false;
                 io.Fonts->AddFontFromMemoryTTF(
                     const_cast<unsigned char*>(&kFont[0]), sizeof(kFont),
@@ -357,7 +359,7 @@ void DearImGuiShowcase::initialize()
             std::vector<VkPresentModeKHR> present_modes(count);
             CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(mPhysicalDevice, mSurface, &count, present_modes.data()));
 
-            constexpr auto kPreferredPresentModes = {
+            constexpr std::array kPreferredPresentModes{
                 VK_PRESENT_MODE_MAILBOX_KHR,
                 VK_PRESENT_MODE_IMMEDIATE_KHR,
                 VK_PRESENT_MODE_FIFO_KHR,
@@ -509,7 +511,14 @@ void DearImGuiShowcase::initialize()
             .attachment = kAttachmentDepth,
             .layout     = VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL,
         };
-        constexpr std::array<VkSubpassDescription, 2> subpasses{
+        // C:/devel/vkplaygrounds/src/dearimgui/dearimguishowcase.cpp:514:30: error: constexpr variable 'subpasses' must be initialized by a constant expression
+        //         constexpr std::array subpasses{
+        //                              ^        ~
+        // C:/devel/vkplaygrounds/src/dearimgui/dearimguishowcase.cpp:514:30: note: pointer to 'write_color_reference' is not a constant expression
+        // C:/devel/vkplaygrounds/src/dearimgui/dearimguishowcase.cpp:502:47: note: declared here
+        //         constexpr const VkAttachmentReference write_color_reference{
+        //                                               ^
+        static const/*expr*/ std::array subpasses{
             // Pass 0 : Draw UI    (write stencil, write color)
             VkSubpassDescription{
                 .flags                   = 0,
@@ -650,14 +659,14 @@ void DearImGuiShowcase::initialize()
         }
         {// Descriptor Pools
             constexpr std::uint32_t kMaxAllocatedSets = 1;
-            constexpr std::array<VkDescriptorPoolSize, 1> pool_sizes{
+            constexpr std::array pool_sizes{
                 // 1 sampler : font texture
                 VkDescriptorPoolSize{
                     .type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
                     .descriptorCount = 1,
                 }
             };
-            constexpr VkDescriptorPoolCreateInfo info{
+            /*constexpr*/static const VkDescriptorPoolCreateInfo info{
                 .sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
                 .pNext         = nullptr,
                 .flags         = 0,
@@ -1198,7 +1207,7 @@ void DearImGuiShowcase::create_graphic_pipelines()
         },
     };
 
-    constexpr std::array<VkVertexInputBindingDescription, 1> vertex_bindings{
+    constexpr std::array vertex_bindings{
         VkVertexInputBindingDescription
         {
             .binding   = kVertexInputBindingPosUVColor,
@@ -1207,7 +1216,7 @@ void DearImGuiShowcase::create_graphic_pipelines()
         }
     };
 
-    constexpr std::array<VkVertexInputAttributeDescription, 3> vertex_attributes{
+    constexpr std::array vertex_attributes{
         VkVertexInputAttributeDescription{
             .location = kUIShaderLocationPos,
             .binding  = kVertexInputBindingPosUVColor,
@@ -1228,7 +1237,7 @@ void DearImGuiShowcase::create_graphic_pipelines()
         },
     };
 
-    constexpr VkPipelineVertexInputStateCreateInfo uivertexinput{
+    static const/*expr*/ VkPipelineVertexInputStateCreateInfo uivertexinput{
         .sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
         .pNext                           = nullptr,
         .flags                           = 0,
@@ -1404,7 +1413,7 @@ void DearImGuiShowcase::create_graphic_pipelines()
         }
     };
 
-    constexpr VkPipelineColorBlendStateCreateInfo uicolorblend{
+    static const/*expr*/ VkPipelineColorBlendStateCreateInfo uicolorblend{
         .sType                   = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
         .pNext                   = nullptr,
         .flags                   = 0,
@@ -1414,7 +1423,7 @@ void DearImGuiShowcase::create_graphic_pipelines()
         .pAttachments            = colorblendattachments_passthrough.data(),
     };
 
-    constexpr VkPipelineColorBlendStateCreateInfo scenecolorblend{
+    static const/*expr*/ VkPipelineColorBlendStateCreateInfo scenecolorblend{
         .sType                   = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
         .pNext                   = nullptr,
         .flags                   = 0,
@@ -1425,12 +1434,12 @@ void DearImGuiShowcase::create_graphic_pipelines()
         .blendConstants          = { 0.0f, 0.0f, 0.0f, 0.0f },
     };
 
-    constexpr std::array<VkDynamicState, 2> states{
+    constexpr std::array states{
         VK_DYNAMIC_STATE_VIEWPORT,
         VK_DYNAMIC_STATE_SCISSOR,
     };
 
-    constexpr VkPipelineDynamicStateCreateInfo uidynamics{
+    static const/*expr*/ VkPipelineDynamicStateCreateInfo uidynamics{
         .sType                   = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
         .pNext                   = nullptr,
         .flags                   = 0,
@@ -1438,7 +1447,7 @@ void DearImGuiShowcase::create_graphic_pipelines()
         .pDynamicStates          = states.data(),
     };
 
-    const std::array<VkGraphicsPipelineCreateInfo, 2> infos{
+    const std::array infos{
         VkGraphicsPipelineCreateInfo
         {
             .sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
@@ -1660,47 +1669,19 @@ void DearImGuiShowcase::record(AcquiredPresentationImage& presentationimage)
     }
     {// Render Passes
         { // Subpass 0 ; ImGui
-            #if 0
-            // constexpr VkClearValue kClearValues[2] = {
             constexpr std::array kClearValues {
-            // constexpr std::array<VkClearValue, 2> kClearValues = std::to_array(VkClearValue[2]{
                 VkClearValue {
                     .color = VkClearColorValue{
                         .float32 = { 0.2f, 0.2f, 0.2f, 1.0f }
                     },
-                    .depthStencil = VkClearDepthStencilValue{
-                    }
                 },
                 VkClearValue {
-                    .color = VkClearColorValue{
-                    },
                     .depthStencil = VkClearDepthStencilValue{
                         .depth   = 0.0f,
                         .stencil = 0,
                     }
                 }
             };
-            // });
-            #else
-            VkClearColorValue kClearValuesColor;
-            kClearValuesColor.float32[0] = 0.2f;
-            kClearValuesColor.float32[1] = 0.2f;
-            kClearValuesColor.float32[2] = 0.2f;
-            kClearValuesColor.float32[3] = 1.0f;
-            VkClearDepthStencilValue kClearValuesDepthStencil;
-            kClearValuesDepthStencil.depth   = 0.0f;
-            kClearValuesDepthStencil.stencil = 0;
-
-            const std::array kClearValues{
-                VkClearValue {
-                    .color = kClearValuesColor,
-                },
-                VkClearValue {
-                    .depthStencil = kClearValuesDepthStencil,
-                }
-            };
-            #endif
-            #if 0
             const VkRenderPassBeginInfo info{
                 .sType            = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
                 .pNext            = nullptr,
@@ -1713,21 +1694,9 @@ void DearImGuiShowcase::record(AcquiredPresentationImage& presentationimage)
                     },
                     .extent = mResolution
                 },
-                .clearValueCount  = 0,
-                .pClearValues     = nullptr,
+                .clearValueCount  = kClearValues.size(),
+                .pClearValues     = kClearValues.data(),
             };
-            #else
-            VkRenderPassBeginInfo info;
-            info.sType               = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-            info.pNext               = nullptr;
-            info.renderPass          = mRenderPass;
-            info.framebuffer         = mFrameBuffers.at(presentationimage.index);
-            info.renderArea.offset.x = 0;
-            info.renderArea.offset.y = 0;
-            info.renderArea.extent   = mResolution;
-            info.clearValueCount     = kClearValues.size();
-            info.pClearValues        = kClearValues.data();
-            #endif
             vkCmdBeginRenderPass(cmdbuffer, &info, VK_SUBPASS_CONTENTS_INLINE);
 
             vkCmdBindPipeline(cmdbuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelines.at(0));
