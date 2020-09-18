@@ -8,6 +8,7 @@
 #include <cassert>
 
 #include <chrono>
+#include <thread>
 
 #include <map>
 #include <set>
@@ -26,6 +27,8 @@
 #include "./win32_vkutilities.hpp"
 
 #include "./dearimgui/dearimguishowcase.hpp"
+
+using namespace std::literals::chrono_literals;
 
 namespace
 {
@@ -127,6 +130,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     std::cout << "_MSC_BUILD      : " << _MSC_BUILD << std::endl;
     std::cout << "_MSVC_LANG      : " << _MSVC_LANG << std::endl;
     std::cout << "_MSC_EXTENSIONS : " << _MSC_EXTENSIONS << std::endl;
+
+    static bool sGuard = false;
+    while (sGuard)
+        std::this_thread::sleep_for(5s);
 
     // Application - Instance
 
