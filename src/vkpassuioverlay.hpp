@@ -36,16 +36,11 @@ struct VulkanPassUIOverlay
     void initialize_after_memory_bindings();
     void initialize_graphic_pipelines();
 
-    void record_font_image_upload(VkCommandBuffer commandbuffer);
-
-    AcquiredPresentationImage acquire();
-
-    void record(AcquiredPresentationImage& );
-    void present(const AcquiredPresentationImage& );
-
     void render_frame();
-
-    void wait_pending_operations();
+    void upload_frame_data();
+    void record_pass(VkCommandBuffer commandbuffer);
+    void record_frame(VkCommandBuffer commandbuffer);
+    void record_font_image_upload(VkCommandBuffer commandbuffer);
 
     const blk::Device&                   mDevice;
     const blk::RenderPass&               mRenderPass;

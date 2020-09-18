@@ -3,6 +3,8 @@
 #include "./vkutilities.hpp"
 #include "./vkdebug.hpp"
 
+#include "./vkphysicaldevice.hpp"
+
 #include "font.hpp"
 #include "ui-shader.hpp"
 
@@ -583,6 +585,278 @@ void VulkanPassUIOverlay::initialize_graphic_pipelines()
     vkDestroyShaderModule(mDevice, shader_triangle, nullptr);
 }
 
+void VulkanPassUIOverlay::render_frame()
+{
+    {
+        {// ImGui
+            ImGuiIO& io = ImGui::GetIO();
+            io.DeltaTime = mUI.frame_delta.count();
+
+            io.MousePos                           = ImVec2(mMouse.offset.x, mMouse.offset.y);
+            io.MouseDown[ImGuiMouseButton_Left  ] = mMouse.buttons.left;
+            io.MouseDown[ImGuiMouseButton_Right ] = mMouse.buttons.right;
+            io.MouseDown[ImGuiMouseButton_Middle] = mMouse.buttons.middle;
+
+            ImGui::NewFrame();
+            {// Window
+                if (ImGui::BeginMainMenuBar())
+                {
+                    if (ImGui::BeginMenu("About"))
+                    {
+                        ImGui::MenuItem("GPU Information", "", &mUI.show_gpu_information);
+                        ImGui::MenuItem("Show Demos", "", &mUI.show_demo);
+                        ImGui::EndMenu();
+                    }
+                    ImGui::EndMainMenuBar();
+                }
+                // ImGui::Begin(kWindowTitle);
+                // ImGui::End();
+
+                if (mUI.show_gpu_information)
+                {
+                    ImGui::Begin("GPU Information");
+
+                    ImGui::TextUnformatted(mDevice.mPhysicalDevice->mProperties.deviceName);
+
+                    // TODO Do it outside ImGui frame
+                    // Update frame time display
+                    if (mUI.frame_count == 0)
+                    {
+                        std::rotate(
+                            std::begin(mUI.frame_times), std::next(std::begin(mUI.frame_times)),
+                            std::end(mUI.frame_times)
+                        );
+
+                        mUI.frame_times.back() = mUI.frame_delta.count();
+                        // std::cout << "Frame times: ";
+                        // std::copy(
+                        //     std::begin(mUI.frame_times), std::end(mUI.frame_times),
+                        //     std::ostream_iterator<float>(std::cout, ", ")
+                        // );
+                        // std::cout << std::endl;
+                        auto [find_min, find_max] = std::minmax_element(std::begin(mUI.frame_times), std::end(mUI.frame_times));
+                        mUI.frame_time_min = *find_min;
+                        mUI.frame_time_max = *find_max;
+                    }
+
+                    ImGui::PlotLines(
+                        "Frame Times",
+                        mUI.frame_times.data(), mUI.frame_times.size(),
+                        0,
+                        nullptr,
+                        mUI.frame_time_min,
+                        mUI.frame_time_max,
+                        ImVec2(0, 80)
+                    );
+
+                    ImGui::End();
+                }
+            }
+            if (mUI.show_demo)
+            {// Demo Window
+                ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiCond_FirstUseEver);
+                ImGui::ShowDemoWindow();
+            }
+            ImGui::Render();
+        }
+    }
+}
+
+void VulkanPassUIOverlay::upload_frame_data()
+{
+    const ImDrawData* data = ImGui::GetDrawData();
+    assert(data);
+    assert(data->Valid);
+
+    if (data->TotalVtxCount != 0)
+    {
+        // TODO Check Alignment
+        const VkDeviceSize vertexsize = data->TotalVtxCount * sizeof(ImDrawVert);
+        const VkDeviceSize indexsize  = data->TotalIdxCount * sizeof(ImDrawIdx);
+
+        assert(vertexsize <= mVertexBuffer.mRequirements.size);
+        assert(indexsize  <= mIndexBuffer .mRequirements.size);
+
+        ImDrawVert* address_vertex = nullptr;
+        ImDrawIdx*  address_index = nullptr;
+        if (mVertexBuffer.mMemory != mIndexBuffer.mMemory)
+        {
+            CHECK(vkMapMemory(
+                mDevice,
+                *mVertexBuffer.mMemory,
+                mVertexBuffer.mOffset,
+                vertexsize,
+                0,
+                reinterpret_cast<void**>(&address_vertex)
+            ));
+            CHECK(vkMapMemory(
+                mDevice,
+                *mIndexBuffer.mMemory,
+                mIndexBuffer.mOffset,
+                indexsize,
+                0,
+                reinterpret_cast<void**>(&address_index)
+            ));
+            for(auto idx = 0, count = data->CmdListsCount; idx < count; ++idx)
+            {
+                const ImDrawList* list = data->CmdLists[idx];
+                std::copy(list->VtxBuffer.Data, std::next(list->VtxBuffer.Data, list->VtxBuffer.Size), address_vertex);
+                std::copy(list->IdxBuffer.Data, std::next(list->IdxBuffer.Data, list->IdxBuffer.Size), address_index);
+                address_vertex += list->VtxBuffer.Size;
+                address_index  += list->IdxBuffer.Size;
+            }
+            vkUnmapMemory(mDevice, *mIndexBuffer.mMemory);
+            vkUnmapMemory(mDevice, *mVertexBuffer.mMemory);
+        }
+        else
+        {
+            {// Vertex
+                CHECK(vkMapMemory(
+                    mDevice,
+                    *mVertexBuffer.mMemory,
+                    mVertexBuffer.mOffset,
+                    vertexsize,
+                    0,
+                    reinterpret_cast<void**>(&address_vertex)
+                ));
+                for(auto idx = 0, count = data->CmdListsCount; idx < count; ++idx)
+                {
+                    const ImDrawList* list = data->CmdLists[idx];
+                    std::copy(list->VtxBuffer.Data, std::next(list->VtxBuffer.Data, list->VtxBuffer.Size), address_vertex);
+                    address_vertex += list->VtxBuffer.Size;
+                }
+                vkUnmapMemory(mDevice, *mVertexBuffer.mMemory);
+            }
+            {// Index
+                CHECK(vkMapMemory(
+                    mDevice,
+                    *mIndexBuffer.mMemory,
+                    mIndexBuffer.mOffset,
+                    indexsize,
+                    0,
+                    reinterpret_cast<void**>(&address_index)
+                ));
+                for(auto idx = 0, count = data->CmdListsCount; idx < count; ++idx)
+                {
+                    const ImDrawList* list = data->CmdLists[idx];
+                    std::copy(list->IdxBuffer.Data, std::next(list->IdxBuffer.Data, list->IdxBuffer.Size), address_index);
+                    address_index  += list->IdxBuffer.Size;
+                }
+                vkUnmapMemory(mDevice, *mIndexBuffer.mMemory);
+            }
+        }
+    }
+    else
+    {
+        mVertexBuffer.mOccupied = 0;
+        mIndexBuffer .mOccupied = 0;
+    }
+}
+
+void VulkanPassUIOverlay::record_frame(VkCommandBuffer commandbuffer)
+{
+    const ImDrawData* data = ImGui::GetDrawData();
+    assert(data);
+    assert(data->Valid);
+
+    const VkExtent2D resolution{
+        .width  = static_cast<std::uint32_t>(data->DisplaySize.x * data->FramebufferScale.x),
+        .height = static_cast<std::uint32_t>(data->DisplaySize.y * data->FramebufferScale.y),
+    };
+
+    const VkViewport viewport{
+        .x        = 0.0f,
+        .y        = 0.0f,
+        .width    = data->DisplaySize.x * data->FramebufferScale.x,
+        .height   = data->DisplaySize.y * data->FramebufferScale.y,
+        .minDepth = 0.0f,
+        .maxDepth = 1.0f,
+    };
+
+    vkCmdBindPipeline(commandbuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelines.at(0));
+    vkCmdBindDescriptorSets(commandbuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelineLayout,
+        0,
+        1, &mDescriptorSet,
+        0, nullptr
+    );
+    // What should we do ?!
+    if (resolution.width != 0 && resolution.height != 0)
+    {
+        assert(viewport.width > 0);
+        assert(viewport.height > 0);
+        vkCmdSetViewport(commandbuffer, 0, 1, &viewport);
+    }
+    {// Constants
+        DearImGuiConstants constants{};
+        constants.scale    [0] =  2.0f / data->DisplaySize.x;
+        constants.scale    [1] =  2.0f / data->DisplaySize.y;
+        constants.translate[0] = -1.0f - data->DisplayPos.x * constants.scale[0];
+        constants.translate[1] = -1.0f - data->DisplayPos.y * constants.scale[1];
+        vkCmdPushConstants(commandbuffer, mPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(constants), &constants);
+    }
+    if (data->TotalVtxCount > 0)
+    {// Buffer Bindings
+        constexpr VkDeviceSize offset = 0;
+        vkCmdBindVertexBuffers(commandbuffer, kVertexInputBindingPosUVColor, 1, &mVertexBuffer.mBuffer, &offset);
+        vkCmdBindIndexBuffer(commandbuffer, mIndexBuffer, offset, sizeof(ImDrawIdx) == 2 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
+    }
+    {// Draws
+        // Utilities to project scissor/clipping rectangles into framebuffer space
+        const ImVec2 clip_offset = data->DisplayPos;        // (0,0) unless using multi-viewports
+        const ImVec2 clip_scale  = data->FramebufferScale;  // (1,1) unless using retina display which are often (2,2)
+
+        std::uint32_t offset_index = 0;
+        std::int32_t  offset_vertex = 0;
+        for (auto idx_list = 0, count_list = data->CmdListsCount; idx_list < count_list; ++idx_list)
+        {
+            const ImDrawList* list = data->CmdLists[idx_list];
+            for (auto idx_buffer = 0, count_buffer = list->CmdBuffer.Size; idx_buffer < count_buffer; ++idx_buffer)
+            {
+                const ImDrawCmd& command = list->CmdBuffer[idx_buffer];
+                assert(command.UserCallback == nullptr);
+
+                // Clip Rect in framebuffer space
+                const ImVec4 framebuffer_clip_rectangle(
+                    (command.ClipRect.x - clip_offset.x) * clip_scale.x,
+                    (command.ClipRect.y - clip_offset.y) * clip_scale.y,
+                    (command.ClipRect.z - clip_offset.x) * clip_scale.x,
+                    (command.ClipRect.w - clip_offset.y) * clip_scale.y
+                );
+
+                const bool valid_clip(
+                    (framebuffer_clip_rectangle.x < viewport.width ) &&
+                    (framebuffer_clip_rectangle.y < viewport.height) &&
+                    (framebuffer_clip_rectangle.w >= 0.0           ) &&
+                    (framebuffer_clip_rectangle.w >= 0.0           )
+                );
+                if (valid_clip)
+                {
+                    const VkRect2D scissors{
+                        .offset = VkOffset2D{
+                            .x = std::max(static_cast<std::int32_t>(framebuffer_clip_rectangle.x), 0),
+                            .y = std::max(static_cast<std::int32_t>(framebuffer_clip_rectangle.y), 0),
+                        },
+                        .extent = VkExtent2D{
+                            .width  = static_cast<std::uint32_t>(framebuffer_clip_rectangle.z - framebuffer_clip_rectangle.x),
+                            .height = static_cast<std::uint32_t>(framebuffer_clip_rectangle.w - framebuffer_clip_rectangle.y),
+                        }
+                    };
+
+                    vkCmdSetScissor(commandbuffer, 0, 1, &scissors);
+                    vkCmdDrawIndexed(commandbuffer, command.ElemCount, 1, command.IdxOffset + offset_index, command.VtxOffset + offset_vertex, 0);
+                }
+            }
+            offset_index  += list->IdxBuffer.Size;
+            offset_vertex += list->VtxBuffer.Size;
+        }
+    }
+}
+
+void VulkanPassUIOverlay::record_pass(VkCommandBuffer commandbuffer)
+{
+    record_frame(commandbuffer);
+}
+
 void VulkanPassUIOverlay::record_font_image_upload(VkCommandBuffer commandbuffer)
 {
     {// Image Barrier VK_IMAGE_LAYOUT_UNDEFINED -> VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
@@ -669,392 +943,4 @@ void VulkanPassUIOverlay::record_font_image_upload(VkCommandBuffer commandbuffer
             1, &imagebarrier
         );
     }
-}
-
-AcquiredPresentationImage DearImGuiShowcase::acquire()
-{
-    std::uint32_t index = ~0;
-    const VkResult status = vkAcquireNextImageKHR(
-        mDevice,
-        mPresentation.swapchain,
-        std::numeric_limits<std::uint64_t>::max(),
-        mAcquiredSemaphore,
-        VK_NULL_HANDLE,
-        &index
-    );
-    CHECK(status);
-    return AcquiredPresentationImage{ index, mCommandBuffers.at(index) };
-}
-
-void DearImGuiShowcase::present(const AcquiredPresentationImage& presentationimage)
-{
-    const VkPresentInfoKHR info{
-        .sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-        .pNext              = nullptr,
-        .waitSemaphoreCount = 1,
-        .pWaitSemaphores    = &mRenderSemaphore,
-        .swapchainCount     = 1,
-        .pSwapchains        = &mPresentation.swapchain,
-        .pImageIndices      = &presentationimage.index,
-        .pResults           = nullptr,
-    };
-    const VkResult result_present = vkQueuePresentKHR(mQueue, &info);
-    CHECK(result_present);
-}
-
-void DearImGuiShowcase::record(AcquiredPresentationImage& presentationimage)
-{
-    const ImDrawData* data = ImGui::GetDrawData();
-    assert(data);
-    assert(data->Valid);
-
-    {// ImGUI
-        if (data->TotalVtxCount != 0)
-        {
-            // TODO Check Alignment
-            const VkDeviceSize vertexsize = data->TotalVtxCount * sizeof(ImDrawVert);
-            const VkDeviceSize indexsize  = data->TotalIdxCount * sizeof(ImDrawIdx);
-
-            assert(vertexsize <= mVertexBuffer.mRequirements.size);
-            assert(indexsize  <= mIndexBuffer .mRequirements.size);
-
-            ImDrawVert* address_vertex = nullptr;
-            ImDrawIdx*  address_index = nullptr;
-            if ( mVertexBuffer.mMemory != mIndexBuffer.mMemory)
-            {
-                CHECK(vkMapMemory(
-                    mDevice,
-                    *mVertexBuffer.mMemory,
-                    mVertexBuffer.mOffset,
-                    vertexsize,
-                    0,
-                    reinterpret_cast<void**>(&address_vertex)
-                ));
-                CHECK(vkMapMemory(
-                    mDevice,
-                    *mIndexBuffer.mMemory,
-                    mIndexBuffer.mOffset,
-                    indexsize,
-                    0,
-                    reinterpret_cast<void**>(&address_index)
-                ));
-                for(auto idx = 0, count = data->CmdListsCount; idx < count; ++idx)
-                {
-                    const ImDrawList* list = data->CmdLists[idx];
-                    std::copy(list->VtxBuffer.Data, std::next(list->VtxBuffer.Data, list->VtxBuffer.Size), address_vertex);
-                    std::copy(list->IdxBuffer.Data, std::next(list->IdxBuffer.Data, list->IdxBuffer.Size), address_index);
-                    address_vertex += list->VtxBuffer.Size;
-                    address_index  += list->IdxBuffer.Size;
-                }
-                vkUnmapMemory(mDevice, *mIndexBuffer.mMemory);
-                vkUnmapMemory(mDevice, *mVertexBuffer.mMemory);
-            }
-            else
-            {
-                {// Vertex
-                    CHECK(vkMapMemory(
-                        mDevice,
-                        *mVertexBuffer.mMemory,
-                        mVertexBuffer.mOffset,
-                        vertexsize,
-                        0,
-                        reinterpret_cast<void**>(&address_vertex)
-                    ));
-                    for(auto idx = 0, count = data->CmdListsCount; idx < count; ++idx)
-                    {
-                        const ImDrawList* list = data->CmdLists[idx];
-                        std::copy(list->VtxBuffer.Data, std::next(list->VtxBuffer.Data, list->VtxBuffer.Size), address_vertex);
-                        address_vertex += list->VtxBuffer.Size;
-                    }
-                    vkUnmapMemory(mDevice, *mVertexBuffer.mMemory);
-                }
-                {// Index
-                    CHECK(vkMapMemory(
-                        mDevice,
-                        *mIndexBuffer.mMemory,
-                        mIndexBuffer.mOffset,
-                        indexsize,
-                        0,
-                        reinterpret_cast<void**>(&address_index)
-                    ));
-                    for(auto idx = 0, count = data->CmdListsCount; idx < count; ++idx)
-                    {
-                        const ImDrawList* list = data->CmdLists[idx];
-                        std::copy(list->IdxBuffer.Data, std::next(list->IdxBuffer.Data, list->IdxBuffer.Size), address_index);
-                        address_index  += list->IdxBuffer.Size;
-                    }
-                    vkUnmapMemory(mDevice, *mIndexBuffer.mMemory);
-                }
-            }
-            mVertexBuffer.mOccupied = vertexsize;
-            mIndexBuffer .mOccupied = indexsize;
-        }
-    }
-
-    const VkExtent2D resolution{
-        .width  = static_cast<std::uint32_t>(data->DisplaySize.x * data->FramebufferScale.x),
-        .height = static_cast<std::uint32_t>(data->DisplaySize.y * data->FramebufferScale.y),
-    };
-
-    const VkViewport viewport{
-        .x        = 0.0f,
-        .y        = 0.0f,
-        .width    = data->DisplaySize.x * data->FramebufferScale.x,
-        .height   = data->DisplaySize.y * data->FramebufferScale.y,
-        .minDepth = 0.0f,
-        .maxDepth = 1.0f,
-    };
-
-    VkCommandBuffer cmdbuffer = presentationimage.commandbuffer;
-
-    {// Begin
-        constexpr VkCommandBufferBeginInfo info{
-            .sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-            .pNext            = nullptr,
-            .flags            = 0,
-            .pInheritanceInfo = nullptr,
-        };
-        CHECK(vkBeginCommandBuffer(cmdbuffer, &info));
-    }
-    {// Render Passes
-        { // Subpass 0 ; ImGui
-            constexpr std::array kClearValues {
-                VkClearValue {
-                    .color = VkClearColorValue{
-                        .float32 = { 0.2f, 0.2f, 0.2f, 1.0f }
-                    },
-                },
-                VkClearValue {
-                    .depthStencil = VkClearDepthStencilValue{
-                        .depth   = 0.0f,
-                        .stencil = 0,
-                    }
-                }
-            };
-            const VkRenderPassBeginInfo info{
-                .sType            = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-                .pNext            = nullptr,
-                .renderPass       = mRenderPass,
-                .framebuffer      = mFrameBuffers.at(presentationimage.index),
-                .renderArea       = VkRect2D{
-                    .offset = VkOffset2D{
-                        .x = 0,
-                        .y = 0,
-                    },
-                    .extent = mResolution
-                },
-                .clearValueCount  = kClearValues.size(),
-                .pClearValues     = kClearValues.data(),
-            };
-            vkCmdBeginRenderPass(cmdbuffer, &info, VK_SUBPASS_CONTENTS_INLINE);
-
-            vkCmdBindPipeline(cmdbuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelines.at(0));
-            vkCmdBindDescriptorSets(cmdbuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mUIPipelineLayout,
-                0,
-                1, &mDescriptorSet,
-                0, nullptr
-            );
-            // What should we do ?!
-            if (resolution.width != 0 && resolution.height != 0)
-            {
-                assert(viewport.width > 0);
-                assert(viewport.height > 0);
-                vkCmdSetViewport(cmdbuffer, 0, 1, &viewport);
-            }
-            {// Constants
-                DearImGuiConstants constants{};
-                constants.scale    [0] =  2.0f / data->DisplaySize.x;
-                constants.scale    [1] =  2.0f / data->DisplaySize.y;
-                constants.translate[0] = -1.0f - data->DisplayPos.x * constants.scale[0];
-                constants.translate[1] = -1.0f - data->DisplayPos.y * constants.scale[1];
-                vkCmdPushConstants(cmdbuffer, mUIPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(constants), &constants);
-            }
-            if (data->TotalVtxCount > 0)
-            {// Buffer Bindings
-                constexpr VkDeviceSize offset = 0;
-                vkCmdBindVertexBuffers(cmdbuffer, kVertexInputBindingPosUVColor, 1, &mVertexBuffer.mBuffer, &offset);
-                vkCmdBindIndexBuffer(cmdbuffer, mIndexBuffer, offset, sizeof(ImDrawIdx) == 2 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
-            }
-            {// Draws
-                // Utilities to project scissor/clipping rectangles into framebuffer space
-                const ImVec2 clip_offset = data->DisplayPos;        // (0,0) unless using multi-viewports
-                const ImVec2 clip_scale  = data->FramebufferScale;  // (1,1) unless using retina display which are often (2,2)
-
-                std::uint32_t offset_index = 0;
-                std::int32_t  offset_vertex = 0;
-                for (auto idx_list = 0, count_list = data->CmdListsCount; idx_list < count_list; ++idx_list)
-                {
-                    const ImDrawList* list = data->CmdLists[idx_list];
-                    for (auto idx_buffer = 0, count_buffer = list->CmdBuffer.Size; idx_buffer < count_buffer; ++idx_buffer)
-                    {
-                        const ImDrawCmd& command = list->CmdBuffer[idx_buffer];
-                        assert(command.UserCallback == nullptr);
-
-                        // Clip Rect in framebuffer space
-                        const ImVec4 framebuffer_clip_rectangle(
-                            (command.ClipRect.x - clip_offset.x) * clip_scale.x,
-                            (command.ClipRect.y - clip_offset.y) * clip_scale.y,
-                            (command.ClipRect.z - clip_offset.x) * clip_scale.x,
-                            (command.ClipRect.w - clip_offset.y) * clip_scale.y
-                        );
-
-                        const bool valid_clip(
-                            (framebuffer_clip_rectangle.x < viewport.width ) &&
-                            (framebuffer_clip_rectangle.y < viewport.height) &&
-                            (framebuffer_clip_rectangle.w >= 0.0           ) &&
-                            (framebuffer_clip_rectangle.w >= 0.0           )
-                        );
-                        if (valid_clip)
-                        {
-                            const VkRect2D scissors{
-                                .offset = VkOffset2D{
-                                    .x = std::max(static_cast<std::int32_t>(framebuffer_clip_rectangle.x), 0),
-                                    .y = std::max(static_cast<std::int32_t>(framebuffer_clip_rectangle.y), 0),
-                                },
-                                .extent = VkExtent2D{
-                                    .width  = static_cast<std::uint32_t>(framebuffer_clip_rectangle.z - framebuffer_clip_rectangle.x),
-                                    .height = static_cast<std::uint32_t>(framebuffer_clip_rectangle.w - framebuffer_clip_rectangle.y),
-                                }
-                            };
-
-                            vkCmdSetScissor(cmdbuffer, 0, 1, &scissors);
-                            vkCmdDrawIndexed(cmdbuffer, command.ElemCount, 1, command.IdxOffset + offset_index, command.VtxOffset + offset_vertex, 0);
-                        }
-                    }
-                    offset_index  += list->IdxBuffer.Size;
-                    offset_vertex += list->VtxBuffer.Size;
-                }
-            }
-        }
-        {// Subpass 1 - Scene
-            vkCmdNextSubpass(cmdbuffer, VK_SUBPASS_CONTENTS_INLINE);
-            vkCmdBindPipeline(cmdbuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelines.at(1));
-            vkCmdDraw(cmdbuffer, 3, 1, 0, 0);
-        }
-        // TODO Subpass Scene
-        vkCmdEndRenderPass(cmdbuffer);
-    }
-    CHECK(vkEndCommandBuffer(cmdbuffer));
-}
-
-void DearImGuiShowcase::render_frame()
-{
-    auto tick_start = std::chrono::high_resolution_clock::now();
-    {
-        {// ImGui
-            ImGuiIO& io = ImGui::GetIO();
-            io.DeltaTime = mUI.frame_delta.count();
-
-            io.MousePos                           = ImVec2(mMouse.offset.x, mMouse.offset.y);
-            io.MouseDown[ImGuiMouseButton_Left  ] = mMouse.buttons.left;
-            io.MouseDown[ImGuiMouseButton_Right ] = mMouse.buttons.right;
-            io.MouseDown[ImGuiMouseButton_Middle] = mMouse.buttons.middle;
-
-            ImGui::NewFrame();
-            {// Window
-                if (ImGui::BeginMainMenuBar())
-                {
-                    if (ImGui::BeginMenu("About"))
-                    {
-                        ImGui::MenuItem("GPU Information", "", &mUI.show_gpu_information);
-                        ImGui::MenuItem("Show Demos", "", &mUI.show_demo);
-                        ImGui::EndMenu();
-                    }
-                    ImGui::EndMainMenuBar();
-                }
-                // ImGui::Begin(kWindowTitle);
-                // ImGui::End();
-
-                if (mUI.show_gpu_information)
-                {
-                    ImGui::Begin("GPU Information");
-
-                    ImGui::TextUnformatted(mPhysicalDevice.mProperties.deviceName);
-
-                    // TODO Do it outside ImGui frame
-                    // Update frame time display
-                    if (mUI.frame_count == 0)
-                    {
-                        std::rotate(
-                            std::begin(mUI.frame_times), std::next(std::begin(mUI.frame_times)),
-                            std::end(mUI.frame_times)
-                        );
-
-                        mUI.frame_times.back() = mUI.frame_delta.count();
-                        // std::cout << "Frame times: ";
-                        // std::copy(
-                        //     std::begin(mUI.frame_times), std::end(mUI.frame_times),
-                        //     std::ostream_iterator<float>(std::cout, ", ")
-                        // );
-                        // std::cout << std::endl;
-                        auto [find_min, find_max] = std::minmax_element(std::begin(mUI.frame_times), std::end(mUI.frame_times));
-                        mUI.frame_time_min = *find_min;
-                        mUI.frame_time_max = *find_max;
-                    }
-
-                    ImGui::PlotLines(
-                        "Frame Times",
-                        mUI.frame_times.data(), mUI.frame_times.size(),
-                        0,
-                        nullptr,
-                        mUI.frame_time_min,
-                        mUI.frame_time_max,
-                        ImVec2(0, 80)
-                    );
-
-                    ImGui::End();
-                }
-            }
-            if (mUI.show_demo)
-            {// Demo Window
-                ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiCond_FirstUseEver);
-                ImGui::ShowDemoWindow();
-            }
-            ImGui::Render();
-        }
-
-        auto presentationimage = acquire();
-        record(presentationimage);
-        {// Submit
-            constexpr VkPipelineStageFlags kFixedWaitDstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            const std::array<VkSubmitInfo, 1> infos{
-                VkSubmitInfo{
-                    .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-                    .pNext                = nullptr,
-                    .waitSemaphoreCount   = 1,
-                    .pWaitSemaphores      = &mAcquiredSemaphore,
-                    .pWaitDstStageMask    = &kFixedWaitDstStageMask,
-                    .commandBufferCount   = 1,
-                    .pCommandBuffers      = &presentationimage.commandbuffer,
-                    .signalSemaphoreCount = 1,
-                    .pSignalSemaphores    = &mRenderSemaphore,
-                }
-            };
-            CHECK(vkQueueSubmit(mQueue, infos.size(), infos.data(), VK_NULL_HANDLE));
-        }
-        present(presentationimage);
-
-        // NOTE We block to avoid override something in use (e.g. surface indexed VkCommandBuffer)
-        // TODO Block per command buffer, instead of a global lock for all of them
-        CHECK(vkQueueWaitIdle(mQueue));
-    }
-    auto tick_end  = std::chrono::high_resolution_clock::now();
-    mUI.frame_delta = frame_time_delta_ms_t(tick_end - tick_start);
-
-    ++mUI.frame_count;
-
-    using namespace std::chrono_literals;
-
-    auto elapsed_time = frame_time_delta_s_t(tick_end - mUI.count_tick);
-    if (elapsed_time > 1s)
-    {
-        auto fps = mUI.frame_count * elapsed_time;
-        mUI.frame_count = 0;
-        mUI.count_tick  = tick_end;
-    }
-}
-
-void DearImGuiShowcase::wait_pending_operations()
-{
-    vkWaitForFences(mDevice, 1, &mStagingFence, VK_TRUE, std::numeric_limits<std::uint64_t>::max());
 }
