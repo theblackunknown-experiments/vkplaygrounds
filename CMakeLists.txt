@@ -145,13 +145,16 @@ target_sources(default-sample
         src/vkmemory.cpp
 
         src/vkdevice.hpp
-        # src/vkdevice.cpp
+        src/vkdevice.cpp
 
         src/vkphysicaldevice.hpp
         # src/vkphysicaldevice.cpp
 
         src/vksurface.hpp
         src/vksurface.cpp
+
+        src/vkpassuioverlay.hpp
+        src/vkpassuioverlay.cpp
 
         src/dearimgui/dearimguishowcase.hpp
         src/dearimgui/dearimguishowcase.cpp

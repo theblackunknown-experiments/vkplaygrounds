@@ -247,7 +247,7 @@
 		},
 		{
 			"name": "vkplaygrounds (build)",
-			"path": "C:/builds/vkplaygrounds"
+			"path": "C:/builds/vkplaygrounds-windows-clang-x86-64"
 		},
 		{
 			"path": "C:/devel/vcpkg/installed/x64-windows"

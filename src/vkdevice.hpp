@@ -6,10 +6,13 @@
 
 namespace blk
 {
+    struct PhysicalDevice;
+
     struct Device
     {
-        VkDeviceCreateInfo mInfo;
-        VkDevice           mDevice = VK_NULL_HANDLE;
+        VkDeviceCreateInfo    mInfo;
+        VkDevice              mDevice = VK_NULL_HANDLE;
+        const PhysicalDevice* mPhysicalDevice = nullptr;
 
         constexpr Device() = default;
 
@@ -18,11 +21,13 @@ namespace blk
         constexpr Device(Device&& rhs)
             : mInfo(std::move(rhs.mInfo))
             , mDevice(std::exchange(rhs.mDevice, VkDevice{VK_NULL_HANDLE}))
+            , mPhysicalDevice(std::exchange(rhs.mPhysicalDevice, nullptr))
         {
         }
 
-        constexpr explicit Device(const VkDeviceCreateInfo& info)
+        constexpr explicit Device(const blk::PhysicalDevice& physicaldevice, const VkDeviceCreateInfo& info)
             : mInfo(info)
+            , mPhysicalDevice(&physicaldevice)
         {
         }
 
@@ -35,17 +40,13 @@ namespace blk
 
         Device& operator=(Device&& rhs)
         {
-            mInfo         = std::exchange(rhs.mInfo        , mInfo);
-            mDevice       = std::exchange(rhs.mDevice      , mDevice);
+            mInfo           = std::exchange(rhs.mInfo        , mInfo);
+            mDevice         = std::exchange(rhs.mDevice      , mDevice);
+            mPhysicalDevice = std::exchange(rhs.mPhysicalDevice      , mPhysicalDevice);
             return *this;
         }
 
-        VkResult create(VkPhysicalDevice vkphysicaldevice)
-        {
-            auto result = vkCreateDevice(vkphysicaldevice, &mInfo, nullptr, &mDevice);
-            CHECK(result);
-            return result;
-        }
+        VkResult create();
 
         void destroy()
         {

@@ -215,7 +215,7 @@ DearImGuiShowcase::DearImGuiShowcase(
             .queueCount       = 1,
             .pQueuePriorities = &kQueuePriorities,
         };
-        mDevice = blk::Device(VkDeviceCreateInfo{
+        mDevice = blk::Device(mPhysicalDevice, VkDeviceCreateInfo{
             .sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
             .pNext                   = &vk12features,
             .flags                   = 0,
@@ -227,7 +227,7 @@ DearImGuiShowcase::DearImGuiShowcase(
             .ppEnabledExtensionNames = kEnabledExtensions.data(),
             .pEnabledFeatures        = &features,
         });
-        mDevice.create(mPhysicalDevice);
+        mDevice.create();
         vkGetDeviceQueue(mDevice, mQueueFamily, 0, &mQueue);
     }
     {// Dear ImGui
