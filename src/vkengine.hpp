@@ -31,10 +31,8 @@ struct Engine
 {
     explicit Engine(
         VkInstance vkinstance,
-        VkSurfaceKHR vksurface,
         const blk::PhysicalDevice& vkphysicaldevice,
-        const std::span<VkDeviceQueueCreateInfo>& info_queues,
-        const VkExtent2D& resolution);
+        const std::span<VkDeviceQueueCreateInfo>& info_queues);
     ~Engine();
 
     void initialize();
@@ -45,16 +43,8 @@ struct Engine
         const std::span<std::tuple<blk::Buffer*, VkMemoryPropertyFlags>>& buffers,
         const std::span<std::tuple<blk::Image*, VkMemoryPropertyFlags>>& images);
 
-    void create_swapchain();
-    void create_framebuffers();
-    void create_commandbuffers();
-
-    AcquiredPresentationImage acquire();
-
-    void record(AcquiredPresentationImage& );
-    void present(const AcquiredPresentationImage& );
-
-    void render_frame();
+    // void record(AcquiredPresentationImage& );
+    // void render_frame();
 
     void wait_staging_operations();
 
@@ -72,12 +62,6 @@ struct Engine
     std::vector<blk::Queue*>             mGraphicsQueues;
     std::vector<blk::Queue*>             mPresentationQueues;
 
-    VkColorSpaceKHR                      mColorSpace                   = VK_COLOR_SPACE_MAX_ENUM_KHR;
-    VkPresentModeKHR                     mPresentMode                  = VK_PRESENT_MODE_MAX_ENUM_KHR;
-
-    VkFormat                             mDepthStencilAttachmentFormat = VK_FORMAT_UNDEFINED;
-    VkFormat                             mColorAttachmentFormat        = VK_FORMAT_UNDEFINED;
-
     // FIXME API entry point for renderpass
     VkRenderPass                         mRenderPass                   = VK_NULL_HANDLE;
 
@@ -93,24 +77,12 @@ struct Engine
     VkSemaphore                          mStagingSemaphore             = VK_NULL_HANDLE;
     VkCommandBuffer                      mStagingCommandBuffer         = VK_NULL_HANDLE;
 
-    // FIXME Delegate to presentation
-    // FIXME To scale, we would need to have an array of semaphore present/complete if we want to process frame as fast as possible
-    VkSemaphore                          mAcquiredSemaphore            = VK_NULL_HANDLE;
-    VkSemaphore                          mRenderSemaphore              = VK_NULL_HANDLE;
-
     // FIXME API entry point for resources
     blk::Image                           mDepthImage;
     blk::ImageView                       mDepthImageView;
 
     // FIXME API entry point for memory
     std::vector<blk::Memory>             mMemoryChunks;
-
-    // FIXME API entry point for presentation
-    PresentationData                     mPresentation;
-
-    // FIXME API entry point for framebuffer
-    std::vector<VkFramebuffer>           mFrameBuffers;
-    std::vector<VkCommandBuffer>         mCommandBuffers;
 };
 
 }

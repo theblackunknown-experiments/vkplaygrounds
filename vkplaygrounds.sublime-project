@@ -253,10 +253,10 @@
 			"path": "C:/devel/vcpkg/installed/x64-windows"
 		},
 		{
-			"path": "C:/VulkanSDK/1.2.141.2/Demos"
+			"path": "C:/VulkanSDK/1.2.148.1/Demos"
 		},
 		{
-			"path": "C:/VulkanSDK/1.2.141.2/Include"
+			"path": "C:/VulkanSDK/1.2.148.1/Include"
 		},
 		{
 			"name": "Microsoft Visual Studio - MSVC - 14.28.29304 - ATLMFC",

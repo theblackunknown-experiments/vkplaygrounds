@@ -29,17 +29,25 @@
 #include "./vkengine.hpp"
 #include "./vksurface.hpp"
 #include "./vkapplication.hpp"
+#include "./vkpresentation.hpp"
 #include "./vkphysicaldevice.hpp"
-#include "./win32_vkutilities.hpp"
-
-// #include "./dearimgui/dearimguiengine.hpp"
 
 using namespace std::literals::chrono_literals;
 
 namespace
 {
     constexpr const VkExtent2D kResolution = { 1280, 720 };
-    constexpr const bool       kVSync = true;
+
+    // NVIDIA - https://developer.nvidia.com/blog/vulkan-dos-donts/
+    //  > Prefer using 24 bit depth formats for optimal performance
+    //  > Prefer using packed depth/stencil formats. This is a common cause for notable performance differences between an OpenGL and Vulkan implementation.
+    constexpr std::array kPreferredDepthFormats{
+        VK_FORMAT_D24_UNORM_S8_UINT,
+        VK_FORMAT_D16_UNORM_S8_UINT,
+        VK_FORMAT_D32_SFLOAT_S8_UINT,
+        VK_FORMAT_D16_UNORM,
+        VK_FORMAT_D32_SFLOAT,
+    };
 
     bool sResizing = false;
 
@@ -200,9 +208,17 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         );
         assert(hWindow);
     }
-    VulkanSurface vksurface(application.mInstance, create_surface(application.mInstance, hInstance, hWindow));
+    blk::Surface vksurface = blk::Surface::create(
+        application, VkWin32SurfaceCreateInfoKHR{
+            .sType     = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
+            .pNext     = nullptr,
+            .flags     = 0,
+            .hinstance = hInstance,
+            .hwnd      = hWindow,
+        }
+    );
 
-    auto vkphysicaldevices = blk::physicaldevices(application.mInstance);
+    auto vkphysicaldevices = blk::physicaldevices(application);
     assert(vkphysicaldevices.size() > 0);
 
     std::cout << "Detected " << vkphysicaldevices.size() << " GPU:" << std::endl;
@@ -250,30 +266,41 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
     std::cout << "Selected GPU: " << vkphysicaldevice.mProperties.deviceName << std::endl;
 
-    std::uint32_t priorities_count = 0;
-    for (auto&& queue_family : vkphysicaldevice.mQueueFamilies)
-        priorities_count = std::max(priorities_count, queue_family.mProperties.queueCount);
+    blk::Engine engine = [&application, &vkphysicaldevice]{
+        std::uint32_t priorities_count = 0;
+        for (auto&& queue_family : vkphysicaldevice.mQueueFamilies)
+            priorities_count = std::max(priorities_count, queue_family.mProperties.queueCount);
 
-    std::vector<float> priorities(priorities_count, 1.0f);
-    std::vector<VkDeviceQueueCreateInfo> info_queues(vkphysicaldevice.mQueueFamilies.size());
-    for (auto&& [info_queue, queue_family] : zip(info_queues, vkphysicaldevice.mQueueFamilies))
-    {
-        info_queue.sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        info_queue.pNext            = nullptr;
-        info_queue.flags            = 0;
-        info_queue.queueFamilyIndex = queue_family.mIndex;
-        info_queue.queueCount       = queue_family.mProperties.queueCount;
-        info_queue.pQueuePriorities = priorities.data();
-    }
+        std::vector<float> priorities(priorities_count, 1.0f);
+        std::vector<VkDeviceQueueCreateInfo> info_queues(vkphysicaldevice.mQueueFamilies.size());
+        for (auto&& [info_queue, queue_family] : zip(info_queues, vkphysicaldevice.mQueueFamilies))
+        {
+            info_queue.sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+            info_queue.pNext            = nullptr;
+            info_queue.flags            = 0;
+            info_queue.queueFamilyIndex = queue_family.mIndex;
+            info_queue.queueCount       = queue_family.mProperties.queueCount;
+            info_queue.pQueuePriorities = priorities.data();
+        }
 
-    blk::Engine engine(application.mInstance, vksurface, vkphysicaldevice, info_queues, kResolution);
+        return blk::Engine(application, vkphysicaldevice, info_queues);
+    }();
 
-    {// cleanup
-        priorities.clear();
-        info_queues.clear();
-        priorities.shrink_to_fit();
-        info_queues.shrink_to_fit();
-    }
+    blk::Presentation presentation(engine, vksurface, kResolution);
+
+    const VkFormat format_depth = [&vkphysicaldevice]{
+        auto finder = std::ranges::find_if(
+            kPreferredDepthFormats,
+            [vkphysicaldevice](const VkFormat& f) {
+                VkFormatProperties properties;
+                vkGetPhysicalDeviceFormatProperties(vkphysicaldevice, f, &properties);
+                return properties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT;
+            }
+        );
+
+        assert(finder != std::end(kPreferredDepthFormats));
+        return *finder;
+    }();
 
     engine.initialize();
 

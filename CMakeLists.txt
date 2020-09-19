@@ -157,8 +157,11 @@ target_sources(default-sample
         src/vkengine.hpp
         src/vkengine.cpp
 
+        src/vkpresentation.hpp
+        src/vkpresentation.cpp
+
         src/vksurface.hpp
-        src/vksurface.cpp
+        $<$<PLATFORM_ID:Windows>:src/win32_vksurface.cpp>
 
         src/vkpassuioverlay.hpp
         src/vkpassuioverlay.cpp
@@ -168,7 +171,6 @@ target_sources(default-sample
 
         $<$<PLATFORM_ID:Windows>:src/win32_main.cpp>
         $<$<PLATFORM_ID:Windows>:src/win32_vkdebug.cpp>
-        $<$<PLATFORM_ID:Windows>:src/win32_vkutilities.hpp>
 )
 
 target_include_directories(default-sample

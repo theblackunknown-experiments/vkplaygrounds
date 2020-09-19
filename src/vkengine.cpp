@@ -159,14 +159,10 @@ namespace blk
 
 Engine::Engine(
     VkInstance vkinstance,
-    VkSurfaceKHR vksurface,
     const blk::PhysicalDevice& vkphysicaldevice,
-    const std::span<VkDeviceQueueCreateInfo>& info_queues,
-    const VkExtent2D& resolution)
+    const std::span<VkDeviceQueueCreateInfo>& info_queues)
     : mInstance(vkinstance)
-    , mSurface(vksurface)
     , mPhysicalDevice(vkphysicaldevice)
-    , mResolution(resolution)
     , mDevice(mPhysicalDevice, VkDeviceCreateInfo{
         .sType                   = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
         .pNext                   = &kVK12Features,
@@ -212,7 +208,7 @@ Engine::Engine(
             const bool compute      = family.mProperties.queueFlags & VK_QUEUE_COMPUTE_BIT;
             const bool transfer     = family.mProperties.queueFlags & VK_QUEUE_TRANSFER_BIT;
             const bool graphics     = family.mProperties.queueFlags & VK_QUEUE_GRAPHICS_BIT;
-            const bool presentation = graphics && family.supports_presentation() && family.supports_surface(vksurface);
+            const bool presentation = graphics && family.supports_presentation();
 
             for (std::uint32_t idx_queue = 0; idx_queue < info.queueCount; ++idx_queue)
             {
@@ -243,6 +239,7 @@ Engine::Engine(
             }
         }
 
+        // ok to invalidate : we only store pointers
         mPresentationQueues.shrink_to_fit();
         mGraphicsQueues.shrink_to_fit();
         mComputeQueues.shrink_to_fit();
@@ -324,16 +321,6 @@ Engine::Engine(
 
 Engine::~Engine()
 {
-    for(auto&& vkframebuffer : mFrameBuffers)
-        vkDestroyFramebuffer(mDevice, vkframebuffer, nullptr);
-
-    for(auto&& view : mPresentation.views)
-        vkDestroyImageView(mDevice, view, nullptr);
-    vkDestroySwapchainKHR(mDevice, mPresentation.swapchain, nullptr);
-
-    vkDestroySemaphore(mDevice, mRenderSemaphore, nullptr);
-    vkDestroySemaphore(mDevice, mAcquiredSemaphore, nullptr);
-
     vkDestroySemaphore(mDevice, mStagingSemaphore, nullptr);
     vkDestroyFence(mDevice, mStagingFence, nullptr);
 
@@ -349,109 +336,7 @@ Engine::~Engine()
 
 void Engine::initialize()
 {
-    {// Present Modes
-        mPresentMode = VK_PRESENT_MODE_MAX_ENUM_KHR;
-        if(kVSync)
-        {
-            // guaranteed by spec
-            mPresentMode = VK_PRESENT_MODE_FIFO_KHR;
-        }
-        else
-        {
-            std::uint32_t count;
-            CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(mPhysicalDevice, mSurface, &count, nullptr));
-            assert(count > 0);
-
-            std::vector<VkPresentModeKHR> present_modes(count);
-            CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(mPhysicalDevice, mSurface, &count, present_modes.data()));
-
-            constexpr std::array kPreferredPresentModes{
-                VK_PRESENT_MODE_MAILBOX_KHR,
-                VK_PRESENT_MODE_IMMEDIATE_KHR,
-                VK_PRESENT_MODE_FIFO_KHR,
-            };
-
-            for (auto&& preferred : kPreferredPresentModes)
-            {
-                auto finder_present_mode = std::find(
-                    std::begin(present_modes), std::end(present_modes),
-                    preferred
-                );
-
-                if (finder_present_mode != std::end(present_modes))
-                {
-                    mPresentMode = *finder_present_mode;
-                }
-            }
-            assert(mPresentMode != VK_PRESENT_MODE_MAX_ENUM_KHR);
-        }
-    }
-    {// Formats
-        {// Color Attachment
-            // Simple case : we target the same format as the presentation capabilities
-            std::uint32_t count;
-            vkGetPhysicalDeviceSurfaceFormatsKHR(mPhysicalDevice, mSurface, &count, nullptr);
-            assert(count > 0);
-
-            std::vector<VkSurfaceFormatKHR> formats(count);
-            vkGetPhysicalDeviceSurfaceFormatsKHR(mPhysicalDevice, mSurface, &count, formats.data());
-
-            // NOTE(andrea.machizaud) Arbitrary : it happens to be supported on my device
-            constexpr VkFormat kPreferredFormat = VK_FORMAT_B8G8R8A8_UNORM;
-            if((count == 1) && (formats.front().format == VK_FORMAT_UNDEFINED))
-            {
-                // NOTE No preferred format, pick what you want
-                mColorAttachmentFormat = kPreferredFormat;
-                mColorSpace  = formats.front().colorSpace;
-            }
-            // otherwise looks for our preferred one, or switch back to the 1st available
-            else
-            {
-                auto finder = std::find_if(
-                    std::begin(formats), std::end(formats),
-                    [kPreferredFormat](const VkSurfaceFormatKHR& f) {
-                        return f.format == kPreferredFormat;
-                    }
-                );
-
-                if(finder != std::end(formats))
-                {
-                    const VkSurfaceFormatKHR& preferred_format = *finder;
-                    mColorAttachmentFormat = preferred_format.format;
-                    mColorSpace  = preferred_format.colorSpace;
-                }
-                else
-                {
-                    mColorAttachmentFormat = formats.front().format;
-                    mColorSpace  = formats.front().colorSpace;
-                }
-            }
-        }
-        {// Depth/Stencil Attachment
-            // NVIDIA - https://developer.nvidia.com/blog/vulkan-dos-donts/
-            //  > Prefer using 24 bit depth formats for optimal performance
-            //  > Prefer using packed depth/stencil formats. This is a common cause for notable performance differences between an OpenGL and Vulkan implementation.
-            constexpr VkFormat kDEPTH_FORMATS[] = {
-                VK_FORMAT_D24_UNORM_S8_UINT,
-                VK_FORMAT_D16_UNORM_S8_UINT,
-                VK_FORMAT_D32_SFLOAT_S8_UINT,
-                VK_FORMAT_D16_UNORM,
-                VK_FORMAT_D32_SFLOAT,
-            };
-
-            auto finder = std::find_if(
-                std::begin(kDEPTH_FORMATS), std::end(kDEPTH_FORMATS),
-                [vkphysicaldevice = mPhysicalDevice](const VkFormat& f) {
-                    VkFormatProperties properties;
-                    vkGetPhysicalDeviceFormatProperties(vkphysicaldevice, f, &properties);
-                    return properties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT;
-                }
-            );
-
-            assert(finder != std::end(kDEPTH_FORMATS));
-            mDepthStencilAttachmentFormat = *finder;
-        }
-    }
+    #if 0
     {// Render Pass
         // Pass 0 : Draw UI    (write depth)
         // Pass 1 : Draw Scene (read depth, write color)
@@ -553,23 +438,7 @@ void Engine::initialize()
         };
         CHECK(vkCreateRenderPass(mDevice, &info, nullptr, &mRenderPass));
     }
-    {// Semaphores
-        const VkSemaphoreTypeCreateInfo info_type{
-            .sType         = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
-            .pNext         = nullptr,
-            .semaphoreType = VK_SEMAPHORE_TYPE_BINARY,
-            .initialValue  = 0,
-        };
-        const VkSemaphoreCreateInfo info_semaphore{
-            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-            .pNext = &info_type,
-            .flags = 0,
-        };
-        // FIXME Delegate to presentation
-        CHECK(vkCreateSemaphore(mDevice, &info_semaphore, nullptr, &mAcquiredSemaphore));
-        // FIXME Delegate to presentation
-        CHECK(vkCreateSemaphore(mDevice, &info_semaphore, nullptr, &mRenderSemaphore));
-    }
+    #endif
     initialize_resources();
 }
 
@@ -577,6 +446,7 @@ void Engine::initialize_resources()
 {
     // NVIDIA - https://developer.nvidia.com/blog/vulkan-dos-donts/
     //  > Parallelize command buffer recording, image and buffer creation, descriptor set updates, pipeline creation, and memory allocation / binding. Task graph architecture is a good option which allows sufficient parallelism in terms of draw submission while also respecting resource and command queue dependencies.
+    #if 0
     {// Images
         {// Depth
             mDepthImage = blk::Image(
@@ -591,10 +461,12 @@ void Engine::initialize_resources()
             mDepthImage.create(mDevice);
         }
     }
+    #endif
 }
 
 void Engine::initialize_views()
 {
+    #if 0
     mDepthImageView = blk::ImageView(
         mDepthImage,
         VK_IMAGE_VIEW_TYPE_2D,
@@ -604,6 +476,7 @@ void Engine::initialize_views()
             : VK_IMAGE_ASPECT_DEPTH_BIT
     );
     mDepthImageView.create(mDevice);
+    #endif
 }
 
 void Engine::allocate_memory_and_bind_resources(
@@ -658,186 +531,6 @@ void Engine::allocate_memory_and_bind_resources(
         if (!entry.second.buffers.empty())
             chunk.bind(entry.second.buffers);
     }
-}
-
-void Engine::create_swapchain()
-{
-    VkSurfaceCapabilitiesKHR capabilities;
-    CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(mPhysicalDevice, mSurface, &capabilities));
-
-    mResolution = (capabilities.currentExtent.width == std::numeric_limits<std::uint32_t>::max())
-        ? mResolution
-        : capabilities.currentExtent;
-
-    {// Creation
-        VkSwapchainKHR previous_swapchain = mPresentation.swapchain;
-
-        const std::uint32_t image_count = (capabilities.maxImageCount > 0)
-            ? std::min(capabilities.minImageCount + 1, capabilities.maxImageCount)
-            : capabilities.minImageCount + 1;
-
-        const VkSurfaceTransformFlagBitsKHR transform = (capabilities.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR)
-            ? VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR
-            : capabilities.currentTransform;
-
-        constexpr VkCompositeAlphaFlagBitsKHR kPreferredCompositeAlphaFlags[] = {
-            VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
-            VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR,
-            VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
-            VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR,
-        };
-        auto finder_composite_alpha = std::find_if(
-            std::begin(kPreferredCompositeAlphaFlags), std::end(kPreferredCompositeAlphaFlags),
-            [&capabilities](const VkCompositeAlphaFlagBitsKHR& f) {
-                return capabilities.supportedCompositeAlpha & f;
-            }
-        );
-        assert(finder_composite_alpha != std::end(kPreferredCompositeAlphaFlags));
-
-        const VkCompositeAlphaFlagBitsKHR composite_alpha = *finder_composite_alpha;
-
-        VkImageUsageFlags usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-
-        // be greedy
-        if (capabilities.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT)
-            usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-
-        // be greedy
-        if (capabilities.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT)
-            usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-
-        const VkSwapchainCreateInfoKHR info{
-            .sType                 = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
-            .pNext                 = nullptr,
-            .flags                 = 0,
-            .surface               = mSurface,
-            .minImageCount         = image_count,
-            .imageFormat           = mColorAttachmentFormat,
-            .imageColorSpace       = mColorSpace,
-            .imageExtent           = mResolution,
-            .imageArrayLayers      = 1,
-            .imageUsage            = usage,
-            .imageSharingMode      = VK_SHARING_MODE_EXCLUSIVE,
-            .queueFamilyIndexCount = 0,
-            .pQueueFamilyIndices   = nullptr,
-            .preTransform          = transform,
-            .compositeAlpha        = composite_alpha,
-            .presentMode           = mPresentMode,
-            .clipped               = VK_TRUE,
-            .oldSwapchain          = previous_swapchain,
-        };
-        CHECK(vkCreateSwapchainKHR(mDevice, &info, nullptr, &(mPresentation.swapchain)));
-
-        if (previous_swapchain != VK_NULL_HANDLE)
-        {// Cleaning
-            for(auto&& view : mPresentation.views)
-                vkDestroyImageView(mDevice, view, nullptr);
-            vkDestroySwapchainKHR(mDevice, previous_swapchain, nullptr);
-        }
-    }
-    {// Views
-        std::uint32_t count;
-        CHECK(vkGetSwapchainImagesKHR(mDevice, mPresentation.swapchain, &count, nullptr));
-        mPresentation.images.resize(count);
-        mPresentation.views.resize(count);
-        CHECK(vkGetSwapchainImagesKHR(mDevice, mPresentation.swapchain, &count, mPresentation.images.data()));
-
-        for (auto&& [image, view] : zip(mPresentation.images, mPresentation.views))
-        {
-            const VkImageViewCreateInfo info{
-                .sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-                .pNext            = nullptr,
-                .flags            = 0,
-                .image            = image,
-                .viewType         = VK_IMAGE_VIEW_TYPE_2D,
-                .format           = mColorAttachmentFormat,
-                .components       = VkComponentMapping{
-                    .r = VK_COMPONENT_SWIZZLE_R,
-                    .g = VK_COMPONENT_SWIZZLE_G,
-                    .b = VK_COMPONENT_SWIZZLE_B,
-                    .a = VK_COMPONENT_SWIZZLE_A,
-                },
-                .subresourceRange = VkImageSubresourceRange{
-                    .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
-                    .baseMipLevel   = 0,
-                    .levelCount     = 1,
-                    .baseArrayLayer = 0,
-                    .layerCount     = 1,
-                },
-            };
-            CHECK(vkCreateImageView(mDevice, &info, nullptr, &view));
-        }
-    }
-}
-
-void Engine::create_framebuffers()
-{
-    mFrameBuffers.resize(mPresentation.views.size());
-    for (auto&& [vkview, vkframebuffer] : zip(mPresentation.views, mFrameBuffers))
-    {
-        const std::array attachments{
-            vkview,
-            // NOTE(andrea.machizaud) Is it safe to re-use depth here ?
-            (VkImageView)mDepthImageView
-        };
-        const VkFramebufferCreateInfo info{
-            .sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-            .pNext           = nullptr,
-            .flags           = 0u,
-            .renderPass      = mRenderPass,
-            .attachmentCount = attachments.size(),
-            .pAttachments    = attachments.data(),
-            .width           = mResolution.width,
-            .height          = mResolution.height,
-            .layers          = 1,
-        };
-        CHECK(vkCreateFramebuffer(mDevice, &info, nullptr, &vkframebuffer));
-    }
-}
-
-void Engine::create_commandbuffers()
-{
-    mCommandBuffers.resize(mPresentation.views.size());
-    const VkCommandBufferAllocateInfo info{
-        .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-        .pNext              = nullptr,
-        .commandPool        = mPresentationCommandPool,
-        .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-        .commandBufferCount = static_cast<std::uint32_t>(mCommandBuffers.size()),
-    };
-    CHECK(vkAllocateCommandBuffers(mDevice, &info, mCommandBuffers.data()));
-}
-
-AcquiredPresentationImage Engine::acquire()
-{
-    std::uint32_t index = ~0;
-    const VkResult status = vkAcquireNextImageKHR(
-        mDevice,
-        mPresentation.swapchain,
-        std::numeric_limits<std::uint64_t>::max(),
-        mAcquiredSemaphore,
-        VK_NULL_HANDLE,
-        &index
-    );
-    CHECK(status);
-    return AcquiredPresentationImage{ index, mCommandBuffers.at(index) };
-}
-
-void Engine::present(const AcquiredPresentationImage& presentationimage)
-{
-    const VkPresentInfoKHR info{
-        .sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-        .pNext              = nullptr,
-        .waitSemaphoreCount = 1,
-        .pWaitSemaphores    = &mRenderSemaphore,
-        .swapchainCount     = 1,
-        .pSwapchains        = &mPresentation.swapchain,
-        .pImageIndices      = &presentationimage.index,
-        .pResults           = nullptr,
-    };
-    const blk::Queue* presentation_queue = mPresentationQueues.at(0);
-    const VkResult result_present = vkQueuePresentKHR(*presentation_queue, &info);
-    CHECK(result_present);
 }
 
 #if 0
