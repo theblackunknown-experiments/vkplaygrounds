@@ -7,8 +7,8 @@ set(CMAKE_SYSTEM_VERSION   10.0.19041.0)
 # set(TARGET x86_64-pc-win32)
 set(TARGET x86_64-pc-windows-msvc)
 
-find_program(CMAKE_C_COMPILER        clang)
-find_program(CMAKE_C_COMPILER_TARGET ${TARGET})
+find_program(CMAKE_C_COMPILER          clang)
+find_program(CMAKE_C_COMPILER_TARGET   ${TARGET})
 
 find_program(CMAKE_CXX_COMPILER        clang++)
 find_program(CMAKE_CXX_COMPILER_TARGET ${TARGET})

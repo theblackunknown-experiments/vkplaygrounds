@@ -40,9 +40,9 @@ namespace blk
 
         Device& operator=(Device&& rhs)
         {
-            mInfo           = std::exchange(rhs.mInfo        , mInfo);
-            mDevice         = std::exchange(rhs.mDevice      , mDevice);
-            mPhysicalDevice = std::exchange(rhs.mPhysicalDevice      , mPhysicalDevice);
+            mInfo           = std::exchange(rhs.mInfo          , mInfo);
+            mDevice         = std::exchange(rhs.mDevice        , mDevice);
+            mPhysicalDevice = std::exchange(rhs.mPhysicalDevice, mPhysicalDevice);
             return *this;
         }
 

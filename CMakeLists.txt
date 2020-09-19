@@ -148,7 +148,13 @@ target_sources(default-sample
         src/vkdevice.cpp
 
         src/vkphysicaldevice.hpp
-        # src/vkphysicaldevice.cpp
+        src/vkphysicaldevice.cpp
+
+        src/vkqueue.hpp
+        src/vkqueue.cpp
+
+        src/vkengine.hpp
+        src/vkengine.cpp
 
         src/vksurface.hpp
         src/vksurface.cpp

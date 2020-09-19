@@ -8,7 +8,6 @@
 #include <chrono>
 #include <vector>
 
-#include "./vkutilities.hpp"
 #include "./vkdevice.hpp"
 #include "./vkrenderpass.hpp"
 #include "./vkbuffer.hpp"
@@ -48,11 +47,9 @@ struct VulkanPassUIOverlay
     VkExtent2D                           mResolution;
     ImGuiContext*                        mContext = nullptr;
 
-    // VkFormat                             mDepthStencilAttachmentFormat = VK_FORMAT_UNDEFINED;
-    // VkFormat                             mColorAttachmentFormat        = VK_FORMAT_UNDEFINED;
     VkExtent3D                           mFontExtent;
-    blk::Image                           mFontImage, mDepthImage;
-    blk::ImageView                       mFontImageView, mDepthImageView;
+    blk::Image                           mFontImage;
+    blk::ImageView                       mFontImageView;
     blk::Buffer                          mVertexBuffer, mIndexBuffer, mStagingBuffer;
     VkSampler                            mSampler                      = VK_NULL_HANDLE;
 
@@ -66,17 +63,6 @@ struct VulkanPassUIOverlay
     VkDescriptorPool                     mDescriptorPool               = VK_NULL_HANDLE;
     VkDescriptorSet                      mDescriptorSet                = VK_NULL_HANDLE;
 
-    VkFence                              mStagingFence = VK_NULL_HANDLE;
-    VkSemaphore                          mStagingSemaphore = VK_NULL_HANDLE;
-    VkCommandBuffer                      mStagingCommandBuffer = VK_NULL_HANDLE;
-
-    std::vector<blk::Memory>             mMemoryChunks;
-
-    PresentationData                     mPresentation;
-
-    std::vector<VkFramebuffer>           mFrameBuffers;
-    std::vector<VkCommandBuffer>         mCommandBuffers;
-
     struct UI {
         frame_time_delta_ms_t frame_delta = frame_time_delta_ms_t(0.f);
         frame_tick_t          count_tick;
@@ -86,12 +72,25 @@ struct VulkanPassUIOverlay
         float                 frame_time_min;
         float                 frame_time_max;
 
-        bool                                  show_gpu_information = false;
-        bool                                  show_fps = false;
-        bool                                  show_demo = false;
+        bool                  show_gpu_information = false;
+        bool                  show_fps = false;
+        bool                  show_demo = false;
     } mUI;
 
-    Mouse mMouse;
+    struct Mouse
+    {
+        struct Buttons
+        {
+            bool left   = false;
+            bool middle = false;
+            bool right  = false;
+        } buttons;
+        struct Positions
+        {
+            float x = 0.0f;
+            float y = 0.0f;
+        } offset;
+    } mMouse;
 
 
     static_assert(std::chrono::treat_as_floating_point_v<frame_time_delta_s_t::rep>, "required to be floating point");

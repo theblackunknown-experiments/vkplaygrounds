@@ -20,8 +20,13 @@
 
 #include <iostream>
 
+#include <utilities.hpp>
+
 #include "./vkdebug.hpp"
 #include "./vkutilities.hpp"
+
+#include "./vkqueue.hpp"
+#include "./vkengine.hpp"
 #include "./vksurface.hpp"
 #include "./vkapplication.hpp"
 #include "./win32_vkutilities.hpp"
@@ -226,35 +231,32 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     );
     assert(finderSuitablePhysicalDevice != std::end(vkphysicaldevices));
 
-    auto vkphysicaldevice = *finderSuitablePhysicalDevice;
-    assert(vkphysicaldevice != VK_NULL_HANDLE);
+    blk::PhysicalDevice vkphysicaldevice(*finderSuitablePhysicalDevice);
 
-    {// Physical Devices
-        VkPhysicalDeviceFeatures             vkfeatures;
-        VkPhysicalDeviceProperties           vkproperties;
-        VkPhysicalDeviceMemoryProperties     vkmemoryproperties;
-        std::vector<VkQueueFamilyProperties> vkqueuefamiliesproperties;
-        std::vector<VkExtensionProperties>   vkextensions;
+    std::cout << "Selected GPU: " << vkphysicaldevice.mProperties.deviceName << std::endl;
 
-        vkGetPhysicalDeviceFeatures(vkphysicaldevice, &vkfeatures);
-        vkGetPhysicalDeviceProperties(vkphysicaldevice, &vkproperties);
-        vkGetPhysicalDeviceMemoryProperties(vkphysicaldevice, &vkmemoryproperties);
-        {// Queue Family Properties
-            std::uint32_t count;
-            vkGetPhysicalDeviceQueueFamilyProperties(vkphysicaldevice, &count, nullptr);
-            assert(count > 0);
-            vkqueuefamiliesproperties.resize(count);
-            vkGetPhysicalDeviceQueueFamilyProperties(vkphysicaldevice, &count, vkqueuefamiliesproperties.data());
-        }
-        {// Extensions
-            std::uint32_t count;
-            CHECK(vkEnumerateDeviceExtensionProperties(vkphysicaldevice, nullptr, &count, nullptr));
-            vkextensions.resize(count);
-            CHECK(vkEnumerateDeviceExtensionProperties(vkphysicaldevice, nullptr, &count, vkextensions.data()));
-        }
+    std::uint32_t priorities_count = 0;
+    for (auto&& queue_family : vkphysicaldevice.mQueueFamilies)
+        priorities_count = std::max(priorities_count, queue_family.mProperties.queueCount);
 
-        std::cout << "Selected GPU: " << vkproperties.deviceName << std::endl;
+    std::vector<float> priorities(priorities_count, 1.0f);
+    std::vector<VkDeviceQueueCreateInfo> info_queues(vkphysicaldevice.mQueueFamilies.size());
+    for (auto&& [info_queue, queue_family] : zip(info_queues, vkphysicaldevice.mQueueFamilies))
+    {
+        info_queue.sType            = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        info_queue.pNext            = nullptr;
+        info_queue.flags            = 0;
+        info_queue.queueFamilyIndex = queue_family.mIndex;
+        info_queue.queueCount       = queue_family.mProperties.queueCount;
+        info_queue.pQueuePriorities = priorities.data();
     }
+
+    blk::Engine engine(application.mInstance, surface, vkphysicaldevice, info_queues, kResolution);
+
+    priorities.clear();
+    info_queues.clear();
+    priorities.shrink_to_fit();
+    info_queues.shrink_to_fit();
 
     DearImGuiShowcase showcase(application, surface, vkphysicaldevice, kResolution);
 

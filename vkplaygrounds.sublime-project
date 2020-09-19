@@ -259,9 +259,6 @@
 			"path": "C:/VulkanSDK/1.2.141.2/Include"
 		},
 		{
-			"path": "C:/devel/SaschaWillemsVulkanExamples"
-		},
-		{
 			"name": "Microsoft Visual Studio - MSVC - 14.26.28801 - ATLMFC",
 			"path": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.26.28801/ATLMFC/include"
 		},
@@ -274,24 +271,24 @@
 			"path": "C:/Program Files (x86)/Windows Kits/NETFXSDK/4.8/include/um"
 		},
 		{
-			"name": "Windows Kits - 10.0.18362.0 (ucrt)",
-			"path": "C:/Program Files (x86)/Windows Kits/10/Include/10.0.18362.0/ucrt"
+			"name": "Windows Kits - 10.0.19041.0 (ucrt)",
+			"path": "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/ucrt"
 		},
 		{
-			"name": "Windows Kits - 10.0.18362.0 (shared)",
-			"path": "C:/Program Files (x86)/Windows Kits/10/Include/10.0.18362.0/shared"
+			"name": "Windows Kits - 10.0.19041.0 (shared)",
+			"path": "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/shared"
 		},
 		{
-			"name": "Windows Kits - 10.0.18362.0 (um)",
-			"path": "C:/Program Files (x86)/Windows Kits/10/Include/10.0.18362.0/um"
+			"name": "Windows Kits - 10.0.19041.0 (um)",
+			"path": "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/um"
 		},
 		{
-			"name": "Windows Kits - 10.0.18362.0 (winrt)",
-			"path": "C:/Program Files (x86)/Windows Kits/10/Include/10.0.18362.0/winrt"
+			"name": "Windows Kits - 10.0.19041.0 (winrt)",
+			"path": "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/winrt"
 		},
 		{
-			"name": "Windows Kits - 10.0.18362.0 (cppwinrt)",
-			"path": "C:/Program Files (x86)/Windows Kits/10/Include/10.0.18362.0/cppwinrt"
+			"name": "Windows Kits - 10.0.19041.0 (cppwinrt)",
+			"path": "C:/Program Files (x86)/Windows Kits/10/Include/10.0.19041.0/cppwinrt"
 		},
 		{
 			"path": "C:/Program Files/CMake/share/cmake-3.17/Modules"
@@ -301,6 +298,12 @@
 		},
 		{
 			"path": "C:/devel/imgui"
+		},
+		{
+			"path": "C:/devel/SaschaWillemsVulkanExamples"
+		},
+		{
+			"path": "C:/devel/Vulkan-Samples"
 		}
 	]
 }

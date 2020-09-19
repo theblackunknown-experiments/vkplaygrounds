@@ -16,7 +16,6 @@
 #include <string.h>
 
 #include <cassert>
-#include <cstddef>
 #include <cinttypes>
 
 #include <chrono>
@@ -27,23 +26,18 @@
 #include <array>
 #include <vector>
 #include <ranges>
-#include <variant>
-#include <unordered_map>
 
 namespace
 {
-    constexpr std::uint32_t kAttachmentColor = 0;
-    constexpr std::uint32_t kAttachmentDepth = 1;
-
     constexpr std::uint32_t kVertexInputBindingPosUVColor = 0;
-    constexpr std::uint32_t kUIShaderLocationPos   = 0;
-    constexpr std::uint32_t kUIShaderLocationUV    = 1;
-    constexpr std::uint32_t kUIShaderLocationColor = 2;
+    constexpr std::uint32_t kUIShaderLocationPos          = 0;
+    constexpr std::uint32_t kUIShaderLocationUV           = 1;
+    constexpr std::uint32_t kUIShaderLocationColor        = 2;
 
-    constexpr std::uint32_t kShaderBindingFontTexture = 0;
+    constexpr std::uint32_t kShaderBindingFontTexture     = 0;
 
-    constexpr std::uint32_t kStencilMask      = 0xFF;
-    constexpr std::uint32_t kStencilReference = 0x01;
+    constexpr std::uint32_t kStencilMask                  = 0xFF;
+    constexpr std::uint32_t kStencilReference             = 0x01;
 
     // TODO(andrea.machizaud) use literals...
     // TODO(andrea.machizaud) pre-allocate a reasonable amount for buffers
@@ -130,74 +124,6 @@ VulkanPassUIOverlay::~VulkanPassUIOverlay()
 
 void VulkanPassUIOverlay::initialize_before_memory_bindings()
 {
-    /*
-    {// Formats
-        {// Color Attachment
-            // Simple case : we target the same format as the presentation capabilities
-            std::uint32_t count;
-            vkGetPhysicalDeviceSurfaceFormatsKHR(mPhysicalDevice, mSurface, &count, nullptr);
-            assert(count > 0);
-
-            std::vector<VkSurfaceFormatKHR> formats(count);
-            vkGetPhysicalDeviceSurfaceFormatsKHR(mPhysicalDevice, mSurface, &count, formats.data());
-
-            // NOTE(andrea.machizaud) Arbitrary : it happens to be supported on my device
-            constexpr VkFormat kPreferredFormat = VK_FORMAT_B8G8R8A8_UNORM;
-            if((count == 1) && (formats.front().format == VK_FORMAT_UNDEFINED))
-            {
-                // NOTE No preferred format, pick what you want
-                mColorAttachmentFormat = kPreferredFormat;
-                mColorSpace  = formats.front().colorSpace;
-            }
-            // otherwise looks for our preferred one, or switch back to the 1st available
-            else
-            {
-                auto finder = std::find_if(
-                    std::begin(formats), std::end(formats),
-                    [kPreferredFormat](const VkSurfaceFormatKHR& f) {
-                        return f.format == kPreferredFormat;
-                    }
-                );
-
-                if(finder != std::end(formats))
-                {
-                    const VkSurfaceFormatKHR& preferred_format = *finder;
-                    mColorAttachmentFormat = preferred_format.format;
-                    mColorSpace  = preferred_format.colorSpace;
-                }
-                else
-                {
-                    mColorAttachmentFormat = formats.front().format;
-                    mColorSpace  = formats.front().colorSpace;
-                }
-            }
-        }
-        {// Depth/Stencil Attachment
-            // NVIDIA - https://developer.nvidia.com/blog/vulkan-dos-donts/
-            //  > Prefer using 24 bit depth formats for optimal performance
-            //  > Prefer using packed depth/stencil formats. This is a common cause for notable performance differences between an OpenGL and Vulkan implementation.
-            constexpr VkFormat kDEPTH_FORMATS[] = {
-                VK_FORMAT_D24_UNORM_S8_UINT,
-                VK_FORMAT_D16_UNORM_S8_UINT,
-                VK_FORMAT_D32_SFLOAT_S8_UINT,
-                VK_FORMAT_D16_UNORM,
-                VK_FORMAT_D32_SFLOAT,
-            };
-
-            auto finder = std::find_if(
-                std::begin(kDEPTH_FORMATS), std::end(kDEPTH_FORMATS),
-                [vkphysicaldevice = mPhysicalDevice](const VkFormat& f) {
-                    VkFormatProperties properties;
-                    vkGetPhysicalDeviceFormatProperties(vkphysicaldevice, f, &properties);
-                    return properties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT;
-                }
-            );
-
-            assert(finder != std::end(kDEPTH_FORMATS));
-            mDepthStencilAttachmentFormat = *finder;
-        }
-    }
-    */
     {// Sampler
         constexpr VkSamplerCreateInfo info{
             .sType                   = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
