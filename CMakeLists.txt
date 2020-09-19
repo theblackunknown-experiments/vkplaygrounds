@@ -131,6 +131,7 @@ target_sources(default-sample
         src/vkdebug.cpp
 
         src/vkutilities.hpp
+        src/vkutilities.cpp
 
         src/vkapplication.hpp
         src/vkapplication.cpp
@@ -162,8 +163,8 @@ target_sources(default-sample
         src/vkpassuioverlay.hpp
         src/vkpassuioverlay.cpp
 
-        src/dearimgui/dearimguishowcase.hpp
-        src/dearimgui/dearimguishowcase.cpp
+        # src/dearimgui/dearimguishowcase.hpp
+        # src/dearimgui/dearimguishowcase.cpp
 
         $<$<PLATFORM_ID:Windows>:src/win32_main.cpp>
         $<$<PLATFORM_ID:Windows>:src/win32_vkdebug.cpp>

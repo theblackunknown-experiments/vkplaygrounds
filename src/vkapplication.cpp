@@ -12,6 +12,19 @@
 #include "./vkdebug.hpp"
 #include "./vkapplication.hpp"
 
+namespace
+{
+    constexpr const std::array kExtensions{
+        VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
+        "VK_KHR_surface",
+        "VK_KHR_win32_surface",
+    };
+    constexpr const std::array kLayers{
+        "VK_LAYER_KHRONOS_validation",
+        "VK_LAYER_LUNARG_standard_validation",
+    };
+}
+
 VulkanApplication::VulkanApplication(Version version)
     : mVersion(version)
 {
@@ -36,15 +49,6 @@ VulkanApplication::VulkanApplication(Version version)
         }
     }
     { // Instance
-        constexpr const std::array kExtensions{
-            VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
-            "VK_KHR_surface",
-            "VK_KHR_win32_surface",
-        };
-        constexpr const std::array kLayers{
-            "VK_LAYER_KHRONOS_validation",
-            "VK_LAYER_LUNARG_standard_validation",
-        };
         const VkApplicationInfo info_application{
             .sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO,
             .pNext              = nullptr,

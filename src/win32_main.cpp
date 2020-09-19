@@ -29,9 +29,10 @@
 #include "./vkengine.hpp"
 #include "./vksurface.hpp"
 #include "./vkapplication.hpp"
+#include "./vkphysicaldevice.hpp"
 #include "./win32_vkutilities.hpp"
 
-#include "./dearimgui/dearimguishowcase.hpp"
+// #include "./dearimgui/dearimguiengine.hpp"
 
 using namespace std::literals::chrono_literals;
 
@@ -199,39 +200,53 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         );
         assert(hWindow);
     }
-    VulkanSurface surface(application.mInstance, create_surface(application.mInstance, hInstance, hWindow));
+    VulkanSurface vksurface(application.mInstance, create_surface(application.mInstance, hInstance, hWindow));
 
-    auto vkphysicaldevices = physical_devices(application.mInstance);
+    auto vkphysicaldevices = blk::physicaldevices(application.mInstance);
     assert(vkphysicaldevices.size() > 0);
 
     std::cout << "Detected " << vkphysicaldevices.size() << " GPU:" << std::endl;
     for (auto vkphysicaldevice : vkphysicaldevices)
     {
-        VkPhysicalDeviceProperties vkproperties;
+        std::cout << "GPU: "<< vkphysicaldevice.mProperties.deviceName << " (" << DeviceType2Text(vkphysicaldevice.mProperties.deviceType) << ')' << std::endl;
 
-        vkGetPhysicalDeviceProperties(vkphysicaldevice, &vkproperties);
-
-        std::cout << "GPU: "<< vkproperties.deviceName << " (" << DeviceType2Text(vkproperties.deviceType) << ')' << std::endl;
-
-        std::uint32_t major = VK_VERSION_MAJOR(vkproperties.apiVersion);
-        std::uint32_t minor = VK_VERSION_MINOR(vkproperties.apiVersion);
-        std::uint32_t patch = VK_VERSION_PATCH(vkproperties.apiVersion);
+        std::uint32_t major = VK_VERSION_MAJOR(vkphysicaldevice.mProperties.apiVersion);
+        std::uint32_t minor = VK_VERSION_MINOR(vkphysicaldevice.mProperties.apiVersion);
+        std::uint32_t patch = VK_VERSION_PATCH(vkphysicaldevice.mProperties.apiVersion);
         std::cout << '\t' << "API: " << major << "." << minor << "." << patch << std::endl;
-        major = VK_VERSION_MAJOR(vkproperties.driverVersion);
-        minor = VK_VERSION_MINOR(vkproperties.driverVersion);
-        patch = VK_VERSION_PATCH(vkproperties.driverVersion);
+        major = VK_VERSION_MAJOR(vkphysicaldevice.mProperties.driverVersion);
+        minor = VK_VERSION_MINOR(vkphysicaldevice.mProperties.driverVersion);
+        patch = VK_VERSION_PATCH(vkphysicaldevice.mProperties.driverVersion);
         std::cout << '\t' << "Driver: " << major << "." << minor << "." << patch << std::endl;
     }
 
-    auto finderSuitablePhysicalDevice = std::find_if(
-        std::begin(vkphysicaldevices), std::end(vkphysicaldevices),
-        [&surface](VkPhysicalDevice vkphysicaldevice) {
-            return DearImGuiShowcase::isSuitable(vkphysicaldevice, surface);
-        }
-    );
-    assert(finderSuitablePhysicalDevice != std::end(vkphysicaldevices));
+    auto isSuitable = [&vksurface](const blk::PhysicalDevice& vkphysicaldevice) {
+        // Engine requirements:
+        //  - GRAPHICS queue
+        // Presentation requirements:
+        //  - Surface compatible queue
 
-    blk::PhysicalDevice vkphysicaldevice(*finderSuitablePhysicalDevice);
+        if (vkphysicaldevice.mProperties.deviceType != VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+            return false;
+
+        return std::ranges::any_of(
+            vkphysicaldevice.mQueueFamilies,
+            [&vksurface](const blk::QueueFamily& family) {
+                if (!family.supports_presentation())
+                    return false;
+
+                if (!family.supports_surface(vksurface))
+                    return false;
+
+                return true;
+            }
+        );
+    };
+
+    auto finderSuitablePhysicalDevice = std::ranges::find_if(vkphysicaldevices, isSuitable);
+    assert(finderSuitablePhysicalDevice != std::ranges::end(vkphysicaldevices));
+
+    /*const */blk::PhysicalDevice& vkphysicaldevice(*finderSuitablePhysicalDevice);
 
     std::cout << "Selected GPU: " << vkphysicaldevice.mProperties.deviceName << std::endl;
 
@@ -251,36 +266,42 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         info_queue.pQueuePriorities = priorities.data();
     }
 
-    blk::Engine engine(application.mInstance, surface, vkphysicaldevice, info_queues, kResolution);
+    blk::Engine engine(application.mInstance, vksurface, vkphysicaldevice, info_queues, kResolution);
 
-    priorities.clear();
-    info_queues.clear();
-    priorities.shrink_to_fit();
-    info_queues.shrink_to_fit();
+    {// cleanup
+        priorities.clear();
+        info_queues.clear();
+        priorities.shrink_to_fit();
+        info_queues.shrink_to_fit();
+    }
 
-    DearImGuiShowcase showcase(application, surface, vkphysicaldevice, kResolution);
+    engine.initialize();
 
-    showcase.initialize();
-    showcase.initialize_resources();
-    showcase.allocate_descriptorset();
+    #if 0
+    DearImGuiengine engine(application, vksurface, vkphysicaldevice, kResolution);
 
-    showcase.allocate_memory_and_bind_resources();
+    engine.initialize();
+    engine.initialize_resources();
+    engine.allocate_descriptorset();
 
-    showcase.initialize_views();
+    engine.allocate_memory_and_bind_resources();
 
-    showcase.create_swapchain();
-    showcase.create_framebuffers();
-    showcase.create_commandbuffers();
-    showcase.create_graphic_pipelines();
+    engine.initialize_views();
 
-    showcase.upload_font_image();
-    showcase.update_descriptorset();
+    engine.create_swapchain();
+    engine.create_framebuffers();
+    engine.create_commandbuffers();
+    engine.create_graphic_pipelines();
+
+    engine.upload_font_image();
+    engine.update_descriptorset();
+    #endif
 
     ShowWindow(hWindow, nCmdShow);
     SetForegroundWindow(hWindow);
     SetFocus(hWindow);
 
-    SetWindowLongPtr(hWindow, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(&showcase));
+    SetWindowLongPtr(hWindow, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(&engine));
     SetWindowLongPtr(hWindow, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(MainWindowProcedure));
 
     MSG msg = { };
@@ -293,11 +314,15 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         }
         else if(!IsIconic(hWindow))
         {
-            showcase.render_frame();
+            #if 0
+            engine.render_frame();
+            #endif
         }
     }
 
-    showcase.wait_pending_operations();
+    #if 0
+    engine.wait_pending_operations();
+    #endif
 
     FreeConsole();
 
@@ -330,14 +355,16 @@ LRESULT CALLBACK MinimalWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPA
 
 LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-    DearImGuiShowcase* showcase = reinterpret_cast<DearImGuiShowcase*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
-    assert(showcase);
+    blk::Engine* engine = reinterpret_cast<blk::Engine*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
+    assert(engine);
 
     switch (uMsg)
     {
     case WM_PAINT:
         // TODO Fetch RenderArea
-        showcase->render_frame();
+        #if 0
+        engine->render_frame();
+        #endif
         ValidateRect(hWnd, NULL);
         break;
     case WM_KEYDOWN:
@@ -397,29 +424,30 @@ LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
     //         }
     //     }
     //     break;
+    #if 0
     case WM_LBUTTONDOWN:
-        showcase->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
-        showcase->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
-        showcase->mMouse.buttons.left = true;
+        engine->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
+        engine->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
+        engine->mMouse.buttons.left = true;
         break;
     case WM_RBUTTONDOWN:
-        showcase->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
-        showcase->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
-        showcase->mMouse.buttons.right = true;
+        engine->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
+        engine->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
+        engine->mMouse.buttons.right = true;
         break;
     case WM_MBUTTONDOWN:
-        showcase->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
-        showcase->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
-        showcase->mMouse.buttons.middle = true;
+        engine->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
+        engine->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
+        engine->mMouse.buttons.middle = true;
         break;
     case WM_LBUTTONUP:
-        showcase->mMouse.buttons.left = false;
+        engine->mMouse.buttons.left = false;
         break;
     case WM_RBUTTONUP:
-        showcase->mMouse.buttons.right = false;
+        engine->mMouse.buttons.right = false;
         break;
     case WM_MBUTTONUP:
-        showcase->mMouse.buttons.middle = false;
+        engine->mMouse.buttons.middle = false;
         break;
     // case WM_MOUSEWHEEL:
     // {
@@ -431,10 +459,11 @@ LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
     // }
     case WM_MOUSEMOVE:
     {
-        showcase->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
-        showcase->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
+        engine->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
+        engine->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
         break;
     }
+    #endif
     case WM_SIZE:
         if (wParam != SIZE_MINIMIZED)
         {
@@ -448,9 +477,9 @@ LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
                         .width  = LOWORD(lParam),
                         .height = HIWORD(lParam)
                     };
-                    if (showcase)
+                    if (engine)
                     {
-                        showcase->invalidate_surface(*sSurface);
+                        engine->invalidate_surface(*sSurface);
                     }
                     else
                     {

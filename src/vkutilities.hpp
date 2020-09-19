@@ -145,19 +145,6 @@ bool has_extension(const std::span<VkExtensionProperties>& extensions, const std
 
 [[nodiscard]]
 inline
-std::vector<VkPhysicalDevice> physical_devices(VkInstance instance)
-{
-    std::uint32_t count = 0;
-    CHECK(vkEnumeratePhysicalDevices(instance, &count, nullptr));
-    assert(count > 0);
-
-    std::vector<VkPhysicalDevice> physical_devices(count);
-    CHECK(vkEnumeratePhysicalDevices(instance, &count, physical_devices.data()));
-    return physical_devices;
-}
-
-[[nodiscard]]
-inline
 std::optional<std::uint32_t> get_memory_type(const VkPhysicalDeviceMemoryProperties& properties, std::uint32_t type_bits, VkMemoryPropertyFlags flags)
 {
     for(std::uint32_t idx = 0; idx < properties.memoryTypeCount; ++idx, type_bits >>= 1)
@@ -261,4 +248,14 @@ inline
 void destroy_command_buffer(VkDevice vkdevice, VkCommandPool vkcmdpool, VkCommandBuffer vkcmdbuffer)
 {
     vkFreeCommandBuffers(vkdevice, vkcmdpool, 1, &vkcmdbuffer);
+}
+
+namespace blk
+{
+
+struct PhysicalDevice;
+
+[[nodiscard]]
+std::vector<blk::PhysicalDevice> physicaldevices(VkInstance instance);
+
 }

@@ -36,10 +36,13 @@ struct VulkanPassUIOverlay
     void initialize_graphic_pipelines();
 
     void render_frame();
-    void upload_frame_data();
+
+    void upload_font_image(blk::Buffer& staging_buffer);
+    void upload_frame_buffers();
+
     void record_pass(VkCommandBuffer commandbuffer);
     void record_frame(VkCommandBuffer commandbuffer);
-    void record_font_image_upload(VkCommandBuffer commandbuffer);
+    void record_font_image_upload(VkCommandBuffer commandbuffer, const blk::Buffer& staging_buffer);
 
     const blk::Device&                   mDevice;
     const blk::RenderPass&               mRenderPass;
@@ -50,7 +53,7 @@ struct VulkanPassUIOverlay
     VkExtent3D                           mFontExtent;
     blk::Image                           mFontImage;
     blk::ImageView                       mFontImageView;
-    blk::Buffer                          mVertexBuffer, mIndexBuffer, mStagingBuffer;
+    blk::Buffer                          mVertexBuffer, mIndexBuffer;
     VkSampler                            mSampler                      = VK_NULL_HANDLE;
 
     VkDescriptorSetLayout                mDescriptorSetLayout          = VK_NULL_HANDLE;

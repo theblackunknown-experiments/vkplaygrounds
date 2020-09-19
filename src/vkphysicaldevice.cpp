@@ -22,7 +22,7 @@ PhysicalDevice::PhysicalDevice(VkPhysicalDevice vkphysicaldevice)
         std::vector<VkQueueFamilyProperties> v(count);
         vkGetPhysicalDeviceQueueFamilyProperties(mPhysicalDevice, &count, v.data());
         for (std::uint32_t idx = 0; idx < count; ++idx)
-            mQueueFamilies.emplace_back(idx, properties);
+            mQueueFamilies.emplace_back(*this, idx, v.at(idx));
     }
     {// Extensions
         std::uint32_t count;

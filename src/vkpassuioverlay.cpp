@@ -62,7 +62,6 @@ VulkanPassUIOverlay::VulkanPassUIOverlay(
     , mContext(ImGui::CreateContext())
     , mVertexBuffer(kInitialVertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)
     , mIndexBuffer(kInitialIndexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT)
-    , mStagingBuffer(kInitialIndexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT)
 {
     {// Dear ImGui
         IMGUI_CHECKVERSION();
@@ -588,7 +587,7 @@ void VulkanPassUIOverlay::render_frame()
     }
 }
 
-void VulkanPassUIOverlay::upload_frame_data()
+void VulkanPassUIOverlay::upload_frame_buffers()
 {
     const ImDrawData* data = ImGui::GetDrawData();
     assert(data);
@@ -677,6 +676,30 @@ void VulkanPassUIOverlay::upload_frame_data()
         mVertexBuffer.mOccupied = 0;
         mIndexBuffer .mOccupied = 0;
     }
+}
+
+void VulkanPassUIOverlay::upload_font_image(blk::Buffer& staging_buffer)
+{
+    ImGuiIO& io = ImGui::GetIO();
+    int width = 0, height = 0;
+    unsigned char* data = nullptr;
+    io.Fonts->GetTexDataAsAlpha8(&data, &width, &height);
+
+    // NOTE(andrea.machizaud) Coherent memory no invalidate/flush
+    unsigned char* mapped_address = nullptr;
+    CHECK(vkMapMemory(
+        mDevice,
+        *staging_buffer.mMemory,
+        staging_buffer.mOffset,
+        staging_buffer.mRequirements.size,
+        0,
+        reinterpret_cast<void**>(&mapped_address)
+    ));
+
+    std::copy_n(data, width * height, mapped_address);
+    vkUnmapMemory(mDevice, *staging_buffer.mMemory);
+    // Occupiped to 0 once submit completed
+    staging_buffer.mOccupied = width * height * sizeof(unsigned char);
 }
 
 void VulkanPassUIOverlay::record_frame(VkCommandBuffer commandbuffer)
@@ -783,7 +806,7 @@ void VulkanPassUIOverlay::record_pass(VkCommandBuffer commandbuffer)
     record_frame(commandbuffer);
 }
 
-void VulkanPassUIOverlay::record_font_image_upload(VkCommandBuffer commandbuffer)
+void VulkanPassUIOverlay::record_font_image_upload(VkCommandBuffer commandbuffer, const blk::Buffer& staging_buffer)
 {
     {// Image Barrier VK_IMAGE_LAYOUT_UNDEFINED -> VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
         const VkImageMemoryBarrier imagebarrier{
@@ -834,7 +857,7 @@ void VulkanPassUIOverlay::record_font_image_upload(VkCommandBuffer commandbuffer
         };
         vkCmdCopyBufferToImage(
             commandbuffer,
-            mStagingBuffer,
+            staging_buffer,
             mFontImage,
             VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             1, &region

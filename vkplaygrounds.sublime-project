@@ -259,12 +259,12 @@
 			"path": "C:/VulkanSDK/1.2.141.2/Include"
 		},
 		{
-			"name": "Microsoft Visual Studio - MSVC - 14.26.28801 - ATLMFC",
-			"path": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.26.28801/ATLMFC/include"
+			"name": "Microsoft Visual Studio - MSVC - 14.28.29304 - ATLMFC",
+			"path": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Preview/VC/Tools/MSVC/14.28.29304/ATLMFC/include"
 		},
 		{
-			"name": "Microsoft Visual Studio - MSVC - 14.26.28801",
-			"path": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.26.28801/include"
+			"name": "Microsoft Visual Studio - MSVC - 14.28.29304",
+			"path": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Preview/VC/Tools/MSVC/14.28.29304/include"
 		},
 		{
 			"name": "Windows Kits - NETFXSDK - 4.8 (um)",
