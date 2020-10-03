@@ -33,7 +33,8 @@
 #include "./vkphysicaldevice.hpp"
 
 #include "./vkpass.hpp"
-#include "./vkpassuioverlay.hpp"
+
+#include "./sample0/vksample0.hpp"
 
 using namespace std::literals::chrono_literals;
 
@@ -292,35 +293,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
     blk::Presentation presentation(engine, vksurface, kResolution);
 
-    const VkFormat format_depth = [&vkphysicaldevice]{
-        auto finder = std::ranges::find_if(
-            kPreferredDepthFormats,
-            [vkphysicaldevice](const VkFormat& f) {
-                VkFormatProperties properties;
-                vkGetPhysicalDeviceFormatProperties(vkphysicaldevice, f, &properties);
-                return properties.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT;
-            }
-        );
-
-        assert(finder != std::end(kPreferredDepthFormats));
-        return *finder;
-    }();
-
-    engine.initialize();
-
-    blk::RenderPass renderpass(engine.mDevice);
-    auto multipass = blk::make_multipass<blk::VulkanPassUIOverlay>(renderpass);
-
-    blk::VulkanPassUIOverlay& pass0 = blk::subpass<0>(multipass);
-
-    pass0.initialize_resolution(kResolution);
+    blk::sample0::Sample sample(engine, presentation.mColorFormat, kResolution);
 
     #if 0
     DearImGuiengine engine(application, vksurface, vkphysicaldevice, kResolution);
-
-    engine.initialize();
-    engine.initialize_resources();
-    engine.allocate_descriptorset();
 
     engine.allocate_memory_and_bind_resources();
 

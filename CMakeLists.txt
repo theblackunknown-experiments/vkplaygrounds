@@ -168,8 +168,14 @@ target_sources(default-sample
         src/vksurface.hpp
         $<$<PLATFORM_ID:Windows>:src/win32_vksurface.cpp>
 
-        src/vkpassuioverlay.hpp
-        src/vkpassuioverlay.cpp
+        src/sample0/vksample0.hpp
+        src/sample0/vksample0.cpp
+
+        src/sample0/vkpassuioverlay.hpp
+        src/sample0/vkpassuioverlay.cpp
+
+        src/sample0/vkpassscene.hpp
+        src/sample0/vkpassscene.cpp
 
         # src/dearimgui/dearimguishowcase.hpp
         # src/dearimgui/dearimguishowcase.cpp

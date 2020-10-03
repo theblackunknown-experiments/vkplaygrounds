@@ -44,7 +44,7 @@ struct Presentation
     VkDevice                             mDevice;
     VkPhysicalDevice                     mPhysicalDevice;
 
-    std::vector<blk::Queue*>       mPresentationQueues;
+    std::vector<blk::Queue*>             mPresentationQueues;
 
     VkFormat                             mColorFormat   = VK_FORMAT_UNDEFINED;
     VkColorSpaceKHR                      mColorSpace    = VK_COLOR_SPACE_MAX_ENUM_KHR;

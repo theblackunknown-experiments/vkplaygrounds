@@ -1,4 +1,4 @@
-#include "./vkpassuioverlay.hpp"
+#include "./vkpassscene.hpp"
 
 #include "./vkutilities.hpp"
 #include "./vkdebug.hpp"
@@ -50,13 +50,12 @@ namespace
     };
 }
 
-namespace blk
+namespace blk::sample0
 {
 
-VulkanPassUIOverlay::VulkanPassUIOverlay(const blk::RenderPass& renderpass, std::uint32_t subpass)
-    : Pass(renderpass)
+PassScene::PassScene(const blk::RenderPass& renderpass, std::uint32_t subpass, Arguments arguments)
+    : Pass(renderpass, subpass)
     , mDevice(renderpass.mDevice)
-    , mSubpass(subpass)
     // , mResolution(resolution)
     , mContext(ImGui::CreateContext())
     , mVertexBuffer(kInitialVertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)
@@ -102,7 +101,7 @@ VulkanPassUIOverlay::VulkanPassUIOverlay(const blk::RenderPass& renderpass, std:
     }
 }
 
-VulkanPassUIOverlay::~VulkanPassUIOverlay()
+PassScene::~PassScene()
 {
     for(auto&& vkpipeline : mPipelines)
         vkDestroyPipeline(mDevice, vkpipeline, nullptr);
@@ -118,7 +117,7 @@ VulkanPassUIOverlay::~VulkanPassUIOverlay()
     ImGui::DestroyContext(mContext);
 }
 
-void VulkanPassUIOverlay::initialize_resolution(const VkExtent2D& resolution)
+void PassScene::initialize_resolution(const VkExtent2D& resolution)
 {
     mResolution = resolution;
 
@@ -127,7 +126,7 @@ void VulkanPassUIOverlay::initialize_resolution(const VkExtent2D& resolution)
     io.DisplaySize = ImVec2(mResolution.width, mResolution.height);
 }
 
-void VulkanPassUIOverlay::initialize_before_memory_bindings()
+void PassScene::initialize_before_memory_bindings()
 {
     {// Sampler
         constexpr VkSamplerCreateInfo info{
@@ -268,7 +267,7 @@ void VulkanPassUIOverlay::initialize_before_memory_bindings()
     initialize_graphic_pipelines();
 }
 
-void VulkanPassUIOverlay::initialize_after_memory_bindings()
+void PassScene::initialize_after_memory_bindings()
 {
     {// ImageView
         mFontImageView = blk::ImageView(
@@ -301,7 +300,7 @@ void VulkanPassUIOverlay::initialize_after_memory_bindings()
     }
 }
 
-void VulkanPassUIOverlay::initialize_graphic_pipelines()
+void PassScene::initialize_graphic_pipelines()
 {
     assert(std::ranges::all_of(mPipelines, [](VkPipeline pipeline){ return pipeline == VK_NULL_HANDLE;}));
 
@@ -516,7 +515,7 @@ void VulkanPassUIOverlay::initialize_graphic_pipelines()
     vkDestroyShaderModule(mDevice, shader_triangle, nullptr);
 }
 
-void VulkanPassUIOverlay::render_frame()
+void PassScene::render_frame()
 {
     {
         {// ImGui
@@ -593,7 +592,7 @@ void VulkanPassUIOverlay::render_frame()
     }
 }
 
-void VulkanPassUIOverlay::upload_frame_buffers()
+void PassScene::upload_frame_buffers()
 {
     const ImDrawData* data = ImGui::GetDrawData();
     assert(data);
@@ -684,7 +683,7 @@ void VulkanPassUIOverlay::upload_frame_buffers()
     }
 }
 
-void VulkanPassUIOverlay::upload_font_image(blk::Buffer& staging_buffer)
+void PassScene::upload_font_image(blk::Buffer& staging_buffer)
 {
     ImGuiIO& io = ImGui::GetIO();
     int width = 0, height = 0;
@@ -708,7 +707,7 @@ void VulkanPassUIOverlay::upload_font_image(blk::Buffer& staging_buffer)
     staging_buffer.mOccupied = width * height * sizeof(unsigned char);
 }
 
-void VulkanPassUIOverlay::record_frame(VkCommandBuffer commandbuffer)
+void PassScene::record_frame(VkCommandBuffer commandbuffer)
 {
     const ImDrawData* data = ImGui::GetDrawData();
     assert(data);
@@ -807,12 +806,12 @@ void VulkanPassUIOverlay::record_frame(VkCommandBuffer commandbuffer)
     }
 }
 
-void VulkanPassUIOverlay::record_pass(VkCommandBuffer commandbuffer)
+void PassScene::record_pass(VkCommandBuffer commandbuffer)
 {
     record_frame(commandbuffer);
 }
 
-void VulkanPassUIOverlay::record_font_image_upload(VkCommandBuffer commandbuffer, const blk::Buffer& staging_buffer)
+void PassScene::record_font_image_upload(VkCommandBuffer commandbuffer, const blk::Buffer& staging_buffer)
 {
     {// Image Barrier VK_IMAGE_LAYOUT_UNDEFINED -> VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
         const VkImageMemoryBarrier imagebarrier{

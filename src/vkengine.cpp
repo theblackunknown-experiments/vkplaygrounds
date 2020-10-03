@@ -30,12 +30,6 @@ namespace
 {
     constexpr bool kVSync = true;
 
-    constexpr std::uint32_t kSubpassUI = 0;
-    constexpr std::uint32_t kSubpassScene = 1;
-
-    constexpr std::uint32_t kAttachmentColor = 0;
-    constexpr std::uint32_t kAttachmentDepth = 1;
-
     // TODO(andrea.machizaud) use literals...
     // TODO(andrea.machizaud) pre-allocate a reasonable amount for buffers
     constexpr std::size_t kStagingBufferSize = 2 << 20; // 1 Mb
@@ -330,138 +324,6 @@ Engine::~Engine()
     vkDestroyCommandPool(mDevice, mComputeCommandPool, nullptr);
 
     vkDestroyPipelineCache(mDevice, mPipelineCache, nullptr);
-
-    vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
-}
-
-void Engine::initialize()
-{
-    #if 0
-    {// Render Pass
-        // Pass 0 : Draw UI    (write depth)
-        // Pass 1 : Draw Scene (read depth, write color)
-        //  Depth discarded
-        //  Color kept
-        //  Transition to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR to optimize transition before presentation
-        const std::array attachments{
-            VkAttachmentDescription{
-                .flags          = 0,
-                .format         = mColorAttachmentFormat,
-                .samples        = VK_SAMPLE_COUNT_1_BIT,
-                .loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR,
-                .storeOp        = VK_ATTACHMENT_STORE_OP_STORE,
-                .stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-                .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-                .initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED,
-                .finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-            },
-            VkAttachmentDescription{
-                .flags          = 0,
-                .format         = mDepthStencilAttachmentFormat,
-                .samples        = VK_SAMPLE_COUNT_1_BIT,
-                .loadOp         = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-                .storeOp        = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-                .stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_CLEAR,
-                .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-                .initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED,
-                .finalLayout    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
-            },
-        };
-        constexpr VkAttachmentReference write_color_reference{
-            .attachment = kAttachmentColor,
-            .layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        };
-        constexpr VkAttachmentReference write_stencil_reference{
-            .attachment = kAttachmentDepth,
-            .layout     = VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL,
-        };
-        constexpr VkAttachmentReference read_stencil_reference{
-            .attachment = kAttachmentDepth,
-            .layout     = VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL,
-        };
-        // C:/devel/vkplaygrounds/src/dearimgui/Engine.cpp:514:30: error: constexpr variable 'subpasses' must be initialized by a constant expression
-        //         constexpr std::array subpasses{
-        //                              ^        ~
-        // C:/devel/vkplaygrounds/src/dearimgui/Engine.cpp:514:30: note: pointer to 'write_color_reference' is not a constant expression
-        // C:/devel/vkplaygrounds/src/dearimgui/Engine.cpp:502:47: note: declared here
-        //         constexpr const VkAttachmentReference write_color_reference{
-        //                                               ^
-        static const/*expr*/ std::array subpasses{
-            // Pass 0 : Draw UI    (write stencil, write color)
-            VkSubpassDescription{
-                .flags                   = 0,
-                .pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS,
-                .inputAttachmentCount    = 0,
-                .pInputAttachments       = nullptr,
-                .colorAttachmentCount    = 1,
-                .pColorAttachments       = &write_color_reference,
-                .pResolveAttachments     = nullptr,
-                .pDepthStencilAttachment = &write_stencil_reference,
-                .preserveAttachmentCount = 0,
-                .pPreserveAttachments    = nullptr,
-            },
-            // Pass 1 : Draw Scene (read stencil, write color)
-            VkSubpassDescription{
-                .flags                   = 0,
-                .pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS,
-                .inputAttachmentCount    = 0,
-                .pInputAttachments       = nullptr,
-                .colorAttachmentCount    = 1,
-                .pColorAttachments       = &write_color_reference,
-                .pResolveAttachments     = nullptr,
-                .pDepthStencilAttachment = &read_stencil_reference,
-                .preserveAttachmentCount = 0,
-                .pPreserveAttachments    = nullptr,
-            },
-        };
-        constexpr std::array dependencies{
-            VkSubpassDependency{
-                .srcSubpass      = kSubpassUI,
-                .dstSubpass      = kSubpassScene,
-                .srcStageMask    = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT ,
-                .dstStageMask    = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT ,
-                .srcAccessMask   = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-                .dstAccessMask   = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT,
-                .dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT,
-            },
-        };
-        const VkRenderPassCreateInfo info{
-            .sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-            .pNext           = nullptr,
-            .flags           = 0,
-            .attachmentCount = attachments.size(),
-            .pAttachments    = attachments.data(),
-            .subpassCount    = subpasses.size(),
-            .pSubpasses      = subpasses.data(),
-            .dependencyCount = dependencies.size(),
-            .pDependencies   = dependencies.data(),
-        };
-        CHECK(vkCreateRenderPass(mDevice, &info, nullptr, &mRenderPass));
-    }
-    #endif
-    initialize_resources();
-}
-
-void Engine::initialize_resources()
-{
-    // NVIDIA - https://developer.nvidia.com/blog/vulkan-dos-donts/
-    //  > Parallelize command buffer recording, image and buffer creation, descriptor set updates, pipeline creation, and memory allocation / binding. Task graph architecture is a good option which allows sufficient parallelism in terms of draw submission while also respecting resource and command queue dependencies.
-    #if 0
-    {// Images
-        {// Depth
-            mDepthImage = blk::Image(
-                VkExtent3D{ .width = mResolution.width, .height = mResolution.height, .depth = 1 },
-                VK_IMAGE_TYPE_2D,
-                mDepthStencilAttachmentFormat,
-                VK_SAMPLE_COUNT_1_BIT,
-                VK_IMAGE_TILING_OPTIMAL,
-                VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                VK_IMAGE_LAYOUT_UNDEFINED
-            );
-            mDepthImage.create(mDevice);
-        }
-    }
-    #endif
 }
 
 void Engine::initialize_views()
@@ -480,8 +342,8 @@ void Engine::initialize_views()
 }
 
 void Engine::allocate_memory_and_bind_resources(
-    const std::span<std::tuple<blk::Buffer*, VkMemoryPropertyFlags>>& buffers,
-    const std::span<std::tuple<blk::Image*, VkMemoryPropertyFlags>>& images)
+    std::span<std::tuple<blk::Buffer*, VkMemoryPropertyFlags>> buffers,
+    std::span<std::tuple<blk::Image*, VkMemoryPropertyFlags>> images)
 {
     struct Resources
     {

@@ -17,24 +17,34 @@
 
 struct ImGuiContext;
 
-namespace  blk
+namespace blk
 {
-    struct VulkanPassUIOverlay : Pass
+    struct Engine;
+}
+
+namespace blk::sample0
+{
+    struct PassScene : Pass
     {
         using frame_clock_t         = std::chrono::high_resolution_clock;
         using frame_tick_t          = frame_clock_t::time_point;
         using frame_time_delta_s_t  = std::chrono::duration<float/*, std::seconds*/>;
         using frame_time_delta_ms_t = std::chrono::duration<float, std::milli>;
 
+        struct Arguments
+        {
+            blk::Engine& engine;
+        };
+
         // TODO Re-use pipeline cache object, instead of one per pass
         // TODO Give a RenderPass object
-        explicit VulkanPassUIOverlay(const blk::RenderPass& renderpass, std::uint32_t subpass);
-        // explicit VulkanPassUIOverlay(
+        explicit PassScene(const blk::RenderPass& renderpass, std::uint32_t subpass, Arguments arguments);
+        // explicit PassScene(
         //     const blk::Device&     device,
         //     const blk::RenderPass& renderpass,
         //     std::uint32_t          subpass,
         //     const VkExtent2D&      resolution);
-        ~VulkanPassUIOverlay();
+        ~PassScene();
 
         void initialize_resolution(const VkExtent2D& resolution);
         void initialize_before_memory_bindings();
@@ -51,7 +61,6 @@ namespace  blk
         void record_font_image_upload(VkCommandBuffer commandbuffer, const blk::Buffer& staging_buffer);
 
         const blk::Device&                   mDevice;
-        std::uint32_t                        mSubpass;
         VkExtent2D                           mResolution;
         ImGuiContext*                        mContext = nullptr;
 

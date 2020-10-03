@@ -96,8 +96,8 @@ struct DearImGuiShowcase
     VkDescriptorPool                     mDescriptorPool               = VK_NULL_HANDLE;
 
     // NOTE To scale, we would need to have an array of semaphore present/complete if we want to process frame as fast as possible
-    VkSemaphore                          mAcquiredSemaphore     = VK_NULL_HANDLE;
-    VkSemaphore                          mRenderSemaphore      = VK_NULL_HANDLE;
+    VkSemaphore                          mAcquiredSemaphore            = VK_NULL_HANDLE;
+    VkSemaphore                          mRenderSemaphore              = VK_NULL_HANDLE;
 
     VkDescriptorSet                      mDescriptorSet                = VK_NULL_HANDLE;
 
