@@ -103,7 +103,6 @@ target_include_directories(dearimgui
 target_compile_definitions(dearimgui
     INTERFACE
         IMGUI_DISABLE_OBSOLETE_FUNCTIONS
-        $<$<PLATFORM_ID:Windows>:OS_WINDOWS>
 )
 
 ##############################
@@ -160,6 +159,12 @@ target_sources(default-sample
         src/vkpresentation.hpp
         src/vkpresentation.cpp
 
+        src/vkpass.hpp
+        src/vkpass.cpp
+
+        src/vkrenderpass.hpp
+        src/vkrenderpass.cpp
+
         src/vksurface.hpp
         $<$<PLATFORM_ID:Windows>:src/win32_vksurface.cpp>
 
@@ -187,6 +192,7 @@ target_compile_definitions(default-sample
             NOMINMAX
             NOCOMM
         >
+        $<$<PLATFORM_ID:Windows>:OS_WINDOWS>
 )
 target_link_libraries(default-sample
     PRIVATE

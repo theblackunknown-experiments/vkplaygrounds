@@ -21,7 +21,6 @@ namespace
     };
     constexpr const std::array kLayers{
         "VK_LAYER_KHRONOS_validation",
-        "VK_LAYER_LUNARG_standard_validation",
     };
 }
 

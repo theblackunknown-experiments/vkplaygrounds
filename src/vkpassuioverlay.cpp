@@ -50,15 +50,14 @@ namespace
     };
 }
 
-VulkanPassUIOverlay::VulkanPassUIOverlay(
-        const blk::Device&     device,
-        const blk::RenderPass& renderpass,
-        std::uint32_t          subpass,
-        const VkExtent2D&      resolution)
-    : mDevice(device)
-    , mRenderPass(renderpass)
+namespace blk
+{
+
+VulkanPassUIOverlay::VulkanPassUIOverlay(const blk::RenderPass& renderpass, std::uint32_t subpass)
+    : Pass(renderpass)
+    , mDevice(renderpass.mDevice)
     , mSubpass(subpass)
-    , mResolution(resolution)
+    // , mResolution(resolution)
     , mContext(ImGui::CreateContext())
     , mVertexBuffer(kInitialVertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)
     , mIndexBuffer(kInitialIndexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT)
@@ -74,8 +73,6 @@ VulkanPassUIOverlay::VulkanPassUIOverlay(
         // TODO Defer at engine setup in case multiple pass uses dearimgui
         {// IO
             ImGuiIO& io = ImGui::GetIO();
-            // TODO Defer at new frame
-            io.DisplaySize             = ImVec2(mResolution.width, mResolution.height);
             io.DisplayFramebufferScale = ImVec2(1.0f, 1.0f);
             io.BackendFlags |= ImGuiBackendFlags_HasSetMousePos;
             io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
@@ -119,6 +116,15 @@ VulkanPassUIOverlay::~VulkanPassUIOverlay()
     vkDestroySampler(mDevice, mSampler, nullptr);
 
     ImGui::DestroyContext(mContext);
+}
+
+void VulkanPassUIOverlay::initialize_resolution(const VkExtent2D& resolution)
+{
+    mResolution = resolution;
+
+    ImGuiIO& io = ImGui::GetIO();
+    // TODO Defer at new frame
+    io.DisplaySize = ImVec2(mResolution.width, mResolution.height);
 }
 
 void VulkanPassUIOverlay::initialize_before_memory_bindings()
@@ -892,4 +898,6 @@ void VulkanPassUIOverlay::record_font_image_upload(VkCommandBuffer commandbuffer
             1, &imagebarrier
         );
     }
+}
+
 }

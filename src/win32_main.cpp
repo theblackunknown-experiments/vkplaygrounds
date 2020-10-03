@@ -32,6 +32,9 @@
 #include "./vkpresentation.hpp"
 #include "./vkphysicaldevice.hpp"
 
+#include "./vkpass.hpp"
+#include "./vkpassuioverlay.hpp"
+
 using namespace std::literals::chrono_literals;
 
 namespace
@@ -208,6 +211,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         );
         assert(hWindow);
     }
+
     blk::Surface vksurface = blk::Surface::create(
         application, VkWin32SurfaceCreateInfoKHR{
             .sType     = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
@@ -303,6 +307,13 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     }();
 
     engine.initialize();
+
+    blk::RenderPass renderpass(engine.mDevice);
+    auto multipass = blk::make_multipass<blk::VulkanPassUIOverlay>(renderpass);
+
+    blk::VulkanPassUIOverlay& pass0 = blk::subpass<0>(multipass);
+
+    pass0.initialize_resolution(kResolution);
 
     #if 0
     DearImGuiengine engine(application, vksurface, vkphysicaldevice, kResolution);

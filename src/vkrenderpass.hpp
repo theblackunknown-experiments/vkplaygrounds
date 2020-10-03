@@ -6,18 +6,15 @@
 
 namespace blk
 {
+    struct Device;
+
     struct RenderPass
     {
-        VkRenderPass mRenderPass = VK_NULL_HANDLE;
-        VkDevice     mDevice = VK_NULL_HANDLE;
+        const blk::Device& mDevice;
+        VkRenderPass       mRenderPass = VK_NULL_HANDLE;
 
-        constexpr RenderPass() = default;
-
-        constexpr RenderPass(const RenderPass& rhs) = delete;
-
-        constexpr RenderPass(RenderPass&& rhs)
-            : mRenderPass(std::exchange(rhs.mRenderPass, VkRenderPass{VK_NULL_HANDLE}))
-            , mDevice(std::exchange(rhs.mDevice, VkDevice{VK_NULL_HANDLE}))
+        constexpr RenderPass(const blk::Device& vkdevice)
+            : mDevice(vkdevice)
         {
         }
 
@@ -26,27 +23,9 @@ namespace blk
             destroy();
         }
 
-        RenderPass& operator=(const RenderPass& rhs) = delete;
+        VkResult create(const VkRenderPassCreateInfo& info);
 
-        RenderPass& operator=(RenderPass&& rhs)
-        {
-            mRenderPass = std::exchange(rhs.mRenderPass, mRenderPass);
-            return *this;
-        }
-
-        VkResult create(VkDevice vkdevice, const VkRenderPassCreateInfo& info)
-        {
-            mDevice = vkdevice;
-            auto result = vkCreateRenderPass(mDevice, &info, nullptr, &mRenderPass);
-            CHECK(result);
-            return result;
-        }
-
-        void destroy()
-        {
-            if (mRenderPass != VK_NULL_HANDLE)
-                vkDestroyRenderPass(mDevice, mRenderPass, nullptr);
-        }
+        void destroy();
 
         constexpr bool created() const
         {
