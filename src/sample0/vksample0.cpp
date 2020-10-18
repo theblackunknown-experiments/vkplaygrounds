@@ -153,7 +153,7 @@ Sample::Sample(blk::Engine& vkengine, VkFormat formatColor, const VkExtent2D& re
 
     , mRenderPass(vkengine, mColorFormat, mDepthFormat)
 
-    , mMultipass(mRenderPass, PassUIOverlay::Arguments{ vkengine, resolution }, PassScene::Arguments{ vkengine })
+    , mMultipass(mRenderPass, PassUIOverlay::Arguments{ vkengine, resolution }, PassScene::Arguments{ vkengine, resolution })
     , mPassUIOverlay(subpass<0>(mMultipass))
     , mPassScene(subpass<1>(mMultipass))
 

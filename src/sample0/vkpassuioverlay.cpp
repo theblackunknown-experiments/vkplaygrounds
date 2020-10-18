@@ -332,8 +332,7 @@ void PassUIOverlay::initialize_graphic_pipelines()
 {
     assert(mPipeline == VK_NULL_HANDLE);
 
-    VkShaderModule shader_ui = VK_NULL_HANDLE;
-    VkShaderModule shader_triangle = VK_NULL_HANDLE;
+    VkShaderModule shader = VK_NULL_HANDLE;
 
     {// Shader - UI
         constexpr VkShaderModuleCreateInfo info{
@@ -343,7 +342,7 @@ void PassUIOverlay::initialize_graphic_pipelines()
             .codeSize = kShaderUI.size() * sizeof(std::uint32_t),
             .pCode    = kShaderUI.data(),
         };
-        CHECK(vkCreateShaderModule(mDevice, &info, nullptr, &shader_ui));
+        CHECK(vkCreateShaderModule(mDevice, &info, nullptr, &shader));
     }
 
     const std::array stages{
@@ -352,7 +351,7 @@ void PassUIOverlay::initialize_graphic_pipelines()
             .pNext               = nullptr,
             .flags               = 0,
             .stage               = VK_SHADER_STAGE_VERTEX_BIT,
-            .module              = shader_ui,
+            .module              = shader,
             .pName               = "ui_main",
             .pSpecializationInfo = nullptr,
         },
@@ -361,7 +360,7 @@ void PassUIOverlay::initialize_graphic_pipelines()
             .pNext               = nullptr,
             .flags               = 0,
             .stage               = VK_SHADER_STAGE_FRAGMENT_BIT,
-            .module              = shader_ui,
+            .module              = shader,
             .pName               = "ui_main",
             .pSpecializationInfo = nullptr,
         },
@@ -536,8 +535,7 @@ void PassUIOverlay::initialize_graphic_pipelines()
 
     CHECK(vkCreateGraphicsPipelines(mDevice, mPipelineCache, 1, &info, nullptr, &mPipeline));
 
-    vkDestroyShaderModule(mDevice, shader_ui, nullptr);
-    vkDestroyShaderModule(mDevice, shader_triangle, nullptr);
+    vkDestroyShaderModule(mDevice, shader, nullptr);
 }
 
 void PassUIOverlay::render_frame()
@@ -732,7 +730,7 @@ void PassUIOverlay::upload_font_image(blk::Buffer& staging_buffer)
     staging_buffer.mOccupied = width * height * sizeof(unsigned char);
 }
 
-void PassUIOverlay::record_frame(VkCommandBuffer commandbuffer)
+void PassUIOverlay::record_pass(VkCommandBuffer commandbuffer)
 {
     const ImDrawData* data = ImGui::GetDrawData();
     assert(data);
@@ -829,11 +827,6 @@ void PassUIOverlay::record_frame(VkCommandBuffer commandbuffer)
             offset_vertex += list->VtxBuffer.Size;
         }
     }
-}
-
-void PassUIOverlay::record_pass(VkCommandBuffer commandbuffer)
-{
-    record_frame(commandbuffer);
 }
 
 void PassUIOverlay::record_font_image_upload(VkCommandBuffer commandbuffer, const blk::Buffer& staging_buffer)

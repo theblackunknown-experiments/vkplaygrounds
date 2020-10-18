@@ -40,13 +40,7 @@ namespace blk::sample0
         };
 
         // TODO Re-use pipeline cache object, instead of one per pass
-        // TODO Give a RenderPass object
         explicit PassUIOverlay(const blk::RenderPass& renderpass, std::uint32_t subpass, Arguments arguments);
-        // explicit PassUIOverlay(
-        //     const blk::Device&     device,
-        //     const blk::RenderPass& renderpass,
-        //     std::uint32_t          subpass,
-        //     const VkExtent2D&      resolution);
         ~PassUIOverlay();
 
         void initialize_graphic_pipelines();
@@ -56,7 +50,6 @@ namespace blk::sample0
         void upload_frame_buffers();
         void upload_font_image(blk::Buffer& staging_buffer);
 
-        void record_frame(VkCommandBuffer commandbuffer);
         void record_pass(VkCommandBuffer commandbuffer) override;
         void record_font_image_upload(VkCommandBuffer commandbuffer, const blk::Buffer& staging_buffer);
 
