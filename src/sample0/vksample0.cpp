@@ -4,6 +4,8 @@
 #include "../vkdevice.hpp"
 #include "../vkphysicaldevice.hpp"
 
+#include "../vkmemory.hpp"
+
 #include <vulkan/vulkan_core.h>
 
 #include <array>
@@ -169,12 +171,13 @@ Sample::Sample(blk::Engine& vkengine, VkFormat formatColor, const VkExtent2D& re
         mDepthImage.create(mDevice);
     }
     {// Memories
-        using tagged_image = std::tuple<blk::Image*, VkMemoryPropertyFlags>;
+        auto vkphysicaldevice = *(mDevice.mPhysicalDevice);
         // NOTE(andrea.machizaud) not present on Windows laptop with my NVIDIA card...
-        std::array images{
-            tagged_image{&mDepthImage, 0/*VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT*/}
-        };
-        mEngine.allocate_memory_and_bind_resources({}, images);
+        auto memory_type = vkphysicaldevice.mMemories.find_compatible(mDepthImage, 0/*VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT*/);
+        assert(memory_type);
+        mDepthMemory = std::make_unique<blk::Memory>(*memory_type, mDepthImage.mRequirements.size);
+        mDepthMemory->allocate(mDevice);
+        mDepthMemory->bind(mDepthImage);
     }
     {// Image Views
         mDepthImageView = blk::ImageView(

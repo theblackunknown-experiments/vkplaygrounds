@@ -122,8 +122,12 @@ namespace blk
                 vkFreeMemory(mDevice, mMemory, nullptr);
         }
 
+        VkResult bind(Buffer& buffer);
         VkResult bind(const std::span<Buffer*>& buffers);
+        VkResult bind(const std::initializer_list<Buffer*>& buffers);
+        VkResult bind(Image& image);
         VkResult bind(const std::span<Image*>& images);
+        VkResult bind(const std::initializer_list<Image*>& images);
 
         constexpr operator VkDeviceMemory() const
         {

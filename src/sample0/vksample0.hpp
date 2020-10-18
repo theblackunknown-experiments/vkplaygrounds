@@ -10,10 +10,13 @@
 #include "./vkpassscene.hpp"
 #include "./vkpassuioverlay.hpp"
 
+#include <memory>
+
 namespace blk
 {
     struct Engine;
     struct Device;
+    struct Memory;
 }
 
 namespace blk::sample0
@@ -30,22 +33,24 @@ namespace blk::sample0
             RenderPass(Engine& vkengine, VkFormat formatColor, VkFormat formatDepth);
         };
 
-        Engine&            mEngine;
-        const Device&      mDevice;
+        Engine&                      mEngine;
+        const Device&                mDevice;
+          
+        VkFormat                     mColorFormat;
+        VkFormat                     mDepthFormat;
+          
+        VkExtent2D                   mResolution;
+          
+        RenderPass                   mRenderPass;
+        multipass_type               mMultipass;
+          
+        PassUIOverlay&               mPassUIOverlay;
+        PassScene&                   mPassScene;
+          
+        blk::Image                   mDepthImage;
+        blk::ImageView               mDepthImageView;
 
-        VkFormat           mColorFormat;
-        VkFormat           mDepthFormat;
-
-        VkExtent2D         mResolution;
-
-        RenderPass         mRenderPass;
-        multipass_type     mMultipass;
-
-        PassUIOverlay&     mPassUIOverlay;
-        PassScene&         mPassScene;
-
-        blk::Image         mDepthImage;
-        blk::ImageView     mDepthImageView;
+        std::unique_ptr<blk::Memory> mDepthMemory;
 
         Sample(
             blk::Engine& vkengine,

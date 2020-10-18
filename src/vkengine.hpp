@@ -36,8 +36,7 @@ struct Engine
         const std::span<VkDeviceQueueCreateInfo>& info_queues);
     ~Engine();
 
-    void initialize_views();
-
+    [[deprecated("although useful for debugging, but it is recommended to manage your memory lifetime/binding yourself")]]
     void allocate_memory_and_bind_resources(
         std::span<std::tuple<blk::Buffer*, VkMemoryPropertyFlags>> buffers,
         std::span<std::tuple<blk::Image*, VkMemoryPropertyFlags>> images);
@@ -71,6 +70,7 @@ struct Engine
     VkFence                                   mStagingFence            = VK_NULL_HANDLE;
     VkSemaphore                               mStagingSemaphore        = VK_NULL_HANDLE;
     VkCommandBuffer                           mStagingCommandBuffer    = VK_NULL_HANDLE;
+    std::unique_ptr<blk::Memory>              mStagingMemory;
 
     std::vector<std::unique_ptr<blk::Memory>> mMemoryChunks;
 };

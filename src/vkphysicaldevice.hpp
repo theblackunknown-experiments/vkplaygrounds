@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "./vkdebug.hpp"
+#include "./vkqueue.hpp"
 #include "./vkmemory.hpp"
 
 namespace blk

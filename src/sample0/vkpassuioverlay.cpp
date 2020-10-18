@@ -6,6 +6,8 @@
 #include "../vkphysicaldevice.hpp"
 #include "../vkengine.hpp"
 
+#include "../vkmemory.hpp"
+
 #include "font.hpp"
 #include "ui-shader.hpp"
 
@@ -233,17 +235,39 @@ PassUIOverlay::PassUIOverlay(const blk::RenderPass& renderpass, std::uint32_t su
         mIndexBuffer.create(mDevice);
     }
     {// Memories
-        using tagged_buffer = std::tuple<blk::Buffer*, VkMemoryPropertyFlags>;
-        using tagged_image = std::tuple<blk::Image*, VkMemoryPropertyFlags>;
+        auto vkphysicaldevice = *(mDevice.mPhysicalDevice);
 
-        std::array buffers{
-            tagged_buffer{ &mVertexBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT },
-            tagged_buffer{ &mIndexBuffer , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT }
-        };
-        std::array images{
-            tagged_image{&mFontImage, 0}
-        };
-        mEngine.allocate_memory_and_bind_resources(buffers, images);
+        auto memory_type_index  = vkphysicaldevice.mMemories.find_compatible(mVertexBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        auto memory_type_vertex = vkphysicaldevice.mMemories.find_compatible(mIndexBuffer , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        auto memory_type_font   = vkphysicaldevice.mMemories.find_compatible(mFontImage   , 0);
+
+        assert(memory_type_index );
+        assert(memory_type_vertex);
+        assert(memory_type_font  );
+
+        if (memory_type_index == memory_type_vertex)
+        {
+            mGeometryMemory = std::make_unique<blk::Memory>(*memory_type_index, mVertexBuffer.mRequirements.size + mIndexBuffer.mRequirements.size);
+            mGeometryMemory->allocate(mDevice);
+            mGeometryMemory->bind({ &mVertexBuffer, &mIndexBuffer });
+        }
+        else
+        {
+            {
+                mVertexMemory = std::make_unique<blk::Memory>(*memory_type_vertex, mVertexBuffer.mRequirements.size);
+                mVertexMemory->allocate(mDevice);
+                mVertexMemory->bind(mIndexBuffer);
+            }
+            {
+                mIndexMemory = std::make_unique<blk::Memory>(*memory_type_index, mIndexBuffer.mRequirements.size);
+                mIndexMemory->allocate(mDevice);
+                mIndexMemory->bind(mIndexBuffer);
+            }
+        }
+
+        mFontMemory = std::make_unique<blk::Memory>(*memory_type_font, mFontImage.mRequirements.size);
+        mFontMemory->allocate(mDevice);
+        mFontMemory->bind(mFontImage);
     }
     {// Image Views
         mFontImageView = blk::ImageView(

@@ -310,6 +310,13 @@ Engine::Engine(
         }
         // Buffer
         mStagingBuffer.create(mDevice);
+
+        // Memory
+        auto memory_type = vkphysicaldevice.mMemories.find_compatible(mStagingBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        assert(memory_type);
+        mStagingMemory = std::make_unique<blk::Memory>(*memory_type, mStagingBuffer.mRequirements.size);
+        mStagingMemory->allocate(mDevice);
+        mStagingMemory->bind(mStagingBuffer);
     }
 }
 
@@ -324,21 +331,6 @@ Engine::~Engine()
     vkDestroyCommandPool(mDevice, mComputeCommandPool, nullptr);
 
     vkDestroyPipelineCache(mDevice, mPipelineCache, nullptr);
-}
-
-void Engine::initialize_views()
-{
-    #if 0
-    mDepthImageView = blk::ImageView(
-        mDepthImage,
-        VK_IMAGE_VIEW_TYPE_2D,
-        mDepthStencilAttachmentFormat,
-        mDepthStencilAttachmentFormat >= VK_FORMAT_D16_UNORM_S8_UINT
-            ? VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT
-            : VK_IMAGE_ASPECT_DEPTH_BIT
-    );
-    mDepthImageView.create(mDevice);
-    #endif
 }
 
 void Engine::allocate_memory_and_bind_resources(

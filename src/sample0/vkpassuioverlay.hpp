@@ -7,6 +7,7 @@
 #include <array>
 #include <chrono>
 #include <vector>
+#include <memory>
 
 #include "./vkdevice.hpp"
 #include "./vkrenderpass.hpp"
@@ -20,6 +21,7 @@ struct ImGuiContext;
 namespace blk
 {
     struct Engine;
+    struct Memory;
 }
 
 namespace blk::sample0
@@ -78,6 +80,11 @@ namespace blk::sample0
 
         VkDescriptorPool                     mDescriptorPool               = VK_NULL_HANDLE;
         VkDescriptorSet                      mDescriptorSet                = VK_NULL_HANDLE;
+
+        std::unique_ptr<blk::Memory>         mGeometryMemory;
+        std::unique_ptr<blk::Memory>         mIndexMemory;
+        std::unique_ptr<blk::Memory>         mVertexMemory;
+        std::unique_ptr<blk::Memory>         mFontMemory;
 
         struct UI {
             frame_time_delta_ms_t frame_delta = frame_time_delta_ms_t(0.f);
