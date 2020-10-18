@@ -367,8 +367,7 @@ void Engine::allocate_memory_and_bind_resources(
         resources_by_types[memory_type].buffers.push_back(resource);
     }
 
-    assert(mMemoryChunks.empty());
-    mMemoryChunks.reserve(resources_by_types.size());
+    mMemoryChunks.reserve(mMemoryChunks.capacity() + resources_by_types.size());
     for(auto&& entry : resources_by_types)
     {
         const VkDeviceSize required_size_images = std::/*ranges::*/accumulate(
@@ -386,12 +385,14 @@ void Engine::allocate_memory_and_bind_resources(
             }
         );
 
-        blk::Memory& chunk = mMemoryChunks.emplace_back(*entry.first, required_size_images + required_size_buffers);
-        chunk.allocate(mDevice);
+        auto& chunk = mMemoryChunks.emplace_back(
+            std::make_unique<blk::Memory>(*entry.first, required_size_images + required_size_buffers)
+        );
+        chunk->allocate(mDevice);
         if (!entry.second.images.empty())
-            chunk.bind(entry.second.images);
+            chunk->bind(entry.second.images);
         if (!entry.second.buffers.empty())
-            chunk.bind(entry.second.buffers);
+            chunk->bind(entry.second.buffers);
     }
 }
 

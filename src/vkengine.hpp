@@ -6,6 +6,7 @@
 
 #include <span>
 #include <tuple>
+#include <memory>
 
 #include <array>
 #include <chrono>
@@ -46,33 +47,32 @@ struct Engine
 
     void wait_staging_operations();
 
-    VkInstance                           mInstance                     = VK_NULL_HANDLE;
-    VkSurfaceKHR                         mSurface                      = VK_NULL_HANDLE;
-    const blk::PhysicalDevice&           mPhysicalDevice;
+    VkInstance                                mInstance                = VK_NULL_HANDLE;
+    VkSurfaceKHR                              mSurface                 = VK_NULL_HANDLE;
+    const blk::PhysicalDevice&                mPhysicalDevice;
+     
+    blk::Device                               mDevice;
+     
+    std::vector<blk::Queue>                   mQueues;
+    std::vector<blk::Queue*>                  mSparseQueues;
+    std::vector<blk::Queue*>                  mComputeQueues;
+    std::vector<blk::Queue*>                  mTransferQueues;
+    std::vector<blk::Queue*>                  mGraphicsQueues;
+    std::vector<blk::Queue*>                  mPresentationQueues;
+     
+    VkPipelineCache                           mPipelineCache           = VK_NULL_HANDLE;
+     
+    VkCommandPool                             mComputeCommandPool      = VK_NULL_HANDLE;
+    VkCommandPool                             mTransferCommandPool     = VK_NULL_HANDLE;
+    VkCommandPool                             mGraphicsCommandPool     = VK_NULL_HANDLE;
+    VkCommandPool                             mPresentationCommandPool = VK_NULL_HANDLE;
+     
+    blk::Buffer                               mStagingBuffer;
+    VkFence                                   mStagingFence            = VK_NULL_HANDLE;
+    VkSemaphore                               mStagingSemaphore        = VK_NULL_HANDLE;
+    VkCommandBuffer                           mStagingCommandBuffer    = VK_NULL_HANDLE;
 
-    blk::Device                          mDevice;
-
-    std::vector<blk::Queue>              mQueues;
-    std::vector<blk::Queue*>             mSparseQueues;
-    std::vector<blk::Queue*>             mComputeQueues;
-    std::vector<blk::Queue*>             mTransferQueues;
-    std::vector<blk::Queue*>             mGraphicsQueues;
-    std::vector<blk::Queue*>             mPresentationQueues;
-
-    VkPipelineCache                      mPipelineCache                = VK_NULL_HANDLE;
-
-    VkCommandPool                        mComputeCommandPool           = VK_NULL_HANDLE;
-    VkCommandPool                        mTransferCommandPool          = VK_NULL_HANDLE;
-    VkCommandPool                        mGraphicsCommandPool          = VK_NULL_HANDLE;
-    VkCommandPool                        mPresentationCommandPool      = VK_NULL_HANDLE;
-
-    blk::Buffer                          mStagingBuffer;
-    VkFence                              mStagingFence                 = VK_NULL_HANDLE;
-    VkSemaphore                          mStagingSemaphore             = VK_NULL_HANDLE;
-    VkCommandBuffer                      mStagingCommandBuffer         = VK_NULL_HANDLE;
-
-    // FIXME API entry point for memory
-    std::vector<blk::Memory>             mMemoryChunks;
+    std::vector<std::unique_ptr<blk::Memory>> mMemoryChunks;
 };
 
 }

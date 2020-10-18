@@ -2,6 +2,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <cassert>
 #include <cinttypes>
 
 #include <memory>
@@ -59,6 +60,18 @@ namespace blk
         std::uint32_t        mNextOffset = ~0;
         VkDeviceSize         mFree       = ~0;
 
+        constexpr explicit Memory(const Memory& rhs) = delete;
+
+        constexpr explicit Memory(Memory&& rhs)
+            : mType      (rhs.mType)
+            , mInfo      (std::move(rhs.mInfo))
+            , mMemory    (std::exchange(rhs.mMemory, VkDeviceMemory{ VK_NULL_HANDLE }))
+            , mDevice    (std::exchange(rhs.mDevice, VkDevice{ VK_NULL_HANDLE }))
+            , mNextOffset(std::exchange(rhs.mNextOffset, ~0))
+            , mFree      (std::exchange(rhs.mFree, ~0))
+        {
+        }
+
         constexpr explicit Memory(const MemoryType& type, VkDeviceSize size)
             : Memory(type, VkMemoryAllocateInfo{
                 .sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
@@ -77,8 +90,20 @@ namespace blk
 
         ~Memory()
         {
-            if (mMemory != VK_NULL_HANDLE)
-                vkFreeMemory(mDevice, mMemory, nullptr);
+            destroy();
+        }
+
+        Memory& operator=(const Memory& rhs) = delete;
+
+        Memory& operator=(Memory&& rhs)
+        {
+            assert(std::addressof(mType) == std::addressof(rhs.mType));
+            mInfo       = std::exchange(rhs.mInfo      , mInfo);
+            mMemory     = std::exchange(rhs.mMemory    , mMemory);
+            mDevice     = std::exchange(rhs.mDevice    , mDevice);
+            mNextOffset = std::exchange(rhs.mNextOffset, mNextOffset);
+            mFree       = std::exchange(rhs.mFree      , mFree      );
+            return *this;
         }
 
         VkResult allocate(VkDevice vkdevice)
@@ -89,6 +114,12 @@ namespace blk
             mNextOffset = 0;
             mFree = mInfo.allocationSize;
             return result;
+        }
+
+        void destroy()
+        {
+            if (mMemory != VK_NULL_HANDLE)
+                vkFreeMemory(mDevice, mMemory, nullptr);
         }
 
         VkResult bind(const std::span<Buffer*>& buffers);
