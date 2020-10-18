@@ -177,6 +177,12 @@ Sample::Sample(blk::Engine& vkengine, VkFormat formatColor, const VkExtent2D& re
         mEngine.allocate_memory_and_bind_resources({}, images);
     }
     {// Image Views
+        mDepthImageView = blk::ImageView(
+            mDepthImage,
+            VK_IMAGE_VIEW_TYPE_2D,
+            mDepthFormat,
+            VK_IMAGE_ASPECT_STENCIL_BIT
+        );
         mDepthImageView.create(mDevice);
     }
 }
