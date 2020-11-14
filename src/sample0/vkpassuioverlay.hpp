@@ -45,7 +45,7 @@ namespace blk::sample0
 
         void initialize_graphic_pipelines();
 
-        void render_frame();
+        void render_imgui_frame();
 
         void upload_frame_buffers();
         void upload_font_image(blk::Buffer& staging_buffer);
@@ -78,6 +78,9 @@ namespace blk::sample0
         std::unique_ptr<blk::Memory>         mIndexMemory;
         std::unique_ptr<blk::Memory>         mVertexMemory;
         std::unique_ptr<blk::Memory>         mFontMemory;
+
+        std::chrono::time_point<std::chrono::high_resolution_clock> mStartTick;
+        std::chrono::time_point<std::chrono::high_resolution_clock> mFrameTick;
 
         struct UI {
             frame_time_delta_ms_t frame_delta = frame_time_delta_ms_t(0.f);

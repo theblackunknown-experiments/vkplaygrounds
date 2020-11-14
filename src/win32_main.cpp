@@ -314,11 +314,34 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
-        else if(!IsIconic(hWindow))
+
+        sample.render_imgui_frame();
+        
+        if(!IsIconic(hWindow))
         {
-            #if 0
-            engine.render_frame();
-            #endif
+            blk::Presentation::Image presentation_image = presentation.acquire_next(kTimeoutAcquirePresentationImage);
+
+            VkSemaphore render_semaphore = sample.mRenderSemaphores.at(presentation_image.index);
+
+            const blk::Queue* presentation_queue = presentation.mPresentationQueues.at(0);
+
+            sample.record(presentation_image.index, presentation_image.commandbuffer);
+
+            // TODO Figure out how we can use different queue for sample computations and presentation job
+            //  This probably means that we need to record computations with commandbuffers than ones from presentation
+            engine.submit(
+                *presentation_queue,
+                presentation_image.commandbuffer,
+                presentation_image.semaphore,
+                presentation_image.destination_stage_mask,
+                render_semaphore
+            );
+
+            presentation.present(presentation_image, render_semaphore);
+
+            // NOTE We block to avoid override something in use (e.g. surface indexed VkCommandBuffer)
+            // TODO Block per command buffer, instead of a global lock for all of them
+            CHECK(vkQueueWaitIdle(*presentation_queue));
         }
     }
 

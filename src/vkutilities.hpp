@@ -61,17 +61,6 @@ struct PresentationData {
     std::vector<VkFence>         wait_fences   ;
 };
 
-struct AcquiredPresentationImage
-{
-    const std::uint32_t index         = ~0;
-    VkCommandBuffer     commandbuffer = VK_NULL_HANDLE;
-
-    operator std::uint32_t() const
-    {
-        return index;
-    }
-};
-
 struct Mouse
 {
     struct Buttons

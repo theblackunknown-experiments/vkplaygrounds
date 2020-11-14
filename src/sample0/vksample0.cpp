@@ -1,8 +1,5 @@
 #include "./vksample0.hpp"
 
-#include <ranges>
-#include <range/v3/view/zip.hpp>
-
 #include "../vkengine.hpp"
 #include "../vkdevice.hpp"
 #include "../vkphysicaldevice.hpp"
@@ -11,7 +8,11 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <span>
 #include <array>
+#include <ranges>
+
+#include <range/v3/view/zip.hpp>
 
 namespace
 {
@@ -170,6 +171,7 @@ Sample::Sample(blk::Engine& vkengine, VkFormat formatColor, const std::span<VkIm
         VK_IMAGE_LAYOUT_UNDEFINED
     )
 
+    , mRenderSemaphores(backbufferimages.size(), VK_NULL_HANDLE)
     , mBackBufferViews(backbufferimages.size(), VK_NULL_HANDLE)
     , mFrameBuffers(backbufferimages.size(), VK_NULL_HANDLE)
 {
@@ -197,7 +199,18 @@ Sample::Sample(blk::Engine& vkengine, VkFormat formatColor, const std::span<VkIm
         }
     }
     {// Framebuffers
-        for (auto&& [image, view, framebuffer] : ranges::views::zip(backbufferimages, mBackBufferViews, mFrameBuffers))
+        const VkSemaphoreTypeCreateInfo info_semaphore_type{
+            .sType         = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
+            .pNext         = nullptr,
+            .semaphoreType = VK_SEMAPHORE_TYPE_BINARY,
+            .initialValue  = 0,
+        };
+        const VkSemaphoreCreateInfo info_semaphore{
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+            .pNext = &info_semaphore_type,
+            .flags = 0,
+        };
+        for (auto&& [image, view, framebuffer, render_semaphore] : ranges::views::zip(backbufferimages, mBackBufferViews, mFrameBuffers, mRenderSemaphores))
         {
             const VkImageViewCreateInfo info_imageview{
                 .sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -239,17 +252,61 @@ Sample::Sample(blk::Engine& vkengine, VkFormat formatColor, const std::span<VkIm
                 .layers          = 1,
             };
             CHECK(vkCreateFramebuffer(mDevice, &info_framebuffer, nullptr, &framebuffer));
+        
+            CHECK(vkCreateSemaphore(mDevice, &info_semaphore, nullptr, &render_semaphore));
         }
     }
 }
 
 Sample::~Sample()
 {
+    for(auto&& vksemaphore : mRenderSemaphores)
+        vkDestroySemaphore(mDevice, vksemaphore, nullptr);
+
     for(auto&& vkframebuffer : mFrameBuffers)
         vkDestroyFramebuffer(mDevice, vkframebuffer, nullptr);
 
     for(auto&& view : mBackBufferViews)
         vkDestroyImageView(mDevice, view, nullptr);
+}
+
+void Sample::render_imgui_frame()
+{
+    subpass<0>(mMultipass).render_imgui_frame();
+}
+
+void Sample::record(std::uint32_t backbufferindex, VkCommandBuffer commandbuffer)
+{
+    constexpr VkCommandBufferBeginInfo info{
+        .sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .pNext            = nullptr,
+        .flags            = 0,
+        .pInheritanceInfo = nullptr,
+    };
+    CHECK(vkBeginCommandBuffer(commandbuffer, &info));
+    
+    constexpr std::array kClearValues {
+        VkClearValue {
+            .color = VkClearColorValue{
+                .float32 = { 0.2f, 0.2f, 0.2f, 1.0f }
+            },
+        },
+        VkClearValue {
+            .depthStencil = VkClearDepthStencilValue{
+                .depth   = 0.0f,
+                .stencil = 0,
+            }
+        }
+    };
+    const VkRect2D renderArea{
+        .offset = VkOffset2D{
+            .x = 0,
+            .y = 0,
+        },
+        .extent = mResolution
+    };
+    mMultipass.record(mFrameBuffers.at(backbufferindex), commandbuffer, renderArea, kClearValues);
+    CHECK(vkEndCommandBuffer(commandbuffer));
 }
 
 }

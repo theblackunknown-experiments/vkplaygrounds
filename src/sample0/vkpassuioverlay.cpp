@@ -311,6 +311,8 @@ PassUIOverlay::PassUIOverlay(const blk::RenderPass& renderpass, std::uint32_t su
         CHECK(vkCreatePipelineCache(mDevice, &info, nullptr, &mPipelineCache));
     }
     initialize_graphic_pipelines();
+
+    mFrameTick = mStartTick = std::chrono::high_resolution_clock::now();
 }
 
 PassUIOverlay::~PassUIOverlay()
@@ -538,12 +540,13 @@ void PassUIOverlay::initialize_graphic_pipelines()
     vkDestroyShaderModule(mDevice, shader, nullptr);
 }
 
-void PassUIOverlay::render_frame()
+void PassUIOverlay::render_imgui_frame()
 {
+    auto previous_frame_tick = std::exchange(mFrameTick, std::chrono::high_resolution_clock::now());
     {
         {// ImGui
             ImGuiIO& io = ImGui::GetIO();
-            io.DeltaTime = mUI.frame_delta.count();
+            io.DeltaTime = frame_time_delta_ms_t(mFrameTick - previous_frame_tick).count();
 
             io.MousePos                           = ImVec2(mMouse.offset.x, mMouse.offset.y);
             io.MouseDown[ImGuiMouseButton_Left  ] = mMouse.buttons.left;

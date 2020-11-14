@@ -41,8 +41,10 @@ struct Engine
         std::span<std::tuple<blk::Buffer*, VkMemoryPropertyFlags>> buffers,
         std::span<std::tuple<blk::Image*, VkMemoryPropertyFlags>> images);
 
-    // void record(AcquiredPresentationImage& );
-    // void render_frame();
+    static
+    void submit(VkQueue vkqueue, VkCommandBuffer vkcommandbuffer, VkFence vkfence = VK_NULL_HANDLE);
+    static
+    void submit(VkQueue vkqueue, VkCommandBuffer vkcommandbuffer, VkSemaphore vkwait_semaphore, VkPipelineStageFlags vkwait_stage, VkSemaphore vksignal_semaphore, VkFence vkfence = VK_NULL_HANDLE);
 
     void wait_staging_operations();
 

@@ -127,7 +127,6 @@ Presentation::Presentation(
             .flags = 0,
         };
         CHECK(vkCreateSemaphore(mDevice, &info_semaphore, nullptr, &mAcquiredSemaphore));
-        CHECK(vkCreateSemaphore(mDevice, &info_semaphore, nullptr, &mRenderSemaphore));
     }
     {// Pools
         assert(!mPresentationQueues.empty());
@@ -151,7 +150,6 @@ Presentation::~Presentation()
 
     vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
 
-    vkDestroySemaphore(mDevice, mRenderSemaphore, nullptr);
     vkDestroySemaphore(mDevice, mAcquiredSemaphore, nullptr);
 }
 
@@ -260,24 +258,30 @@ blk::Presentation::Image Presentation::acquire_next(std::uint64_t timeout)
         &index
     );
     CHECK(status);
-    return Image{ index, mCommandBuffers.at(index) };
+    return Image{
+        index,
+        mCommandBuffers.at(index),
+        mAcquiredSemaphore,
+        // TODO I think this depends on the actual sample (e.g. compute vs. graphics)
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+    };
 }
 
-// void Presentation::present(const AcquiredPresentationImage& presentationimage)
-// {
-//     const VkPresentInfoKHR info{
-//         .sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-//         .pNext              = nullptr,
-//         .waitSemaphoreCount = 1,
-//         .pWaitSemaphores    = &mRenderSemaphore,
-//         .swapchainCount     = 1,
-//         .pSwapchains        = &mSwapchain,
-//         .pImageIndices      = &presentationimage.index,
-//         .pResults           = nullptr,
-//     };
-//     const blk::Queue* queue = mPresentationQueues.at(0);
-//     const VkResult result_present = vkQueuePresentKHR(*queue, &info);
-//     CHECK(result_present);
-// }
+void Presentation::present(const Image& presentation_image, VkSemaphore wait_semaphore)
+{
+    const VkPresentInfoKHR info{
+        .sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+        .pNext              = nullptr,
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores    = &wait_semaphore,
+        .swapchainCount     = 1,
+        .pSwapchains        = &mSwapchain,
+        .pImageIndices      = &presentation_image.index,
+        .pResults           = nullptr,
+    };
+    const blk::Queue* queue = mPresentationQueues.at(0);
+    const VkResult result_present = vkQueuePresentKHR(*queue, &info);
+    CHECK(result_present);
+}
 
 }

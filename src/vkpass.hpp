@@ -4,6 +4,7 @@
 
 #include <cinttypes>
 
+#include <span>
 #include <utility>
 #include <type_traits>
 
@@ -60,6 +61,34 @@ namespace blk
             : mPass(renderpass, Index, std::forward<typename PassTrait::args_t>(arguments))
         {
         }
+
+        void record(VkFramebuffer framebuffer, VkCommandBuffer commandbuffer, const VkRect2D& area, const std::span<const VkClearValue>& clear_values)
+        {
+            if constexpr (Index == 0)
+            {
+                const VkRenderPassBeginInfo info{
+                    .sType            = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+                    .pNext            = nullptr,
+                    .renderPass       = mPass.mRenderPass,
+                    .framebuffer      = framebuffer,
+                    .renderArea       = area,
+                    .clearValueCount  = (std::uint32_t)clear_values.size(),
+                    .pClearValues     = clear_values.data(),
+                };
+                vkCmdBeginRenderPass(commandbuffer, &info, VK_SUBPASS_CONTENTS_INLINE);
+            }
+            else
+            {
+                vkCmdNextSubpass(commandbuffer, VK_SUBPASS_CONTENTS_INLINE);
+            }
+
+            mPass.record_pass(commandbuffer);
+            
+            if constexpr (Index == 0)
+            {
+                vkCmdEndRenderPass(commandbuffer);
+            }
+        }
     };
 
     template< std::uint32_t Index, typename Pass0Trait, typename... PassTraits>
@@ -89,6 +118,36 @@ namespace blk
         {
             return *this;
         }
+
+        void record(VkFramebuffer framebuffer, VkCommandBuffer commandbuffer, const VkRect2D& area, const std::span<const VkClearValue>& clear_values)
+        {
+            if constexpr (Index == 0)
+            {
+                const VkRenderPassBeginInfo info{
+                    .sType            = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+                    .pNext            = nullptr,
+                    .renderPass       = mPass.mRenderPass,
+                    .framebuffer      = framebuffer,
+                    .renderArea       = area,
+                    .clearValueCount  = (std::uint32_t)clear_values.size(),
+                    .pClearValues     = clear_values.data(),
+                };
+                vkCmdBeginRenderPass(commandbuffer, &info, VK_SUBPASS_CONTENTS_INLINE);
+            }
+            else
+            {
+                vkCmdNextSubpass(commandbuffer, VK_SUBPASS_CONTENTS_INLINE);
+            }
+
+            mPass.record_pass(commandbuffer);
+
+            tail().record(framebuffer, commandbuffer, area, clear_values);
+
+            if constexpr (Index == 0)
+            {
+                vkCmdEndRenderPass(commandbuffer);
+            }
+        }
     };
 
     template<typename... PassTraits>
@@ -114,27 +173,21 @@ namespace blk
     using MultipassPassType = typename IndexedMultipassFold<Index, PassTypes...>::pass_t;
 
     template<std::size_t Index, std::uint32_t HeadPassIndex, typename... PassTraits>
-    constexpr std::enable_if_t<Index == 0, typename IndexedMultipassFold<Index, PassTraits...>::pass_t>& subpass(IndexedMultiPass<HeadPassIndex, PassTraits...>& multipass) noexcept
+    constexpr typename IndexedMultipassFold<Index, PassTraits...>::pass_t& subpass(IndexedMultiPass<HeadPassIndex, PassTraits...>& multipass) noexcept
     {
-        return multipass.mPass;
+        if constexpr (Index == 0)
+            return multipass.mPass;
+        else
+            return subpass<Index-1>(multipass.tail());
     }
 
     template<std::size_t Index, std::uint32_t HeadPassIndex, typename... PassTraits>
-    constexpr std::enable_if_t<Index != 0, typename IndexedMultipassFold<Index, PassTraits...>::pass_t>& subpass(IndexedMultiPass<HeadPassIndex, PassTraits...>& multipass) noexcept
+    constexpr const typename IndexedMultipassFold<Index, PassTraits...>::pass_t& subpass(const IndexedMultiPass<HeadPassIndex, PassTraits...>& multipass) noexcept
     {
-        return subpass<Index-1>(multipass.tail());
-    }
-
-    template<std::size_t Index, std::uint32_t HeadPassIndex, typename... PassTraits>
-    constexpr const std::enable_if_t<Index == 0, typename IndexedMultipassFold<Index, PassTraits...>::pass_t>& subpass(const IndexedMultiPass<HeadPassIndex, PassTraits...>& multipass) noexcept
-    {
-        return multipass.mPass;
-    }
-
-    template<std::size_t Index, std::uint32_t HeadPassIndex, typename... PassTraits>
-    constexpr const std::enable_if_t<Index != 0, typename IndexedMultipassFold<Index, PassTraits...>::pass_t>& subpass(const IndexedMultiPass<HeadPassIndex, PassTraits...>& multipass) noexcept
-    {
-        return subpass<Index-1>(multipass.tail());
+        if constexpr (Index == 0)
+            return multipass.mPass;
+        else
+            return subpass<Index-1>(multipass.tail());
     }
 
     template<typename... PassTraits>

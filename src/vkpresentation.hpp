@@ -18,6 +18,19 @@ struct Surface;
 
 struct Presentation
 {
+    struct Image
+    {
+        const std::uint32_t  index                  = ~0;
+        VkCommandBuffer      commandbuffer          = VK_NULL_HANDLE;
+        VkSemaphore          semaphore              = VK_NULL_HANDLE;
+        VkPipelineStageFlags destination_stage_mask = 0;
+
+        operator std::uint32_t() const
+        {
+            return index;
+        }
+    };
+
     explicit Presentation(
         const blk::Engine& vkengine,
         const blk::Surface& vksurface,
@@ -28,40 +41,30 @@ struct Presentation
     void create_framebuffers();
     void create_commandbuffers();
 
-    AcquiredPresentationImage acquire();
+    [[nodiscard]] Image acquire_next(std::uint64_t timeout);
+    void present(const Image&, VkSemaphore wait_semaphore);
 
-    void record(AcquiredPresentationImage& );
-    void present(const AcquiredPresentationImage& );
+    const blk::Engine&           mEngine;
+    const blk::Surface&          mSurface;
+    VkExtent2D                   mResolution;
 
-    void render_frame();
+    VkDevice                     mDevice;
+    VkPhysicalDevice             mPhysicalDevice;
 
-    void wait_staging_operations();
+    std::vector<blk::Queue*>     mPresentationQueues;
 
-    const blk::Engine&                   mEngine;
-    const blk::Surface&                  mSurface;
-    VkExtent2D                           mResolution;
-
-    VkDevice                             mDevice;
-    VkPhysicalDevice                     mPhysicalDevice;
-
-    std::vector<blk::Queue*>             mPresentationQueues;
-
-    VkFormat                             mColorFormat   = VK_FORMAT_UNDEFINED;
-    VkColorSpaceKHR                      mColorSpace    = VK_COLOR_SPACE_MAX_ENUM_KHR;
-    VkPresentModeKHR                     mPresentMode   = VK_PRESENT_MODE_MAX_ENUM_KHR;
+    VkFormat                     mColorFormat   = VK_FORMAT_UNDEFINED;
+    VkColorSpaceKHR              mColorSpace    = VK_COLOR_SPACE_MAX_ENUM_KHR;
+    VkPresentModeKHR             mPresentMode   = VK_PRESENT_MODE_MAX_ENUM_KHR;
 
     // FIXME To scale, we would need to have an array of semaphore present/complete if we want to process frame as fast as possible
-    VkSemaphore                          mAcquiredSemaphore = VK_NULL_HANDLE;
-    VkSemaphore                          mRenderSemaphore   = VK_NULL_HANDLE;
-    VkCommandPool                        mCommandPool       = VK_NULL_HANDLE;
+    VkSemaphore                  mAcquiredSemaphore = VK_NULL_HANDLE;
+    VkCommandPool                mCommandPool       = VK_NULL_HANDLE;
 
-    VkSwapchainKHR                       mSwapchain     = VK_NULL_HANDLE;
-    std::vector<VkImage>                 mImages        ;
-    std::vector<VkImageView>             mViews         ;
-    std::vector<VkCommandBuffer>         mCommandBuffers;
-
-    // FIXME API entry point for framebuffer
-    std::vector<VkFramebuffer>           mFrameBuffers;
+    std::uint32_t                mImageCount    = 0;
+    VkSwapchainKHR               mSwapchain     = VK_NULL_HANDLE;
+    std::vector<VkImage>         mImages        ;
+    std::vector<VkCommandBuffer> mCommandBuffers;
 };
 
 }

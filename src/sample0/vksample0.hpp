@@ -53,6 +53,7 @@ namespace blk::sample0
 
         std::unique_ptr<blk::Memory> mDepthMemory;
 
+        std::vector<VkSemaphore>     mRenderSemaphores;
         std::vector<VkImageView>     mBackBufferViews;
         std::vector<VkFramebuffer>   mFrameBuffers;
 
@@ -63,5 +64,8 @@ namespace blk::sample0
             const VkExtent2D& resolution
         );
         ~Sample();
+
+        void render_imgui_frame();
+        void record(std::uint32_t backbufferindex, VkCommandBuffer commandbuffer);
     };
 }
