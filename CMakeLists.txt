@@ -225,7 +225,7 @@ configure_package_config_file(
     "${CMAKE_CURRENT_BINARY_DIR}/vkplaygrounds-config.cmake"
     PATH_VARS
         PATH_EXPORT_TARGETS
-    INSTALL_DESTINATION ${CMAKE_INSTALL_DATADIR}
+    INSTALL_DESTINATION ${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}
 )
 
 write_basic_package_version_file("${CMAKE_CURRENT_BINARY_DIR}/vkplaygrounds-config-version.cmake"
