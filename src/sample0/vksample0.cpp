@@ -1,5 +1,8 @@
 #include "./vksample0.hpp"
 
+#include <ranges>
+#include <range/v3/view/zip.hpp>
+
 #include "../vkengine.hpp"
 #include "../vkdevice.hpp"
 #include "../vkphysicaldevice.hpp"
@@ -130,7 +133,7 @@ Sample::RenderPass::RenderPass(Engine& vkengine, VkFormat formatColor, VkFormat 
     CHECK(create(info));
 }
 
-Sample::Sample(blk::Engine& vkengine, VkFormat formatColor, const VkExtent2D& resolution)
+Sample::Sample(blk::Engine& vkengine, VkFormat formatColor, const std::span<VkImage>& backbufferimages, const VkExtent2D& resolution)
     : mEngine(vkengine)
     , mDevice(vkengine.mDevice)
 
@@ -166,6 +169,9 @@ Sample::Sample(blk::Engine& vkengine, VkFormat formatColor, const VkExtent2D& re
         VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
         VK_IMAGE_LAYOUT_UNDEFINED
     )
+
+    , mBackBufferViews(backbufferimages.size(), VK_NULL_HANDLE)
+    , mFrameBuffers(backbufferimages.size(), VK_NULL_HANDLE)
 {
     {// Resources
         mDepthImage.create(mDevice);
@@ -180,14 +186,70 @@ Sample::Sample(blk::Engine& vkengine, VkFormat formatColor, const VkExtent2D& re
         mDepthMemory->bind(mDepthImage);
     }
     {// Image Views
-        mDepthImageView = blk::ImageView(
-            mDepthImage,
-            VK_IMAGE_VIEW_TYPE_2D,
-            mDepthFormat,
-            VK_IMAGE_ASPECT_STENCIL_BIT
-        );
-        mDepthImageView.create(mDevice);
+        {// Depth
+            mDepthImageView = blk::ImageView(
+                mDepthImage,
+                VK_IMAGE_VIEW_TYPE_2D,
+                mDepthFormat,
+                VK_IMAGE_ASPECT_STENCIL_BIT
+            );
+            mDepthImageView.create(mDevice);
+        }
     }
+    {// Framebuffers
+        for (auto&& [image, view, framebuffer] : ranges::views::zip(backbufferimages, mBackBufferViews, mFrameBuffers))
+        {
+            const VkImageViewCreateInfo info_imageview{
+                .sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                .pNext            = nullptr,
+                .flags            = 0,
+                .image            = image,
+                .viewType         = VK_IMAGE_VIEW_TYPE_2D,
+                .format           = formatColor,
+                .components       = VkComponentMapping{
+                    .r = VK_COMPONENT_SWIZZLE_R,
+                    .g = VK_COMPONENT_SWIZZLE_G,
+                    .b = VK_COMPONENT_SWIZZLE_B,
+                    .a = VK_COMPONENT_SWIZZLE_A,
+                },
+                .subresourceRange = VkImageSubresourceRange{
+                    .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .baseMipLevel   = 0,
+                    .levelCount     = 1,
+                    .baseArrayLayer = 0,
+                    .layerCount     = 1,
+                },
+            };
+            CHECK(vkCreateImageView(mDevice, &info_imageview, nullptr, &view));
+            
+            const std::array attachments{
+                view,
+                // NOTE(andrea.machizaud) Is it safe to re-use depth here ?
+                (VkImageView)mDepthImageView
+            };
+            const VkFramebufferCreateInfo info_framebuffer{
+                .sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+                .pNext           = nullptr,
+                .flags           = 0u,
+                .renderPass      = mRenderPass,
+                .attachmentCount = attachments.size(),
+                .pAttachments    = attachments.data(),
+                .width           = mResolution.width,
+                .height          = mResolution.height,
+                .layers          = 1,
+            };
+            CHECK(vkCreateFramebuffer(mDevice, &info_framebuffer, nullptr, &framebuffer));
+        }
+    }
+}
+
+Sample::~Sample()
+{
+    for(auto&& vkframebuffer : mFrameBuffers)
+        vkDestroyFramebuffer(mDevice, vkframebuffer, nullptr);
+
+    for(auto&& view : mBackBufferViews)
+        vkDestroyImageView(mDevice, view, nullptr);
 }
 
 }

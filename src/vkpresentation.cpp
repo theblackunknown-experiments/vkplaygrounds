@@ -1,7 +1,5 @@
 #include "./vkpresentation.hpp"
 
-#include <utilities.hpp>
-
 #include "./vkdebug.hpp"
 
 #include "./vkqueue.hpp"
@@ -149,11 +147,6 @@ Presentation::Presentation(
 
 Presentation::~Presentation()
 {
-    for(auto&& vkframebuffer : mFrameBuffers)
-        vkDestroyFramebuffer(mDevice, vkframebuffer, nullptr);
-
-    for(auto&& view : mViews)
-        vkDestroyImageView(mDevice, view, nullptr);
     vkDestroySwapchainKHR(mDevice, mSwapchain, nullptr);
 
     vkDestroyCommandPool(mDevice, mCommandPool, nullptr);
@@ -226,9 +219,6 @@ void Presentation::create_swapchain()
 
         if (previous_swapchain != VK_NULL_HANDLE)
         {// Cleaning
-            for(auto&& vkframebuffer : mFrameBuffers)
-                vkDestroyFramebuffer(mDevice, vkframebuffer, nullptr);
-
             if (!mCommandBuffers.empty())
                 vkFreeCommandBuffers(
                     mDevice,
@@ -237,47 +227,16 @@ void Presentation::create_swapchain()
                     mCommandBuffers.data()
                 );
             mCommandBuffers.clear();
-
-            for(auto&& view : mViews)
-                vkDestroyImageView(mDevice, view, nullptr);
             vkDestroySwapchainKHR(mDevice, previous_swapchain, nullptr);
         }
     }
     {// Views
-        std::uint32_t count;
-        CHECK(vkGetSwapchainImagesKHR(mDevice, mSwapchain, &count, nullptr));
-        mImages.resize(count);
-        mViews.resize(count);
-        CHECK(vkGetSwapchainImagesKHR(mDevice, mSwapchain, &count, mImages.data()));
-
-        for (auto&& [image, view] : zip(mImages, mViews))
-        {
-            const VkImageViewCreateInfo info{
-                .sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-                .pNext            = nullptr,
-                .flags            = 0,
-                .image            = image,
-                .viewType         = VK_IMAGE_VIEW_TYPE_2D,
-                .format           = mColorFormat,
-                .components       = VkComponentMapping{
-                    .r = VK_COMPONENT_SWIZZLE_R,
-                    .g = VK_COMPONENT_SWIZZLE_G,
-                    .b = VK_COMPONENT_SWIZZLE_B,
-                    .a = VK_COMPONENT_SWIZZLE_A,
-                },
-                .subresourceRange = VkImageSubresourceRange{
-                    .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
-                    .baseMipLevel   = 0,
-                    .levelCount     = 1,
-                    .baseArrayLayer = 0,
-                    .layerCount     = 1,
-                },
-            };
-            CHECK(vkCreateImageView(mDevice, &info, nullptr, &view));
-        }
+        CHECK(vkGetSwapchainImagesKHR(mDevice, mSwapchain, &mImageCount, nullptr));
+        mImages.resize(mImageCount);
+        CHECK(vkGetSwapchainImagesKHR(mDevice, mSwapchain, &mImageCount, mImages.data()));
     }
     { // Command Buffers
-        mCommandBuffers.resize(mViews.size());
+        mCommandBuffers.resize(mImageCount);
         const VkCommandBufferAllocateInfo info{
             .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
             .pNext              = nullptr,
@@ -287,63 +246,38 @@ void Presentation::create_swapchain()
         };
         CHECK(vkAllocateCommandBuffers(mDevice, &info, mCommandBuffers.data()));
     }
-    #if 0
-    { // Frame Buffers
-        mFrameBuffers.resize(mViews.size());
-        for (auto&& [vkview, vkframebuffer] : zip(mViews, mFrameBuffers))
-        {
-            const std::array attachments{
-                vkview,
-                // NOTE(andrea.machizaud) Is it safe to re-use depth here ?
-                (VkImageView)mDepthImageView
-            };
-            const VkFramebufferCreateInfo info{
-                .sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-                .pNext           = nullptr,
-                .flags           = 0u,
-                .renderPass      = mRenderPass,
-                .attachmentCount = attachments.size(),
-                .pAttachments    = attachments.data(),
-                .width           = mResolution.width,
-                .height          = mResolution.height,
-                .layers          = 1,
-            };
-            CHECK(vkCreateFramebuffer(mDevice, &info, nullptr, &vkframebuffer));
-        }
-    }
-    #endif
 }
 
-AcquiredPresentationImage Presentation::acquire()
+blk::Presentation::Image Presentation::acquire_next(std::uint64_t timeout)
 {
     std::uint32_t index = ~0;
     const VkResult status = vkAcquireNextImageKHR(
         mDevice,
         mSwapchain,
-        std::numeric_limits<std::uint64_t>::max(),
+        timeout,
         mAcquiredSemaphore,
         VK_NULL_HANDLE,
         &index
     );
     CHECK(status);
-    return AcquiredPresentationImage{ index, mCommandBuffers.at(index) };
+    return Image{ index, mCommandBuffers.at(index) };
 }
 
-void Presentation::present(const AcquiredPresentationImage& presentationimage)
-{
-    const VkPresentInfoKHR info{
-        .sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-        .pNext              = nullptr,
-        .waitSemaphoreCount = 1,
-        .pWaitSemaphores    = &mRenderSemaphore,
-        .swapchainCount     = 1,
-        .pSwapchains        = &mSwapchain,
-        .pImageIndices      = &presentationimage.index,
-        .pResults           = nullptr,
-    };
-    const blk::Queue* queue = mPresentationQueues.at(0);
-    const VkResult result_present = vkQueuePresentKHR(*queue, &info);
-    CHECK(result_present);
-}
+// void Presentation::present(const AcquiredPresentationImage& presentationimage)
+// {
+//     const VkPresentInfoKHR info{
+//         .sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+//         .pNext              = nullptr,
+//         .waitSemaphoreCount = 1,
+//         .pWaitSemaphores    = &mRenderSemaphore,
+//         .swapchainCount     = 1,
+//         .pSwapchains        = &mSwapchain,
+//         .pImageIndices      = &presentationimage.index,
+//         .pResults           = nullptr,
+//     };
+//     const blk::Queue* queue = mPresentationQueues.at(0);
+//     const VkResult result_present = vkQueuePresentKHR(*queue, &info);
+//     CHECK(result_present);
+// }
 
 }

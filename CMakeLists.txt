@@ -74,6 +74,7 @@ include(CMakePackageConfigHelpers)
 ##############################
 
 find_package(Vulkan REQUIRED)
+find_package(range-v3 REQUIRED)
 
 ##############################
 ##     Imported Targets     ##
@@ -205,6 +206,7 @@ target_link_libraries(default-sample
         dearimgui
         utilities
         Vulkan::Vulkan
+        range-v3::range-v3
 )
 
 add_subdirectory(fonts)

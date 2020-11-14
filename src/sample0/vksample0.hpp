@@ -10,6 +10,7 @@
 #include "./vkpassscene.hpp"
 #include "./vkpassuioverlay.hpp"
 
+#include <span>
 #include <memory>
 
 namespace blk
@@ -52,10 +53,15 @@ namespace blk::sample0
 
         std::unique_ptr<blk::Memory> mDepthMemory;
 
+        std::vector<VkImageView>     mBackBufferViews;
+        std::vector<VkFramebuffer>   mFrameBuffers;
+
         Sample(
             blk::Engine& vkengine,
             VkFormat formatColor,
+            const std::span<VkImage>& backbufferimages,
             const VkExtent2D& resolution
         );
+        ~Sample();
     };
 }

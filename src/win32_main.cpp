@@ -3,10 +3,9 @@
 #include <windows.h>
 #include <shellapi.h>
 
-#include <imgui.h>
-
 #include <cassert>
 
+#include <limits>
 #include <chrono>
 #include <thread>
 
@@ -36,22 +35,9 @@
 
 #include "./sample0/vksample0.hpp"
 
-using namespace std::literals::chrono_literals;
-
 namespace
 {
     constexpr const VkExtent2D kResolution = { 1280, 720 };
-
-    // NVIDIA - https://developer.nvidia.com/blog/vulkan-dos-donts/
-    //  > Prefer using 24 bit depth formats for optimal performance
-    //  > Prefer using packed depth/stencil formats. This is a common cause for notable performance differences between an OpenGL and Vulkan implementation.
-    constexpr std::array kPreferredDepthFormats{
-        VK_FORMAT_D24_UNORM_S8_UINT,
-        VK_FORMAT_D16_UNORM_S8_UINT,
-        VK_FORMAT_D32_SFLOAT_S8_UINT,
-        VK_FORMAT_D16_UNORM,
-        VK_FORMAT_D32_SFLOAT,
-    };
 
     bool sResizing = false;
 
@@ -90,6 +76,8 @@ LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
 {
+    using namespace std::literals::chrono_literals;
+
     std::vector<std::string> args;
     {// command line
         int argc;
@@ -293,7 +281,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
     blk::Presentation presentation(engine, vksurface, kResolution);
 
-    blk::sample0::Sample sample(engine, presentation.mColorFormat, kResolution);
+    blk::sample0::Sample sample(engine, presentation.mColorFormat, presentation.mImages, kResolution);
 
     #if 0
     DearImGuiengine engine(application, vksurface, vkphysicaldevice, kResolution);
