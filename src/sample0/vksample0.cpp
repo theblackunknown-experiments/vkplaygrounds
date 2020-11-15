@@ -273,7 +273,7 @@ Sample::~Sample()
 void Sample::onIdle()
 {
     mPassUIOverlay.render_imgui_frame();
-    mPassUIOverlay.upload_frame_buffers();
+    mPassUIOverlay.upload_imgui_draw_data();
 }
 
 void Sample::record(std::uint32_t backbufferindex, VkCommandBuffer commandbuffer)

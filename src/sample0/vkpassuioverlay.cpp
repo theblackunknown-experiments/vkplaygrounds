@@ -671,6 +671,8 @@ void PassUIOverlay::render_imgui_frame()
             io.MouseDown[ImGuiMouseButton_Left  ] = mMouse.buttons.left;
             io.MouseDown[ImGuiMouseButton_Right ] = mMouse.buttons.right;
             io.MouseDown[ImGuiMouseButton_Middle] = mMouse.buttons.middle;
+            io.MouseWheel                         = mMouse.wheel.vdelta;
+            io.MouseWheelH                        = mMouse.wheel.hdelta;
 
             ImGui::NewFrame();
             {// Window
@@ -737,7 +739,7 @@ void PassUIOverlay::render_imgui_frame()
     }
 }
 
-void PassUIOverlay::upload_frame_buffers()
+void PassUIOverlay::upload_imgui_draw_data()
 {
     const ImDrawData* data = ImGui::GetDrawData();
     assert(data);

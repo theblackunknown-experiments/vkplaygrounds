@@ -454,27 +454,28 @@ LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
         {
             // TODO Fetch RenderArea
 
-            blk::Presentation::Image presentation_image = presentation.acquire_next(kTimeoutAcquirePresentationImage);
-            sample.record(presentation_image.index, presentation_image.commandbuffer);
+            // TODO
+            // blk::Presentation::Image presentation_image = presentation.acquire_next(kTimeoutAcquirePresentationImage);
+            // sample.record(presentation_image.index, presentation_image.commandbuffer);
 
-            VkSemaphore render_semaphore = sample.mRenderSemaphores.at(presentation_image.index);
+            // VkSemaphore render_semaphore = sample.mRenderSemaphores.at(presentation_image.index);
 
-            // TODO Figure out how we can use different queue for sample computations and presentation job
-            //  This probably means that we need to record computations with commandbuffers than ones from presentation
-            const blk::Queue* presentation_queue = presentation.mPresentationQueues.at(0);
-            engine.submit(
-                *presentation_queue,
-                { presentation_image.commandbuffer },
-                { presentation_image.semaphore },
-                { presentation_image.destination_stage_mask },
-                { render_semaphore }
-            );
+            // // TODO Figure out how we can use different queue for sample computations and presentation job
+            // //  This probably means that we need to record computations with commandbuffers than ones from presentation
+            // const blk::Queue* presentation_queue = presentation.mPresentationQueues.at(0);
+            // engine.submit(
+            //     *presentation_queue,
+            //     { presentation_image.commandbuffer },
+            //     { presentation_image.semaphore },
+            //     { presentation_image.destination_stage_mask },
+            //     { render_semaphore }
+            // );
 
-            presentation.present(presentation_image, render_semaphore);
+            // presentation.present(presentation_image, render_semaphore);
 
-            // NOTE We block to avoid override something in use (e.g. surface indexed VkCommandBuffer)
-            // TODO Block per command buffer, instead of a global lock for all of them
-            CHECK(vkQueueWaitIdle(*presentation_queue));
+            // // NOTE We block to avoid override something in use (e.g. surface indexed VkCommandBuffer)
+            // // TODO Block per command buffer, instead of a global lock for all of them
+            // CHECK(vkQueueWaitIdle(*presentation_queue));
 
             ValidateRect(hWnd, NULL);
             break;
@@ -559,14 +560,12 @@ LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
     case WM_MBUTTONUP:
         passui.mMouse.buttons.middle = false;
         break;
-    // case WM_MOUSEWHEEL:
-    // {
-    //     short wheelDelta = GET_WHEEL_DELTA_WPARAM(wParam);
-    //     zoom += (float)wheelDelta * 0.005f * zoomSpeed;
-    //     camera.translate(glm::vec3(0.0f, 0.0f, (float)wheelDelta * 0.005f * zoomSpeed));
-    //     viewUpdated = true;
-    //     break;
-    // }
+    case WM_MOUSEWHEEL:
+        passui.mMouse.wheel.vdelta += (float)GET_WHEEL_DELTA_WPARAM(wParam) / (float)WHEEL_DELTA;
+        return 0;
+    case WM_MOUSEHWHEEL:
+        passui.mMouse.wheel.hdelta += (float)GET_WHEEL_DELTA_WPARAM(wParam) / (float)WHEEL_DELTA;
+        return 0;
     case WM_MOUSEMOVE:
     {
         passui.mMouse.offset.x = static_cast<float>(LOWORD(lParam));
@@ -599,13 +598,13 @@ LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
             }
         }
         break;
-    // case WM_GETMINMAXINFO:
-    // {
-    //     LPMINMAXINFO minMaxInfo = (LPMINMAXINFO)lParam;
-    //     minMaxInfo->ptMinTrackSize.x = 64;
-    //     minMaxInfo->ptMinTrackSize.y = 64;
-    //     break;
-    // }
+    case WM_GETMINMAXINFO:
+    {
+        LPMINMAXINFO minMaxInfo = (LPMINMAXINFO)lParam;
+        minMaxInfo->ptMinTrackSize.x = kResolution.width;
+        minMaxInfo->ptMinTrackSize.y = kResolution.height;
+        break;
+    }
     case WM_ENTERSIZEMOVE:
         userdata->resizing = true;
         break;

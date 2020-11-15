@@ -47,12 +47,12 @@ namespace blk::sample0
         void initialize_graphic_pipelines();
 
         void render_imgui_frame();
+        void upload_imgui_draw_data();
 
         void upload_font_image(blk::Buffer& staging_buffer);
         void record_font_image_upload(VkCommandBuffer commandbuffer, const blk::Buffer& staging_buffer);
         void clear_font_image_transient_data();
 
-        void upload_frame_buffers();
         void record_pass(VkCommandBuffer commandbuffer) override;
 
         blk::Engine&                         mEngine;
@@ -128,6 +128,11 @@ namespace blk::sample0
                 float x = 0.0f;
                 float y = 0.0f;
             } offset;
+            struct Wheel
+            {
+                float vdelta = 0.0f;
+                float hdelta = 0.0f;
+            } wheel;
         } mMouse;
 
 
