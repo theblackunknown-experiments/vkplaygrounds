@@ -362,6 +362,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
             passui.render_imgui_frame();
         
             if (!sample.mShuttingDown)
+            {
+                passui.upload_frame_buffers();
                 if(!IsIconic(hWindow))
                 {
                     blk::Presentation::Image presentation_image = presentation.acquire_next(kTimeoutAcquirePresentationImage);
@@ -388,6 +390,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
                     // TODO Block per command buffer, instead of a global lock for all of them
                     CHECK(vkQueueWaitIdle(*presentation_queue));
                 }
+            }
     }
 
     vkDeviceWaitIdle(engine.mDevice);
