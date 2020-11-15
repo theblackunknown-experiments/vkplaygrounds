@@ -270,11 +270,6 @@ Sample::~Sample()
         vkDestroyImageView(mDevice, view, nullptr);
 }
 
-void Sample::render_imgui_frame()
-{
-    subpass<0>(mMultipass).render_imgui_frame();
-}
-
 void Sample::record(std::uint32_t backbufferindex, VkCommandBuffer commandbuffer)
 {
     constexpr VkCommandBufferBeginInfo info{

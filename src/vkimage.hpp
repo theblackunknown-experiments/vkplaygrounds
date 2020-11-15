@@ -99,7 +99,10 @@ namespace blk
         void destroy()
         {
             if (mImage != VK_NULL_HANDLE)
+            {
                 vkDestroyImage(mDevice, mImage, nullptr);
+                mImage = VK_NULL_HANDLE;
+            }
         }
 
         constexpr bool created() const
@@ -200,6 +203,7 @@ namespace blk
             if (mDevice != VK_NULL_HANDLE)
             {
                 vkDestroyImageView(mDevice, mImageView, nullptr);
+                mImageView = VK_NULL_HANDLE;
             }
         }
 

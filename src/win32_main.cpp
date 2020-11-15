@@ -41,6 +41,13 @@ namespace
 
     bool sResizing = false;
 
+    struct WindowUserData
+    {
+        blk::Engine& engine;
+        blk::Presentation& presentation;
+        blk::sample0::Sample& sample;
+    };
+
     // cf. https://stackoverflow.com/questions/215963/how-do-you-properly-use-widechartomultibyte
 
     // Convert a wide Unicode string to an UTF8 string
@@ -89,47 +96,58 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         LocalFree(wargv);
     }
 
-    {// console
-        auto success = AllocConsole();
-        assert(success);
-        SetConsoleTitle(TEXT("theblackunknown - Playground"));
+    struct ConsoleHolder
+    {
+        ConsoleHolder()   
+        {
+            auto success = AllocConsole();
+            assert(success);
+            SetConsoleTitle(TEXT("theblackunknown - Playground"));
 
-        // std::cout, std::clog, std::cerr, std::cin
-        FILE* dummy;
-        freopen_s(&dummy, "CONIN$" , "r", stdin);
-        freopen_s(&dummy, "CONOUT$", "w", stdout);
-        freopen_s(&dummy, "CONOUT$", "w", stderr);
+            // std::cout, std::clog, std::cerr, std::cin
+            FILE* dummy;
+            freopen_s(&dummy, "CONIN$" , "r", stdin);
+            freopen_s(&dummy, "CONOUT$", "w", stdout);
+            freopen_s(&dummy, "CONOUT$", "w", stderr);
 
-        std::cout.clear();
-        std::clog.clear();
-        std::cerr.clear();
-        std::cin.clear();
+            std::cout.clear();
+            std::clog.clear();
+            std::cerr.clear();
+            std::cin.clear();
 
-        // std::wcout, std::wclog, std::wcerr, std::wcin
-        HANDLE hConOut = CreateFile(
-            "CONOUT$",
-            GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
-            NULL,
-            OPEN_EXISTING,
-            FILE_ATTRIBUTE_NORMAL,
-            NULL
-        );
-        HANDLE hConIn = CreateFile(
-            "CONIN$",
-            GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
-            NULL,
-            OPEN_EXISTING,
-            FILE_ATTRIBUTE_NORMAL,
-            NULL
-        );
-        SetStdHandle(STD_INPUT_HANDLE, hConIn);
-        SetStdHandle(STD_OUTPUT_HANDLE, hConOut);
-        SetStdHandle(STD_ERROR_HANDLE, hConOut);
-        std::wcout.clear();
-        std::wclog.clear();
-        std::wcerr.clear();
-        std::wcin.clear();
-    }
+            // std::wcout, std::wclog, std::wcerr, std::wcin
+            HANDLE hConOut = CreateFile(
+                "CONOUT$",
+                GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                NULL,
+                OPEN_EXISTING,
+                FILE_ATTRIBUTE_NORMAL,
+                NULL
+            );
+            HANDLE hConIn = CreateFile(
+                "CONIN$",
+                GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                NULL,
+                OPEN_EXISTING,
+                FILE_ATTRIBUTE_NORMAL,
+                NULL
+            );
+            SetStdHandle(STD_INPUT_HANDLE, hConIn);
+            SetStdHandle(STD_OUTPUT_HANDLE, hConOut);
+            SetStdHandle(STD_ERROR_HANDLE, hConOut);
+            std::wcout.clear();
+            std::wclog.clear();
+            std::wcerr.clear();
+            std::wcin.clear();
+        }
+
+        ~ConsoleHolder()
+        {
+            FreeConsole();
+        }
+    };
+
+    ConsoleHolder console_holder;
 
     std::cout << "_MSC_VER        : " << _MSC_VER << std::endl;
     std::cout << "_MSC_FULL_VER   : " << _MSC_FULL_VER << std::endl;
@@ -283,6 +301,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
     blk::sample0::Sample sample(engine, presentation.mColorFormat, presentation.mImages, kResolution);
 
+    WindowUserData user_data{engine, presentation, sample};
+
     #if 0
     DearImGuiengine engine(application, vksurface, vkphysicaldevice, kResolution);
 
@@ -303,10 +323,33 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     SetForegroundWindow(hWindow);
     SetFocus(hWindow);
 
-    SetWindowLongPtr(hWindow, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(&engine));
+    SetWindowLongPtr(hWindow, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(&user_data));
     SetWindowLongPtr(hWindow, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(MainWindowProcedure));
 
+    constexpr auto kTimeoutAcquirePresentationImage = std::numeric_limits<std::uint64_t>::max();
+
+    auto& passui = subpass<0>(sample.mMultipass);
+    auto& passscene = subpass<1>(sample.mMultipass);
+
+    {// Font Image
+        const blk::Queue* queue = passui.mGraphicsQueue;
+
+        engine.submit(
+            *passui.mGraphicsQueue,
+            { passui.mFontImageStagingCommandBuffer },
+            { },
+            { },
+            { passui.mFontImageStagingSemaphore },
+            engine.mStagingFence);
+
+        // TODO Do not block on that fence, inject the font image update semaphore into later queue submission for synchronization
+        vkWaitForFences(engine.mDevice, 1, &(engine.mStagingFence), VK_TRUE, std::numeric_limits<std::uint64_t>::max());
+
+        passui.clear_font_image_transient_data();
+    }
+
     MSG msg = { };
+    sample.mReady = true;
     while (msg.message != WM_QUIT)
     {
         if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
@@ -315,41 +358,39 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
             DispatchMessage(&msg);
         }
 
-        sample.render_imgui_frame();
+        if (sample.mReady)
+            passui.render_imgui_frame();
         
-        if(!IsIconic(hWindow))
-        {
-            blk::Presentation::Image presentation_image = presentation.acquire_next(kTimeoutAcquirePresentationImage);
+            if (!sample.mShuttingDown)
+                if(!IsIconic(hWindow))
+                {
+                    blk::Presentation::Image presentation_image = presentation.acquire_next(kTimeoutAcquirePresentationImage);
 
-            VkSemaphore render_semaphore = sample.mRenderSemaphores.at(presentation_image.index);
+                    VkSemaphore render_semaphore = sample.mRenderSemaphores.at(presentation_image.index);
 
-            const blk::Queue* presentation_queue = presentation.mPresentationQueues.at(0);
+                    const blk::Queue* presentation_queue = presentation.mPresentationQueues.at(0);
 
-            sample.record(presentation_image.index, presentation_image.commandbuffer);
+                    sample.record(presentation_image.index, presentation_image.commandbuffer);
 
-            // TODO Figure out how we can use different queue for sample computations and presentation job
-            //  This probably means that we need to record computations with commandbuffers than ones from presentation
-            engine.submit(
-                *presentation_queue,
-                presentation_image.commandbuffer,
-                presentation_image.semaphore,
-                presentation_image.destination_stage_mask,
-                render_semaphore
-            );
+                    // TODO Figure out how we can use different queue for sample computations and presentation job
+                    //  This probably means that we need to record computations with commandbuffers than ones from presentation
+                    engine.submit(
+                        *presentation_queue,
+                        { presentation_image.commandbuffer },
+                        { presentation_image.semaphore },
+                        { presentation_image.destination_stage_mask },
+                        { render_semaphore }
+                    );
 
-            presentation.present(presentation_image, render_semaphore);
+                    presentation.present(presentation_image, render_semaphore);
 
-            // NOTE We block to avoid override something in use (e.g. surface indexed VkCommandBuffer)
-            // TODO Block per command buffer, instead of a global lock for all of them
-            CHECK(vkQueueWaitIdle(*presentation_queue));
-        }
+                    // NOTE We block to avoid override something in use (e.g. surface indexed VkCommandBuffer)
+                    // TODO Block per command buffer, instead of a global lock for all of them
+                    CHECK(vkQueueWaitIdle(*presentation_queue));
+                }
     }
 
-    #if 0
-    engine.wait_pending_operations();
-    #endif
-
-    FreeConsole();
+    vkDeviceWaitIdle(engine.mDevice);
 
     return static_cast<int>(msg.wParam);
 }
@@ -380,11 +421,24 @@ LRESULT CALLBACK MinimalWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPA
 
 LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-    blk::Engine* engine = reinterpret_cast<blk::Engine*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
-    assert(engine);
+    WindowUserData* userdata = reinterpret_cast<WindowUserData*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
+    assert(userdata);
+
+    blk::Engine& engine = userdata->engine;
+    blk::Presentation& presentation = userdata->presentation;
+    blk::sample0::Sample& sample = userdata->sample;
 
     switch (uMsg)
     {
+    case WM_CREATE:
+        sample.mReady = true;
+        return MinimalWindowProcedure(hWnd, uMsg, wParam, lParam);
+    case WM_QUIT:
+    case WM_CLOSE:
+    case WM_DESTROY:
+        sample.mReady = false;
+        sample.mShuttingDown = true;
+        return MinimalWindowProcedure(hWnd, uMsg, wParam, lParam);
     case WM_PAINT:
         // TODO Fetch RenderArea
         #if 0
@@ -403,9 +457,8 @@ LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
     //             UIOverlay.visible = !UIOverlay.visible;
     //         }
     //         break;
-        case VK_ESCAPE:
-            PostQuitMessage(0);
-            break;
+        default:
+            return MinimalWindowProcedure(hWnd, uMsg, wParam, lParam);
         }
 
     //     if (camera.firstperson)

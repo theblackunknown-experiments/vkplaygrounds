@@ -7,6 +7,7 @@
 #include "../vkengine.hpp"
 
 #include "../vkmemory.hpp"
+#include "../vkqueue.hpp"
 
 #include "font.hpp"
 #include "ui-shader.hpp"
@@ -68,9 +69,6 @@ PassUIOverlay::PassUIOverlay(const blk::RenderPass& renderpass, std::uint32_t su
 
     , mVertexBuffer(kInitialVertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)
     , mIndexBuffer(kInitialIndexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT)
-
-    , mFontImage()
-    , mFontImageView()
 {
     {// Dear ImGui
         IMGUI_CHECKVERSION();
@@ -233,17 +231,29 @@ PassUIOverlay::PassUIOverlay(const blk::RenderPass& renderpass, std::uint32_t su
     {// Buffers
         mVertexBuffer.create(mDevice);
         mIndexBuffer.create(mDevice);
+        {// Font Image Buffer
+            ImGuiIO& io = ImGui::GetIO();
+
+            int width = 0, height = 0;
+            unsigned char* data = nullptr;
+            io.Fonts->GetTexDataAsAlpha8(&data, &width, &height);
+
+            mFontImageStagingBuffer = blk::Buffer(width * height * sizeof(unsigned char), VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+            mFontImageStagingBuffer.create(mDevice);
+        }
     }
     {// Memories
         auto vkphysicaldevice = *(mDevice.mPhysicalDevice);
 
-        auto memory_type_index  = vkphysicaldevice.mMemories.find_compatible(mVertexBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-        auto memory_type_vertex = vkphysicaldevice.mMemories.find_compatible(mIndexBuffer , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-        auto memory_type_font   = vkphysicaldevice.mMemories.find_compatible(mFontImage   , 0);
+        auto memory_type_index   = vkphysicaldevice.mMemories.find_compatible(mVertexBuffer          , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        auto memory_type_vertex  = vkphysicaldevice.mMemories.find_compatible(mIndexBuffer           , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        auto memory_type_font    = vkphysicaldevice.mMemories.find_compatible(mFontImage             , 0);
+        auto memory_type_staging = vkphysicaldevice.mMemories.find_compatible(mFontImageStagingBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-        assert(memory_type_index );
-        assert(memory_type_vertex);
-        assert(memory_type_font  );
+        assert(memory_type_index  );
+        assert(memory_type_vertex );
+        assert(memory_type_font   );
+        assert(memory_type_staging);
 
         if (memory_type_index == memory_type_vertex)
         {
@@ -268,6 +278,10 @@ PassUIOverlay::PassUIOverlay(const blk::RenderPass& renderpass, std::uint32_t su
         mFontMemory = std::make_unique<blk::Memory>(*memory_type_font, mFontImage.mRequirements.size);
         mFontMemory->allocate(mDevice);
         mFontMemory->bind(mFontImage);
+
+        mStagingMemory = std::make_unique<blk::Memory>(*memory_type_staging, mFontImageStagingBuffer.mRequirements.size);
+        mStagingMemory->allocate(mDevice);
+        mStagingMemory->bind(mFontImageStagingBuffer);
     }
     {// Image Views
         mFontImageView = blk::ImageView(
@@ -310,13 +324,118 @@ PassUIOverlay::PassUIOverlay(const blk::RenderPass& renderpass, std::uint32_t su
         };
         CHECK(vkCreatePipelineCache(mDevice, &info, nullptr, &mPipelineCache));
     }
+    {// Queues / Command Pool
+        assert(!mEngine.mGraphicsQueues.empty());
+
+        mGraphicsQueue = mEngine.mGraphicsQueues.at(0);
+
+        {// Command Pools
+            const VkCommandPoolCreateInfo info{
+                .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+                .pNext            = nullptr,
+                .flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+                .queueFamilyIndex = mGraphicsQueue->mFamily.mIndex,
+            };
+            CHECK(vkCreateCommandPool(mDevice, &info, nullptr, &mGraphicsCommandPoolGeneral));
+        }
+        {// Command Pools - One Off
+            const VkCommandPoolCreateInfo info{
+                .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+                .pNext            = nullptr,
+                .flags            = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
+                .queueFamilyIndex = mGraphicsQueue->mFamily.mIndex,
+            };
+            CHECK(vkCreateCommandPool(mDevice, &info, nullptr, &mGraphicsCommandPoolTransient));
+        }
+
+        if (!mEngine.mComputeQueues.empty())
+        {
+            mComputeQueue = mEngine.mComputeQueues.at(0);
+            {// Command Pools
+                const VkCommandPoolCreateInfo info{
+                    .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+                    .pNext            = nullptr,
+                    .flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+                    .queueFamilyIndex = mComputeQueue->mFamily.mIndex,
+                };
+                CHECK(vkCreateCommandPool(mDevice, &info, nullptr, &mComputeCommandPool));
+            }
+        }
+        if (!mEngine.mTransferQueues.empty())
+        {
+            mTransferQueue = mEngine.mTransferQueues.at(0);
+            {// Command Pools
+                const VkCommandPoolCreateInfo info{
+                    .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+                    .pNext            = nullptr,
+                    .flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+                    .queueFamilyIndex = mTransferQueue->mFamily.mIndex,
+                };
+                CHECK(vkCreateCommandPool(mDevice, &info, nullptr, &mTransferCommandPool));
+            }
+        }
+    }
+    {// Command Buffers
+        const VkCommandBufferAllocateInfo info{
+            .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            .pNext              = nullptr,
+            .commandPool        = mGraphicsCommandPoolTransient,
+            .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            .commandBufferCount = 1,
+        };
+        CHECK(vkAllocateCommandBuffers(mDevice, &info, &mFontImageStagingCommandBuffer));
+    }
+    {// Fences
+        const VkFenceCreateInfo info{
+            .sType              = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+            .pNext              = nullptr,
+            .flags              = 0,
+        };
+        CHECK(vkCreateFence(mDevice, &info, nullptr, &mFontImageStagingFence));
+    }
+    {// Semaphore
+        const VkSemaphoreTypeCreateInfo info_type{
+            .sType         = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
+            .pNext         = nullptr,
+            .semaphoreType = VK_SEMAPHORE_TYPE_BINARY,
+            .initialValue  = 0,
+        };
+        const VkSemaphoreCreateInfo info_semaphore{
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+            .pNext = &info_type,
+            .flags = 0,
+        };
+        CHECK(vkCreateSemaphore(mDevice, &info_semaphore, nullptr, &mFontImageStagingSemaphore));
+    }
     initialize_graphic_pipelines();
 
     mFrameTick = mStartTick = std::chrono::high_resolution_clock::now();
+
+    upload_font_image(mFontImageStagingBuffer);
+    {
+        constexpr VkCommandBufferBeginInfo info{
+            .sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .pNext            = nullptr,
+            .flags            = 0,
+            .pInheritanceInfo = nullptr,
+        };
+        CHECK(vkBeginCommandBuffer(mFontImageStagingCommandBuffer, &info));
+        
+        record_font_image_upload(mFontImageStagingCommandBuffer, mFontImageStagingBuffer);
+        CHECK(vkEndCommandBuffer(mFontImageStagingCommandBuffer));
+    }
 }
 
 PassUIOverlay::~PassUIOverlay()
 {
+    vkDestroySemaphore(mDevice, mFontImageStagingSemaphore, nullptr);
+    vkDestroyFence(mDevice, mFontImageStagingFence, nullptr);
+
+    vkDestroyCommandPool(mDevice, mGraphicsCommandPoolTransient, nullptr);
+    vkDestroyCommandPool(mDevice, mGraphicsCommandPoolGeneral, nullptr);
+    vkDestroyCommandPool(mDevice, mTransferCommandPool, nullptr);
+    vkDestroyCommandPool(mDevice, mComputeCommandPool, nullptr);
+
     vkDestroyPipeline(mDevice, mPipeline, nullptr);
 
     vkDestroyDescriptorPool(mDevice, mDescriptorPool, nullptr);
@@ -918,6 +1037,20 @@ void PassUIOverlay::record_font_image_upload(VkCommandBuffer commandbuffer, cons
             1, &imagebarrier
         );
     }
+}
+
+void PassUIOverlay::clear_font_image_transient_data()
+{
+    mFontImageStagingBuffer.destroy();
+
+    vkDestroyFence(mDevice, mFontImageStagingFence, nullptr);
+    mFontImageStagingFence = VK_NULL_HANDLE;
+
+    vkDestroySemaphore(mDevice, mFontImageStagingSemaphore, nullptr);
+    mFontImageStagingSemaphore = VK_NULL_HANDLE;
+
+    vkFreeCommandBuffers(mDevice, mGraphicsCommandPoolTransient, 1, &mFontImageStagingCommandBuffer);
+    mFontImageStagingCommandBuffer = VK_NULL_HANDLE;
 }
 
 }

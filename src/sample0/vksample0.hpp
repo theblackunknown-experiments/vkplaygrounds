@@ -57,6 +57,9 @@ namespace blk::sample0
         std::vector<VkImageView>     mBackBufferViews;
         std::vector<VkFramebuffer>   mFrameBuffers;
 
+        bool                         mReady = false;
+        bool                         mShuttingDown = false;
+
         Sample(
             blk::Engine& vkengine,
             VkFormat formatColor,
@@ -65,7 +68,6 @@ namespace blk::sample0
         );
         ~Sample();
 
-        void render_imgui_frame();
         void record(std::uint32_t backbufferindex, VkCommandBuffer commandbuffer);
     };
 }

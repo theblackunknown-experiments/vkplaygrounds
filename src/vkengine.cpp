@@ -23,8 +23,6 @@
 
 #include <array>
 #include <vector>
-#include <variant>
-#include <unordered_map>
 
 namespace
 {
@@ -253,8 +251,10 @@ Engine::Engine(
     }
     {// Pools
         assert(!mTransferQueues.empty());
+        assert(!mGraphicsQueues.empty());
         assert(!mPresentationQueues.empty());
         const blk::Queue* transfer_queue = mTransferQueues.at(0);
+        const blk::Queue* graphic_queue = mGraphicsQueues.at(0);
         const blk::Queue* presentation_queue = mPresentationQueues.at(0);
         {// Command Pools
             const VkCommandPoolCreateInfo info{
@@ -270,7 +270,7 @@ Engine::Engine(
                 .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
                 .pNext            = nullptr,
                 .flags            = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
-                .queueFamilyIndex = transfer_queue->mFamily.mIndex,
+                .queueFamilyIndex = graphic_queue->mFamily.mIndex,
             };
             CHECK(vkCreateCommandPool(mDevice, &info, nullptr, &mTransferCommandPool));
         }
@@ -333,92 +333,50 @@ Engine::~Engine()
     vkDestroyPipelineCache(mDevice, mPipelineCache, nullptr);
 }
 
-void Engine::allocate_memory_and_bind_resources(
-    std::span<std::tuple<blk::Buffer*, VkMemoryPropertyFlags>> buffers,
-    std::span<std::tuple<blk::Image*, VkMemoryPropertyFlags>> images)
-{
-    struct Resources
-    {
-        std::vector<blk::Image*> images;
-        std::vector<blk::Buffer*> buffers;
-    };
-
-    // group resource by memory type
-    std::unordered_map<const blk::MemoryType*, Resources> resources_by_types;
-
-    for (auto&& [resource, flags] : images)
-    {
-        auto memory_type = mPhysicalDevice.mMemories.find_compatible(*resource, flags);
-        assert(memory_type);
-        resources_by_types[memory_type].images.push_back(resource);
-    }
-    for (auto&& [resource, flags] : buffers)
-    {
-        auto memory_type = mPhysicalDevice.mMemories.find_compatible(*resource, flags);
-        assert(memory_type);
-        resources_by_types[memory_type].buffers.push_back(resource);
-    }
-
-    mMemoryChunks.reserve(mMemoryChunks.capacity() + resources_by_types.size());
-    for(auto&& entry : resources_by_types)
-    {
-        const VkDeviceSize required_size_images = std::/*ranges::*/accumulate(
-            std::begin(entry.second.images), std::end(entry.second.images),
-            VkDeviceSize{0},
-            [](VkDeviceSize size, const blk::Image* image) -> VkDeviceSize{
-                return size + image->mRequirements.size;
-            }
-        );
-        const VkDeviceSize required_size_buffers = std::/*ranges::*/accumulate(
-            std::begin(entry.second.buffers), std::end(entry.second.buffers),
-            VkDeviceSize{0},
-            [](VkDeviceSize size, const blk::Buffer* buffer) -> VkDeviceSize{
-                return size + buffer->mRequirements.size;
-            }
-        );
-
-        auto& chunk = mMemoryChunks.emplace_back(
-            std::make_unique<blk::Memory>(*entry.first, required_size_images + required_size_buffers)
-        );
-        chunk->allocate(mDevice);
-        if (!entry.second.images.empty())
-            chunk->bind(entry.second.images);
-        if (!entry.second.buffers.empty())
-            chunk->bind(entry.second.buffers);
-    }
-}
-
-void Engine::submit(VkQueue vkqueue, VkCommandBuffer vkcommandbuffer, VkFence vkfence)
+void Engine::submit(
+        VkQueue vkqueue,
+        const std::span<const VkCommandBuffer>& vkcommandbuffers,
+        const std::span<const VkSemaphore>& vkwait_semaphores,
+        const std::span<const VkPipelineStageFlags>& vkwait_stages,
+        const std::span<const VkSemaphore>& vksignal_semaphores,
+        VkFence vkfence)
 {
     const std::array infos{
         VkSubmitInfo{
             .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
             .pNext                = nullptr,
-            .waitSemaphoreCount   = 0,
-            .commandBufferCount   = 1,
-            .pCommandBuffers      = &vkcommandbuffer,
-            .signalSemaphoreCount = 0,
+            .waitSemaphoreCount   = (std::uint32_t)vkwait_semaphores.size(),
+            .pWaitSemaphores      = vkwait_semaphores.data(),
+            .pWaitDstStageMask    = vkwait_stages.data(),
+            .commandBufferCount   = (std::uint32_t)vkcommandbuffers.size(),
+            .pCommandBuffers      = vkcommandbuffers.data(),
+            .signalSemaphoreCount = (std::uint32_t)vksignal_semaphores.size(),
+            .pSignalSemaphores    = vksignal_semaphores.data(),
         }
     };
     CHECK(vkQueueSubmit(vkqueue, infos.size(), infos.data(), vkfence));
 }
 
-void Engine::submit(VkQueue vkqueue, VkCommandBuffer vkcommandbuffer, VkSemaphore vkwait_semaphore, VkPipelineStageFlags vkwait_stage, VkSemaphore vksignal_semaphore, VkFence vkfence)
+void Engine::submit(
+        VkQueue vkqueue,
+        const std::initializer_list<VkCommandBuffer>& vkcommandbuffers,
+        const std::initializer_list<VkSemaphore>& vkwait_semaphores,
+        const std::initializer_list<VkPipelineStageFlags>& vkwait_stages,
+        const std::initializer_list<VkSemaphore>& vksignal_semaphores,
+        VkFence vkfence)
 {
-    const std::array infos{
-        VkSubmitInfo{
-            .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-            .pNext                = nullptr,
-            .waitSemaphoreCount   = 1,
-            .pWaitSemaphores      = &vkwait_semaphore,
-            .pWaitDstStageMask    = &vkwait_stage,
-            .commandBufferCount   = 1,
-            .pCommandBuffers      = &vkcommandbuffer,
-            .signalSemaphoreCount = 1,
-            .pSignalSemaphores    = &vksignal_semaphore,
-        }
-    };
-    CHECK(vkQueueSubmit(vkqueue, infos.size(), infos.data(), vkfence));
+    std::vector<VkCommandBuffer> commandbuffers(std::begin(vkcommandbuffers), std::end(vkcommandbuffers));
+    std::vector<VkSemaphore> wait_semaphores(std::begin(vkwait_semaphores), std::end(vkwait_semaphores));
+    std::vector<VkPipelineStageFlags> wait_stages(std::begin(vkwait_stages), std::end(vkwait_stages));
+    std::vector<VkSemaphore> signal_semaphores(std::begin(vksignal_semaphores), std::end(vksignal_semaphores));
+    submit(
+        vkqueue,
+        std::span<VkCommandBuffer>(commandbuffers),
+        std::span<VkSemaphore>(wait_semaphores),
+        std::span<VkPipelineStageFlags>(wait_stages),
+        std::span<VkSemaphore>(signal_semaphores),
+        vkfence
+    );
 }
 
 void Engine::wait_staging_operations()

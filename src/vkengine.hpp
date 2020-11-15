@@ -8,9 +8,11 @@
 #include <tuple>
 #include <memory>
 
+#include <span>
 #include <array>
 #include <chrono>
 #include <vector>
+#include <initializer_list>
 
 #include "./vkutilities.hpp"
 #include "./vkdevice.hpp"
@@ -36,15 +38,23 @@ struct Engine
         const std::span<VkDeviceQueueCreateInfo>& info_queues);
     ~Engine();
 
-    [[deprecated("although useful for debugging, but it is recommended to manage your memory lifetime/binding yourself")]]
-    void allocate_memory_and_bind_resources(
-        std::span<std::tuple<blk::Buffer*, VkMemoryPropertyFlags>> buffers,
-        std::span<std::tuple<blk::Image*, VkMemoryPropertyFlags>> images);
+    static
+    void submit(
+        VkQueue vkqueue,
+        const std::initializer_list<VkCommandBuffer>& vkcommandbuffers,
+        const std::initializer_list<VkSemaphore>& vkwait_semaphores,
+        const std::initializer_list<VkPipelineStageFlags>& vkwait_stages,
+        const std::initializer_list<VkSemaphore>& vksignal_semaphores,
+        VkFence vkfence = VK_NULL_HANDLE);
 
     static
-    void submit(VkQueue vkqueue, VkCommandBuffer vkcommandbuffer, VkFence vkfence = VK_NULL_HANDLE);
-    static
-    void submit(VkQueue vkqueue, VkCommandBuffer vkcommandbuffer, VkSemaphore vkwait_semaphore, VkPipelineStageFlags vkwait_stage, VkSemaphore vksignal_semaphore, VkFence vkfence = VK_NULL_HANDLE);
+    void submit(
+        VkQueue vkqueue,
+        const std::span<const VkCommandBuffer>& vkcommandbuffers,
+        const std::span<const VkSemaphore>& vkwait_semaphores,
+        const std::span<const VkPipelineStageFlags>& vkwait_stages,
+        const std::span<const VkSemaphore>& vksignal_semaphores,
+        VkFence vkfence = VK_NULL_HANDLE);
 
     void wait_staging_operations();
 

@@ -22,6 +22,7 @@ namespace blk
 {
     struct Engine;
     struct Memory;
+    struct Queue;
 }
 
 namespace blk::sample0
@@ -47,11 +48,12 @@ namespace blk::sample0
 
         void render_imgui_frame();
 
-        void upload_frame_buffers();
         void upload_font_image(blk::Buffer& staging_buffer);
-
-        void record_pass(VkCommandBuffer commandbuffer) override;
         void record_font_image_upload(VkCommandBuffer commandbuffer, const blk::Buffer& staging_buffer);
+        void clear_font_image_transient_data();
+
+        void upload_frame_buffers();
+        void record_pass(VkCommandBuffer commandbuffer) override;
 
         blk::Engine&                         mEngine;
         const blk::Device&                   mDevice;
@@ -78,6 +80,23 @@ namespace blk::sample0
         std::unique_ptr<blk::Memory>         mIndexMemory;
         std::unique_ptr<blk::Memory>         mVertexMemory;
         std::unique_ptr<blk::Memory>         mFontMemory;
+        std::unique_ptr<blk::Memory>         mStagingMemory;
+
+        blk::Queue*                          mComputeQueue = nullptr;
+        blk::Queue*                          mTransferQueue = nullptr;
+        blk::Queue*                          mGraphicsQueue = nullptr;
+        
+        VkCommandPool                        mComputeCommandPool  = VK_NULL_HANDLE;
+        VkCommandPool                        mTransferCommandPool = VK_NULL_HANDLE;
+
+        VkCommandPool                        mGraphicsCommandPoolGeneral = VK_NULL_HANDLE;
+        VkCommandPool                        mGraphicsCommandPoolTransient = VK_NULL_HANDLE;
+
+        // Font Image Transient Data
+        blk::Buffer                          mFontImageStagingBuffer;
+        VkFence                              mFontImageStagingFence         = VK_NULL_HANDLE;
+        VkSemaphore                          mFontImageStagingSemaphore     = VK_NULL_HANDLE;
+        VkCommandBuffer                      mFontImageStagingCommandBuffer = VK_NULL_HANDLE;
 
         std::chrono::time_point<std::chrono::high_resolution_clock> mStartTick;
         std::chrono::time_point<std::chrono::high_resolution_clock> mFrameTick;
