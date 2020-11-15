@@ -270,6 +270,12 @@ Sample::~Sample()
         vkDestroyImageView(mDevice, view, nullptr);
 }
 
+void Sample::onIdle()
+{
+    mPassUIOverlay.render_imgui_frame();
+    mPassUIOverlay.upload_frame_buffers();
+}
+
 void Sample::record(std::uint32_t backbufferindex, VkCommandBuffer commandbuffer)
 {
     constexpr VkCommandBufferBeginInfo info{

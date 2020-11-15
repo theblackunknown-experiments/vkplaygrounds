@@ -57,9 +57,6 @@ namespace blk::sample0
         std::vector<VkImageView>     mBackBufferViews;
         std::vector<VkFramebuffer>   mFrameBuffers;
 
-        bool                         mReady = false;
-        bool                         mShuttingDown = false;
-
         Sample(
             blk::Engine& vkengine,
             VkFormat formatColor,
@@ -67,6 +64,10 @@ namespace blk::sample0
             const VkExtent2D& resolution
         );
         ~Sample();
+
+        void onIdle();
+
+        void onKeyPressed(std::uint32_t backbufferindex, VkCommandBuffer commandbuffer);
 
         void record(std::uint32_t backbufferindex, VkCommandBuffer commandbuffer);
     };

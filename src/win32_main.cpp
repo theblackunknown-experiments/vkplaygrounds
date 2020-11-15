@@ -38,14 +38,16 @@
 namespace
 {
     constexpr const VkExtent2D kResolution = { 1280, 720 };
-
-    bool sResizing = false;
+    constexpr auto kTimeoutAcquirePresentationImage = std::numeric_limits<std::uint64_t>::max();
 
     struct WindowUserData
     {
         blk::Engine& engine;
         blk::Presentation& presentation;
         blk::sample0::Sample& sample;
+        bool& ready;
+        bool& shutting_down;
+        bool& resizing;
     };
 
     // cf. https://stackoverflow.com/questions/215963/how-do-you-properly-use-widechartomultibyte
@@ -301,7 +303,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
     blk::sample0::Sample sample(engine, presentation.mColorFormat, presentation.mImages, kResolution);
 
-    WindowUserData user_data{engine, presentation, sample};
+    bool ready = false;
+    bool shutting_down = false;
+    bool resizing = false;
+    WindowUserData user_data{engine, presentation, sample, ready, shutting_down, resizing};
 
     #if 0
     DearImGuiengine engine(application, vksurface, vkphysicaldevice, kResolution);
@@ -326,10 +331,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     SetWindowLongPtr(hWindow, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(&user_data));
     SetWindowLongPtr(hWindow, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(MainWindowProcedure));
 
-    constexpr auto kTimeoutAcquirePresentationImage = std::numeric_limits<std::uint64_t>::max();
-
-    auto& passui = subpass<0>(sample.mMultipass);
-    auto& passscene = subpass<1>(sample.mMultipass);
+    auto& passui = sample.mPassUIOverlay;
+    auto& passscene = sample.mPassScene;
 
     {// Font Image
         const blk::Queue* queue = passui.mGraphicsQueue;
@@ -340,16 +343,18 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
             { },
             { },
             { passui.mFontImageStagingSemaphore },
-            engine.mStagingFence);
+            passui.mFontImageStagingFence);
 
         // TODO Do not block on that fence, inject the font image update semaphore into later queue submission for synchronization
-        vkWaitForFences(engine.mDevice, 1, &(engine.mStagingFence), VK_TRUE, std::numeric_limits<std::uint64_t>::max());
+        vkWaitForFences(engine.mDevice, 1, &(passui.mFontImageStagingFence), VK_TRUE, std::numeric_limits<std::uint64_t>::max());
 
         passui.clear_font_image_transient_data();
     }
 
+    ready = true;
+    const blk::Queue* presentation_queue = presentation.mPresentationQueues.at(0);
+
     MSG msg = { };
-    sample.mReady = true;
     while (msg.message != WM_QUIT)
     {
         if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
@@ -358,21 +363,17 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
             DispatchMessage(&msg);
         }
 
-        if (sample.mReady)
-            passui.render_imgui_frame();
+        if (ready)
+            sample.onIdle();
         
-            if (!sample.mShuttingDown)
+            if (!shutting_down)
             {
-                passui.upload_frame_buffers();
                 if(!IsIconic(hWindow))
                 {
                     blk::Presentation::Image presentation_image = presentation.acquire_next(kTimeoutAcquirePresentationImage);
+                    sample.record(presentation_image.index, presentation_image.commandbuffer);
 
                     VkSemaphore render_semaphore = sample.mRenderSemaphores.at(presentation_image.index);
-
-                    const blk::Queue* presentation_queue = presentation.mPresentationQueues.at(0);
-
-                    sample.record(presentation_image.index, presentation_image.commandbuffer);
 
                     // TODO Figure out how we can use different queue for sample computations and presentation job
                     //  This probably means that we need to record computations with commandbuffers than ones from presentation
@@ -431,24 +432,53 @@ LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
     blk::Presentation& presentation = userdata->presentation;
     blk::sample0::Sample& sample = userdata->sample;
 
+    auto& passui = sample.mPassUIOverlay;
+    auto& passscene = sample.mPassScene;
+
     switch (uMsg)
     {
     case WM_CREATE:
-        sample.mReady = true;
-        return MinimalWindowProcedure(hWnd, uMsg, wParam, lParam);
+        {
+            userdata->ready = true;
+            return MinimalWindowProcedure(hWnd, uMsg, wParam, lParam);
+        }
     case WM_QUIT:
     case WM_CLOSE:
     case WM_DESTROY:
-        sample.mReady = false;
-        sample.mShuttingDown = true;
-        return MinimalWindowProcedure(hWnd, uMsg, wParam, lParam);
+        {
+            userdata->ready = false;
+            userdata->shutting_down = true;
+            return MinimalWindowProcedure(hWnd, uMsg, wParam, lParam);
+        }
     case WM_PAINT:
-        // TODO Fetch RenderArea
-        #if 0
-        engine->render_frame();
-        #endif
-        ValidateRect(hWnd, NULL);
-        break;
+        {
+            // TODO Fetch RenderArea
+
+            blk::Presentation::Image presentation_image = presentation.acquire_next(kTimeoutAcquirePresentationImage);
+            sample.record(presentation_image.index, presentation_image.commandbuffer);
+
+            VkSemaphore render_semaphore = sample.mRenderSemaphores.at(presentation_image.index);
+
+            // TODO Figure out how we can use different queue for sample computations and presentation job
+            //  This probably means that we need to record computations with commandbuffers than ones from presentation
+            const blk::Queue* presentation_queue = presentation.mPresentationQueues.at(0);
+            engine.submit(
+                *presentation_queue,
+                { presentation_image.commandbuffer },
+                { presentation_image.semaphore },
+                { presentation_image.destination_stage_mask },
+                { render_semaphore }
+            );
+
+            presentation.present(presentation_image, render_semaphore);
+
+            // NOTE We block to avoid override something in use (e.g. surface indexed VkCommandBuffer)
+            // TODO Block per command buffer, instead of a global lock for all of them
+            CHECK(vkQueueWaitIdle(*presentation_queue));
+
+            ValidateRect(hWnd, NULL);
+            break;
+        }
     case WM_KEYDOWN:
         switch (wParam)
         {
@@ -505,30 +535,29 @@ LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
     //         }
     //     }
     //     break;
-    #if 0
     case WM_LBUTTONDOWN:
-        engine->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
-        engine->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
-        engine->mMouse.buttons.left = true;
+        passui.mMouse.offset.x = static_cast<float>(LOWORD(lParam));
+        passui.mMouse.offset.y = static_cast<float>(HIWORD(lParam));
+        passui.mMouse.buttons.left = true;
         break;
     case WM_RBUTTONDOWN:
-        engine->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
-        engine->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
-        engine->mMouse.buttons.right = true;
+        passui.mMouse.offset.x = static_cast<float>(LOWORD(lParam));
+        passui.mMouse.offset.y = static_cast<float>(HIWORD(lParam));
+        passui.mMouse.buttons.right = true;
         break;
     case WM_MBUTTONDOWN:
-        engine->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
-        engine->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
-        engine->mMouse.buttons.middle = true;
+        passui.mMouse.offset.x = static_cast<float>(LOWORD(lParam));
+        passui.mMouse.offset.y = static_cast<float>(HIWORD(lParam));
+        passui.mMouse.buttons.middle = true;
         break;
     case WM_LBUTTONUP:
-        engine->mMouse.buttons.left = false;
+        passui.mMouse.buttons.left = false;
         break;
     case WM_RBUTTONUP:
-        engine->mMouse.buttons.right = false;
+        passui.mMouse.buttons.right = false;
         break;
     case WM_MBUTTONUP:
-        engine->mMouse.buttons.middle = false;
+        passui.mMouse.buttons.middle = false;
         break;
     // case WM_MOUSEWHEEL:
     // {
@@ -540,15 +569,14 @@ LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
     // }
     case WM_MOUSEMOVE:
     {
-        engine->mMouse.offset.x = static_cast<float>(LOWORD(lParam));
-        engine->mMouse.offset.y = static_cast<float>(HIWORD(lParam));
+        passui.mMouse.offset.x = static_cast<float>(LOWORD(lParam));
+        passui.mMouse.offset.y = static_cast<float>(HIWORD(lParam));
         break;
     }
-    #endif
     case WM_SIZE:
         if (wParam != SIZE_MINIMIZED)
         {
-            if ((sResizing) || ((wParam == SIZE_MAXIMIZED) || (wParam == SIZE_RESTORED)))
+            if ((userdata->resizing) || ((wParam == SIZE_MAXIMIZED) || (wParam == SIZE_RESTORED)))
             {
                 #if 0
                 // TODO Update Camera
@@ -579,10 +607,10 @@ LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
     //     break;
     // }
     case WM_ENTERSIZEMOVE:
-        sResizing = true;
+        userdata->resizing = true;
         break;
     case WM_EXITSIZEMOVE:
-        sResizing = false;
+        userdata->resizing = false;
         break;
     default:
         return MinimalWindowProcedure(hWnd, uMsg, wParam, lParam);
