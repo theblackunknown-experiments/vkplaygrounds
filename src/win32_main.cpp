@@ -308,22 +308,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     bool resizing = false;
     WindowUserData user_data{engine, presentation, sample, ready, shutting_down, resizing};
 
-    #if 0
-    DearImGuiengine engine(application, vksurface, vkphysicaldevice, kResolution);
-
-    engine.allocate_memory_and_bind_resources();
-
-    engine.initialize_views();
-
-    engine.create_swapchain();
-    engine.create_framebuffers();
-    engine.create_commandbuffers();
-    engine.create_graphic_pipelines();
-
-    engine.upload_font_image();
-    engine.update_descriptorset();
-    #endif
-
     ShowWindow(hWindow, nCmdShow);
     SetForegroundWindow(hWindow);
     SetFocus(hWindow);
@@ -385,11 +369,23 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
                         { render_semaphore }
                     );
 
-                    presentation.present(presentation_image, render_semaphore);
-
+                    auto result_present = presentation.present(presentation_image, render_semaphore);
                     // NOTE We block to avoid override something in use (e.g. surface indexed VkCommandBuffer)
                     // TODO Block per command buffer, instead of a global lock for all of them
                     CHECK(vkQueueWaitIdle(*presentation_queue));
+
+                    if ((result_present == VK_SUBOPTIMAL_KHR) || (result_present == VK_ERROR_OUT_OF_DATE_KHR))
+                    {
+                        vkDeviceWaitIdle(engine.mDevice);
+                        auto new_resolution = presentation.recreate_swapchain();
+
+                        if (std::memcmp(&(sample.mResolution), &(new_resolution), sizeof(new_resolution)) != 0)
+                        {
+                            sample.onResize(new_resolution);
+                        }
+
+                        sample.recreate_backbuffers(presentation.mColorFormat, presentation.mImages);
+                    }
                 }
             }
     }
@@ -452,33 +448,45 @@ LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
         }
     case WM_PAINT:
         {
-            // TODO Fetch RenderArea
+            // NOTE To make UI pass aware of resize changes
+            sample.onIdle();
 
-            // TODO
-            // blk::Presentation::Image presentation_image = presentation.acquire_next(kTimeoutAcquirePresentationImage);
-            // sample.record(presentation_image.index, presentation_image.commandbuffer);
+            blk::Presentation::Image presentation_image = presentation.acquire_next(kTimeoutAcquirePresentationImage);
+            sample.record(presentation_image.index, presentation_image.commandbuffer);
 
-            // VkSemaphore render_semaphore = sample.mRenderSemaphores.at(presentation_image.index);
+            VkSemaphore render_semaphore = sample.mRenderSemaphores.at(presentation_image.index);
 
-            // // TODO Figure out how we can use different queue for sample computations and presentation job
-            // //  This probably means that we need to record computations with commandbuffers than ones from presentation
-            // const blk::Queue* presentation_queue = presentation.mPresentationQueues.at(0);
-            // engine.submit(
-            //     *presentation_queue,
-            //     { presentation_image.commandbuffer },
-            //     { presentation_image.semaphore },
-            //     { presentation_image.destination_stage_mask },
-            //     { render_semaphore }
-            // );
+            // TODO Figure out how we can use different queue for sample computations and presentation job
+            //  This probably means that we need to record computations with commandbuffers than ones from presentation
+            const blk::Queue* presentation_queue = presentation.mPresentationQueues.at(0);
+            engine.submit(
+                *presentation_queue,
+                { presentation_image.commandbuffer },
+                { presentation_image.semaphore },
+                { presentation_image.destination_stage_mask },
+                { render_semaphore }
+            );
 
-            // presentation.present(presentation_image, render_semaphore);
+            auto result_present = presentation.present(presentation_image, render_semaphore);
+            // NOTE We block to avoid override something in use (e.g. surface indexed VkCommandBuffer)
+            // TODO Block per command buffer, instead of a global lock for all of them
+            CHECK(vkQueueWaitIdle(*presentation_queue));
 
-            // // NOTE We block to avoid override something in use (e.g. surface indexed VkCommandBuffer)
-            // // TODO Block per command buffer, instead of a global lock for all of them
-            // CHECK(vkQueueWaitIdle(*presentation_queue));
+            if ((result_present == VK_SUBOPTIMAL_KHR) || (result_present == VK_ERROR_OUT_OF_DATE_KHR))
+            {
+                vkDeviceWaitIdle(engine.mDevice);
+                auto new_resolution = presentation.recreate_swapchain();
+
+                if (std::memcmp(&(sample.mResolution), &(new_resolution), sizeof(new_resolution)) != 0)
+                {
+                    sample.onResize(new_resolution);
+                }
+
+                sample.recreate_backbuffers(presentation.mColorFormat, presentation.mImages);
+            }
 
             ValidateRect(hWnd, NULL);
-            break;
+            return 0;
         }
     case WM_KEYDOWN:
         switch (wParam)
@@ -573,31 +581,30 @@ LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
         break;
     }
     case WM_SIZE:
-        if (wParam != SIZE_MINIMIZED)
+        switch(wParam)
         {
-            if ((userdata->resizing) || ((wParam == SIZE_MAXIMIZED) || (wParam == SIZE_RESTORED)))
-            {
-                #if 0
-                // TODO Update Camera
-                if (sSurface)
+            case SIZE_RESTORED:
+                if (!userdata->resizing)
+                    return MinimalWindowProcedure(hWnd, uMsg, wParam, lParam);
+            case SIZE_MAXIMIZED:
                 {
-                    sSurface->mResolution = VkExtent2D{
-                        .width  = LOWORD(lParam),
-                        .height = HIWORD(lParam)
-                    };
-                    if (engine)
-                    {
-                        engine->invalidate_surface(*sSurface);
-                    }
-                    else
-                    {
-                        sSurface->generate_swapchain();
-                    }
+                    VkExtent2D new_resolution{.width  = LOWORD(lParam), .height = HIWORD(lParam)};
+
+                    // Ensure all operations on the device have been finished before destroying resources
+                    vkDeviceWaitIdle(engine.mDevice);
+
+                    presentation.onResize(new_resolution);
+
+                    sample.onResize(presentation.mResolution);
+                    sample.recreate_backbuffers(presentation.mColorFormat, presentation.mImages);
+                    return 0;
                 }
-                #endif
-            }
+            case SIZE_MINIMIZED:
+            case SIZE_MAXSHOW:
+            case SIZE_MAXHIDE:
+            default:
+                return MinimalWindowProcedure(hWnd, uMsg, wParam, lParam);
         }
-        break;
     case WM_GETMINMAXINFO:
     {
         LPMINMAXINFO minMaxInfo = (LPMINMAXINFO)lParam;

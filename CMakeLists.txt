@@ -137,10 +137,10 @@ target_sources(default-sample
         src/vkapplication.cpp
 
         src/vkbuffer.hpp
-        # src/vkbuffer.cpp
+        src/vkbuffer.cpp
 
         src/vkimage.hpp
-        # src/vkimage.cpp
+        src/vkimage.cpp
 
         src/vkmemory.hpp
         src/vkmemory.cpp

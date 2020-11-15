@@ -83,17 +83,7 @@ namespace blk
             return result;
         }
 
-        void destroy()
-        {
-            if (mBuffer != VK_NULL_HANDLE)
-            {
-                vkDestroyBuffer(mDevice, mBuffer, nullptr);
-                mBuffer   = VK_NULL_HANDLE;
-                mMemory   = nullptr;
-                mOffset   = ~0;
-                mOccupied = ~0;
-            }
-        }
+        void destroy();
 
         constexpr bool created() const
         {

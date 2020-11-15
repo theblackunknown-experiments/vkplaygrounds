@@ -141,7 +141,7 @@ Presentation::Presentation(
             CHECK(vkCreateCommandPool(mDevice, &info, nullptr, &mCommandPool));
         }
     }
-    create_swapchain();
+    recreate_swapchain();
 }
 
 Presentation::~Presentation()
@@ -153,7 +153,7 @@ Presentation::~Presentation()
     vkDestroySemaphore(mDevice, mAcquiredSemaphore, nullptr);
 }
 
-void Presentation::create_swapchain()
+VkExtent2D Presentation::recreate_swapchain()
 {
     VkSurfaceCapabilitiesKHR capabilities;
     CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(mPhysicalDevice, mSurface, &capabilities));
@@ -173,8 +173,8 @@ void Presentation::create_swapchain()
             ? VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR
             : capabilities.currentTransform;
 
-        auto finder_composite_alpha = std::find_if(
-            std::begin(kPreferredCompositeAlphaFlags), std::end(kPreferredCompositeAlphaFlags),
+        auto finder_composite_alpha = std::ranges::find_if(
+            kPreferredCompositeAlphaFlags,
             [&capabilities](const VkCompositeAlphaFlagBitsKHR& f) {
                 return capabilities.supportedCompositeAlpha & f;
             }
@@ -244,6 +244,8 @@ void Presentation::create_swapchain()
         };
         CHECK(vkAllocateCommandBuffers(mDevice, &info, mCommandBuffers.data()));
     }
+
+    return mResolution;
 }
 
 blk::Presentation::Image Presentation::acquire_next(std::uint64_t timeout)
@@ -267,7 +269,7 @@ blk::Presentation::Image Presentation::acquire_next(std::uint64_t timeout)
     };
 }
 
-void Presentation::present(const Image& presentation_image, VkSemaphore wait_semaphore)
+VkResult Presentation::present(const Image& presentation_image, VkSemaphore wait_semaphore)
 {
     const VkPresentInfoKHR info{
         .sType              = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
@@ -281,7 +283,18 @@ void Presentation::present(const Image& presentation_image, VkSemaphore wait_sem
     };
     const blk::Queue* queue = mPresentationQueues.at(0);
     const VkResult result_present = vkQueuePresentKHR(*queue, &info);
-    CHECK(result_present);
+    CHECK(
+        (result_present == VK_SUCCESS)
+        || (result_present == VK_SUBOPTIMAL_KHR)
+        || (result_present == VK_ERROR_OUT_OF_DATE_KHR)
+    );
+    return result_present;
+}
+
+void Presentation::onResize(const VkExtent2D& resolution)
+{
+    mResolution = resolution;
+    recreate_swapchain();
 }
 
 }

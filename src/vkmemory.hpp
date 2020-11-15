@@ -116,10 +116,32 @@ namespace blk
             return result;
         }
 
+        VkResult reallocate(VkDevice vkdevice, VkDeviceSize size)
+        {
+            assert((mDevice == VK_NULL_HANDLE) || (mDevice == vkdevice));
+            
+            if (mInfo.allocationSize >= size)
+                return VK_SUCCESS;
+
+            destroy();
+
+            mDevice = vkdevice;
+            mInfo.allocationSize = size;
+
+            auto result = vkAllocateMemory(mDevice, &mInfo, nullptr, &mMemory);
+            CHECK(result);
+            mNextOffset = 0;
+            mFree = mInfo.allocationSize;
+            return result;
+        }
+
         void destroy()
         {
             if (mMemory != VK_NULL_HANDLE)
+            {
                 vkFreeMemory(mDevice, mMemory, nullptr);
+                mMemory = VK_NULL_HANDLE;
+            }
         }
 
         VkResult bind(Buffer& buffer);

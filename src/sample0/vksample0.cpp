@@ -276,6 +276,108 @@ void Sample::onIdle()
     mPassUIOverlay.upload_imgui_draw_data();
 }
 
+void Sample::onResize(const VkExtent2D& resolution)
+{
+    mResolution = resolution;
+    recreate_depth();
+    mPassUIOverlay.onResize(resolution);
+    mPassScene.onResize(resolution);
+}
+
+void Sample::recreate_depth()
+{
+    mDepthImage = blk::Image(
+        VkExtent3D{ .width = mResolution.width, .height = mResolution.height, .depth = 1 },
+        VK_IMAGE_TYPE_2D,
+        mDepthFormat,
+        VK_SAMPLE_COUNT_1_BIT,
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+        VK_IMAGE_LAYOUT_UNDEFINED
+    );
+    mDepthImage.create(mDevice);
+
+    mDepthMemory->reallocate(mDevice, mDepthImage.mRequirements.size);
+    mDepthMemory->bind(mDepthImage);
+
+    mDepthImageView = blk::ImageView(
+        mDepthImage,
+        VK_IMAGE_VIEW_TYPE_2D,
+        mDepthFormat,
+        VK_IMAGE_ASPECT_STENCIL_BIT
+    );
+    mDepthImageView.create(mDevice);
+}
+
+void Sample::recreate_backbuffers(VkFormat formatColor, const std::span<VkImage>& backbufferimages)
+{
+    for(auto&& vksemaphore : mRenderSemaphores)
+        vkDestroySemaphore(mDevice, vksemaphore, nullptr);
+
+    for(auto&& vkframebuffer : mFrameBuffers)
+        vkDestroyFramebuffer(mDevice, vkframebuffer, nullptr);
+
+    for(auto&& view : mBackBufferViews)
+        vkDestroyImageView(mDevice, view, nullptr);
+
+    const VkSemaphoreTypeCreateInfo info_semaphore_type{
+        .sType         = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
+        .pNext         = nullptr,
+        .semaphoreType = VK_SEMAPHORE_TYPE_BINARY,
+        .initialValue  = 0,
+    };
+    const VkSemaphoreCreateInfo info_semaphore{
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+        .pNext = &info_semaphore_type,
+        .flags = 0,
+    };
+    for (auto&& [image, view, framebuffer, render_semaphore] : ranges::views::zip(backbufferimages, mBackBufferViews, mFrameBuffers, mRenderSemaphores))
+    {
+        const VkImageViewCreateInfo info_imageview{
+            .sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+            .pNext            = nullptr,
+            .flags            = 0,
+            .image            = image,
+            .viewType         = VK_IMAGE_VIEW_TYPE_2D,
+            .format           = formatColor,
+            .components       = VkComponentMapping{
+                .r = VK_COMPONENT_SWIZZLE_R,
+                .g = VK_COMPONENT_SWIZZLE_G,
+                .b = VK_COMPONENT_SWIZZLE_B,
+                .a = VK_COMPONENT_SWIZZLE_A,
+            },
+            .subresourceRange = VkImageSubresourceRange{
+                .aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT,
+                .baseMipLevel   = 0,
+                .levelCount     = 1,
+                .baseArrayLayer = 0,
+                .layerCount     = 1,
+            },
+        };
+        CHECK(vkCreateImageView(mDevice, &info_imageview, nullptr, &view));
+        
+        const std::array attachments{
+            view,
+            // NOTE(andrea.machizaud) Is it safe to re-use depth here ?
+            (VkImageView)mDepthImageView
+        };
+        const VkFramebufferCreateInfo info_framebuffer{
+            .sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+            .pNext           = nullptr,
+            .flags           = 0u,
+            .renderPass      = mRenderPass,
+            .attachmentCount = attachments.size(),
+            .pAttachments    = attachments.data(),
+            .width           = mResolution.width,
+            .height          = mResolution.height,
+            .layers          = 1,
+        };
+        CHECK(vkCreateFramebuffer(mDevice, &info_framebuffer, nullptr, &framebuffer));
+    
+        CHECK(vkCreateSemaphore(mDevice, &info_semaphore, nullptr, &render_semaphore));
+    }
+}
+
 void Sample::record(std::uint32_t backbufferindex, VkCommandBuffer commandbuffer)
 {
     constexpr VkCommandBufferBeginInfo info{

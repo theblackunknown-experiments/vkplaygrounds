@@ -17,6 +17,15 @@ void CHECK(const VkResult& v)
     assert(v == VK_SUCCESS);
 }
 
+void CHECK(bool v)
+{
+    if (!v && IsDebuggerPresent())
+    {
+        DebugBreak();
+    }
+    assert(v);
+}
+
 VkBool32 DebuggerCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
     VkDebugUtilsMessageTypeFlagsEXT messageType,

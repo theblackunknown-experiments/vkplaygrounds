@@ -65,8 +65,11 @@ namespace blk::sample0
         );
         ~Sample();
 
-        void onIdle();
+        void recreate_depth();
+        void recreate_backbuffers(VkFormat formatColor, const std::span<VkImage>& backbufferimages);
 
+        void onIdle();
+        void onResize(const VkExtent2D& resolution);
         void onKeyPressed(std::uint32_t backbufferindex, VkCommandBuffer commandbuffer);
 
         void record(std::uint32_t backbufferindex, VkCommandBuffer commandbuffer);

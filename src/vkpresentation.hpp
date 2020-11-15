@@ -37,12 +37,12 @@ struct Presentation
         const VkExtent2D& resolution);
     ~Presentation();
 
-    void create_swapchain();
-    void create_framebuffers();
-    void create_commandbuffers();
+    VkExtent2D recreate_swapchain();
 
     [[nodiscard]] Image acquire_next(std::uint64_t timeout);
-    void present(const Image&, VkSemaphore wait_semaphore);
+    [[nodiscard]] VkResult present(const Image&, VkSemaphore wait_semaphore);
+
+    void onResize(const VkExtent2D& resolution);
 
     const blk::Engine&           mEngine;
     const blk::Surface&          mSurface;

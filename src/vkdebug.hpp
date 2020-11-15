@@ -6,6 +6,7 @@
 #include <vulkan/vulkan.h>
 
 void CHECK(const VkResult& v);
+void CHECK(bool v);
 
 VKAPI_ATTR VkBool32 VKAPI_CALL DebuggerCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,

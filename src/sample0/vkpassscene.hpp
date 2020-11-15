@@ -44,6 +44,8 @@ namespace blk::sample0
 
         void record_pass(VkCommandBuffer commandbuffer) override;
 
+        void onResize(const VkExtent2D& resolution);
+
         blk::Engine&                         mEngine;
         const blk::Device&                   mDevice;
         VkExtent2D                           mResolution;

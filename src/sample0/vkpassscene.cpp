@@ -199,7 +199,7 @@ void PassScene::initialize_graphic_pipelines()
         }
     };
 
-    static const/*expr*/ VkPipelineColorBlendStateCreateInfo colorblend{
+    const/*expr*/ VkPipelineColorBlendStateCreateInfo colorblend{
         .sType                   = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
         .pNext                   = nullptr,
         .flags                   = 0,
@@ -248,6 +248,14 @@ void PassScene::record_pass(VkCommandBuffer commandbuffer)
 {
     vkCmdBindPipeline(commandbuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipeline);
     vkCmdDraw(commandbuffer, 3, 1, 0, 0);
+}
+
+void PassScene::onResize(const VkExtent2D& resolution)
+{
+    mResolution = resolution;
+    vkDestroyPipeline(mDevice, mPipeline, nullptr);
+    mPipeline = VK_NULL_HANDLE;
+    initialize_graphic_pipelines();
 }
 
 }

@@ -33,6 +33,7 @@ namespace blk
             , mRequirements(std::move(rhs.mRequirements))
             , mMemory(std::exchange(rhs.mMemory, nullptr))
             , mOffset(std::exchange(rhs.mOffset, ~0))
+            , mOccupied(std::exchange(rhs.mOccupied, ~0))
         {
         }
 
@@ -84,6 +85,7 @@ namespace blk
             mRequirements = std::exchange(rhs.mRequirements, mRequirements);
             mMemory       = std::exchange(rhs.mMemory      , mMemory);
             mOffset       = std::exchange(rhs.mOffset      , mOffset);
+            mOccupied     = std::exchange(rhs.mOccupied    , mOccupied);
             return *this;
         }
 
@@ -96,14 +98,7 @@ namespace blk
             return result;
         }
 
-        void destroy()
-        {
-            if (mImage != VK_NULL_HANDLE)
-            {
-                vkDestroyImage(mDevice, mImage, nullptr);
-                mImage = VK_NULL_HANDLE;
-            }
-        }
+        void destroy();
 
         constexpr bool created() const
         {

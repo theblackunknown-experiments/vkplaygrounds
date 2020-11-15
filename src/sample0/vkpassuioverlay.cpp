@@ -78,7 +78,6 @@ PassUIOverlay::PassUIOverlay(const blk::RenderPass& renderpass, std::uint32_t su
             // ImGui::StyleColorsClassic(&style);
             // ImGui::StyleColorsLight(&style);
         }
-        // TODO Defer at engine setup in case multiple pass uses dearimgui
         {// IO
             ImGuiIO& io = ImGui::GetIO();
             io.DisplaySize = ImVec2(mResolution.width, mResolution.height);
@@ -1053,6 +1052,14 @@ void PassUIOverlay::clear_font_image_transient_data()
 
     vkFreeCommandBuffers(mDevice, mGraphicsCommandPoolTransient, 1, &mFontImageStagingCommandBuffer);
     mFontImageStagingCommandBuffer = VK_NULL_HANDLE;
+}
+
+void PassUIOverlay::onResize(const VkExtent2D& resolution)
+{
+    mResolution = resolution;
+    
+    ImGuiIO& io = ImGui::GetIO();
+    io.DisplaySize = ImVec2(mResolution.width, mResolution.height);
 }
 
 }
