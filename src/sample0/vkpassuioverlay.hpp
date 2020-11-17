@@ -111,10 +111,6 @@ namespace blk::sample0
             std::array<float, 50> frame_times    = {};
             float                 frame_time_min;
             float                 frame_time_max;
-
-            bool                  show_gpu_information = false;
-            bool                  show_fps = false;
-            bool                  show_demo = false;
         } mUI;
 
         struct Mouse

@@ -673,65 +673,102 @@ void PassUIOverlay::render_imgui_frame()
             io.MouseWheel                         = mMouse.wheel.vdelta;
             io.MouseWheelH                        = mMouse.wheel.hdelta;
 
+            static bool show_open_model = false;
+            static bool show_gpu_information = false;
+            static bool show_demos = false;
+            static bool show_font_selector = false;
+
+            constexpr std::array kModels{
+                "Dummy0",
+                "Dummy1",
+                "Dummy2"
+            };
+            static int model_index = 0;
+            const char* current_model = kModels[model_index];
+
             ImGui::NewFrame();
             {// Window
                 if (ImGui::BeginMainMenuBar())
                 {
+                    if (ImGui::BeginMenu("Models"))
+                    {
+                        if (ImGui::BeginCombo("https://casual-effects.com/data/", current_model))
+                        {
+                            for (auto [idx, model] : enumerate(kModels))
+                            {
+                                auto is_selected = idx == model_index;
+                                if (ImGui::Selectable(model, is_selected))
+                                    model_index = idx;
+
+                                if (is_selected)
+                                    ImGui::SetItemDefaultFocus();
+                            }
+                            ImGui::EndCombo();
+                        }
+                        ImGui::EndMenu();
+                    }
                     if (ImGui::BeginMenu("About"))
                     {
-                        ImGui::MenuItem("GPU Information", "", &mUI.show_gpu_information);
-                        ImGui::MenuItem("Show Demos", "", &mUI.show_demo);
+                        ImGui::MenuItem("GPU Information", "", &show_gpu_information);
+                        ImGui::MenuItem("Show Demos", "", &show_demos);
                         ImGui::EndMenu();
                     }
                     ImGui::EndMainMenuBar();
                 }
-                // ImGui::Begin(kWindowTitle);
-                // ImGui::End();
 
-                if (mUI.show_gpu_information)
+                if (show_open_model)
                 {
-                    ImGui::Begin("GPU Information");
-
-                    ImGui::TextUnformatted(mDevice.mPhysicalDevice->mProperties.deviceName);
-
-                    // TODO Do it outside ImGui frame
-                    // Update frame time display
-                    if (mUI.frame_count == 0)
+                    if (ImGui::Begin("Model Browser", &show_open_model))
                     {
-                        std::rotate(
-                            std::begin(mUI.frame_times), std::next(std::begin(mUI.frame_times)),
-                            std::end(mUI.frame_times)
-                        );
 
-                        mUI.frame_times.back() = mUI.frame_delta.count();
-                        // std::cout << "Frame times: ";
-                        // std::copy(
-                        //     std::begin(mUI.frame_times), std::end(mUI.frame_times),
-                        //     std::ostream_iterator<float>(std::cout, ", ")
-                        // );
-                        // std::cout << std::endl;
-                        auto [find_min, find_max] = std::minmax_element(std::begin(mUI.frame_times), std::end(mUI.frame_times));
-                        mUI.frame_time_min = *find_min;
-                        mUI.frame_time_max = *find_max;
                     }
+                    ImGui::End();
+                }
 
-                    ImGui::PlotLines(
-                        "Frame Times",
-                        mUI.frame_times.data(), mUI.frame_times.size(),
-                        0,
-                        nullptr,
-                        mUI.frame_time_min,
-                        mUI.frame_time_max,
-                        ImVec2(0, 80)
-                    );
+                if (show_gpu_information)
+                {
+                    if (ImGui::Begin("GPU Information", &show_gpu_information))
+                    {
+                        ImGui::TextUnformatted(mDevice.mPhysicalDevice->mProperties.deviceName);
 
+                        // TODO Do it outside ImGui frame
+                        // Update frame time display
+                        if (mUI.frame_count == 0)
+                        {
+                            std::rotate(
+                                std::begin(mUI.frame_times), std::next(std::begin(mUI.frame_times)),
+                                std::end(mUI.frame_times)
+                            );
+
+                            mUI.frame_times.back() = mUI.frame_delta.count();
+                            // std::cout << "Frame times: ";
+                            // std::copy(
+                            //     std::begin(mUI.frame_times), std::end(mUI.frame_times),
+                            //     std::ostream_iterator<float>(std::cout, ", ")
+                            // );
+                            // std::cout << std::endl;
+                            auto [find_min, find_max] = std::minmax_element(std::begin(mUI.frame_times), std::end(mUI.frame_times));
+                            mUI.frame_time_min = *find_min;
+                            mUI.frame_time_max = *find_max;
+                        }
+
+                        ImGui::PlotLines(
+                            "Frame Times",
+                            mUI.frame_times.data(), mUI.frame_times.size(),
+                            0,
+                            nullptr,
+                            mUI.frame_time_min,
+                            mUI.frame_time_max,
+                            ImVec2(0, 80)
+                        );
+                    }
                     ImGui::End();
                 }
             }
-            if (mUI.show_demo)
+            if (show_demos)
             {// Demo Window
                 ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiCond_FirstUseEver);
-                ImGui::ShowDemoWindow();
+                ImGui::ShowDemoWindow(&show_demos);
             }
             ImGui::Render();
         }

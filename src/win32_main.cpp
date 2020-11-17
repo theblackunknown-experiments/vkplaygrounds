@@ -401,22 +401,23 @@ LRESULT CALLBACK MinimalWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPA
     {
     case WM_CLOSE:
         DestroyWindow(hWnd);
-        break;
+        return 0;;
     case WM_DESTROY:
         PostQuitMessage(0);
-        break;
+        return 0;;
     case WM_KEYUP:
         switch (wParam)
         {
         case VK_ESCAPE:
             PostQuitMessage(0);
-            break;
+            return 0;;
+        default:
+            return DefWindowProc(hWnd, uMsg, wParam, lParam);
         }
-        break;
     default:
         return DefWindowProc(hWnd, uMsg, wParam, lParam);
     }
-    return 0;
+    
 }
 
 LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
@@ -523,7 +524,6 @@ LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
     //     }
 
     //     keyPressed((uint32_t)wParam);
-        break;
     // case WM_KEYUP:
     //     if (camera.firstperson)
     //     {
@@ -548,26 +548,26 @@ LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
         passui.mMouse.offset.x = static_cast<float>(LOWORD(lParam));
         passui.mMouse.offset.y = static_cast<float>(HIWORD(lParam));
         passui.mMouse.buttons.left = true;
-        break;
+        return 0;
     case WM_RBUTTONDOWN:
         passui.mMouse.offset.x = static_cast<float>(LOWORD(lParam));
         passui.mMouse.offset.y = static_cast<float>(HIWORD(lParam));
         passui.mMouse.buttons.right = true;
-        break;
+        return 0;
     case WM_MBUTTONDOWN:
         passui.mMouse.offset.x = static_cast<float>(LOWORD(lParam));
         passui.mMouse.offset.y = static_cast<float>(HIWORD(lParam));
         passui.mMouse.buttons.middle = true;
-        break;
+        return 0;
     case WM_LBUTTONUP:
         passui.mMouse.buttons.left = false;
-        break;
+        return 0;
     case WM_RBUTTONUP:
         passui.mMouse.buttons.right = false;
-        break;
+        return 0;
     case WM_MBUTTONUP:
         passui.mMouse.buttons.middle = false;
-        break;
+        return 0;
     case WM_MOUSEWHEEL:
         passui.mMouse.wheel.vdelta += (float)GET_WHEEL_DELTA_WPARAM(wParam) / (float)WHEEL_DELTA;
         return 0;
@@ -578,7 +578,7 @@ LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
     {
         passui.mMouse.offset.x = static_cast<float>(LOWORD(lParam));
         passui.mMouse.offset.y = static_cast<float>(HIWORD(lParam));
-        break;
+        return 0;
     }
     case WM_SIZE:
         switch(wParam)
@@ -610,16 +610,15 @@ LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
         LPMINMAXINFO minMaxInfo = (LPMINMAXINFO)lParam;
         minMaxInfo->ptMinTrackSize.x = kResolution.width;
         minMaxInfo->ptMinTrackSize.y = kResolution.height;
-        break;
+        return 0;
     }
     case WM_ENTERSIZEMOVE:
         userdata->resizing = true;
-        break;
+        return 0;
     case WM_EXITSIZEMOVE:
         userdata->resizing = false;
-        break;
+        return 0;
     default:
         return MinimalWindowProcedure(hWnd, uMsg, wParam, lParam);
     }
-    return 0;
 }

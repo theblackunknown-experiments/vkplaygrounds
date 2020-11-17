@@ -24,11 +24,6 @@ struct Presentation
         VkCommandBuffer      commandbuffer          = VK_NULL_HANDLE;
         VkSemaphore          semaphore              = VK_NULL_HANDLE;
         VkPipelineStageFlags destination_stage_mask = 0;
-
-        operator std::uint32_t() const
-        {
-            return index;
-        }
     };
 
     explicit Presentation(

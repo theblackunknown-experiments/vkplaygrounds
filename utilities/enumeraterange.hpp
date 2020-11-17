@@ -162,3 +162,34 @@ struct EnumerateRange
     Iterator end() { return mEnd; }
     const Iterator cend() const { return mEnd; }
 };
+
+template<typename Container, typename CounterType = std::uint32_t>
+struct ConstEnumerateRange
+{
+    using Iterator = EnumerateIterator<typename Container::const_iterator, CounterType>;
+
+    Iterator mStart, mEnd;
+
+    explicit ConstEnumerateRange(const Container& container, CounterType start = {})
+        : mStart(std::begin(container), start)
+        , mEnd(std::end(container), {})
+    {
+    }
+
+    Iterator begin() { return mStart; }
+    const Iterator cbegin() const { return mStart; }
+    Iterator end() { return mEnd; }
+    const Iterator cend() const { return mEnd; }
+};
+
+template<typename Container>
+auto enumerate(Container& container)
+{
+    return EnumerateRange(container);
+}
+
+template<typename Container>
+auto enumerate(const Container& container)
+{
+    return ConstEnumerateRange(container);
+}
