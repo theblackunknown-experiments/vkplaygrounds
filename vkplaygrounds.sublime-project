@@ -110,6 +110,15 @@
 						"shaders_headers"
 					],
 					"name": "shaders_headers"
+				},
+				{
+					"cmd":
+					[
+						"ninja",
+						"-v",
+						"obj2mesh"
+					],
+					"name": "obj2mesh"
 				}
 			],
 			"working_dir": "C:/builds/vkplaygrounds"
@@ -234,6 +243,15 @@
 						"shaders_headers"
 					],
 					"name": "shaders_headers"
+				},
+				{
+					"cmd":
+					[
+						"ninja",
+						"-v",
+						"obj2mesh"
+					],
+					"name": "obj2mesh"
 				}
 			],
 			"working_dir": "C:/builds/vkplaygrounds-windows-clang-x86-64"

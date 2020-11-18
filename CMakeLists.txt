@@ -211,6 +211,7 @@ target_link_libraries(default-sample
 
 add_subdirectory(fonts)
 add_subdirectory(shaders)
+add_subdirectory(models)
 
 ##############################
 ##          Config          ##
@@ -280,6 +281,13 @@ set_property(
 set_property(
     SOURCE
         ${CMAKE_CURRENT_BINARY_DIR}/fonts/font.hpp
+    PROPERTY
+        GENERATED 1
+)
+
+set_property(
+    SOURCE
+        ${CMAKE_CURRENT_BINARY_DIR}/models/CornellBox-Original.mesh
     PROPERTY
         GENERATED 1
 )
