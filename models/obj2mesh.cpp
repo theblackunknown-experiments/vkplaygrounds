@@ -46,15 +46,15 @@ namespace
     template<typename Iterator>
     Iterator skip_lines(Iterator iterator, Iterator last)
     {
-        for (auto character = *iterator; iterator != last;)
+        for (; iterator != last;)
         {
+            auto character = *iterator;
             switch(character)
             {
                 case '\n':
                     return ++iterator;
                 default:
                     ++iterator;
-                    character = *iterator;
             }
         }
         return iterator;
@@ -63,8 +63,11 @@ namespace
     template<typename Iterator>
     Iterator skip_spaces(Iterator iterator, Iterator last)
     {
-        for (auto character = *iterator; (iterator != last) && (character == ' '); character = *(++iterator))
+        for (; (iterator != last); ++iterator)
         {
+            auto character = *iterator;
+            if (!is_token_separator(character))
+                break;
         }
         return iterator;
     }
@@ -75,8 +78,11 @@ namespace
         std::basic_string<typename Iterator::value_type> v;
         v.reserve(6);
         iterator = skip_spaces(iterator, last);
-        for (auto character = *iterator; (iterator != last) && !is_token_separator(character); character = *(++iterator))
+        for (; (iterator != last); ++iterator)
         {
+            auto character = *iterator;
+            if (is_token_separator(character))
+                break;
             v.push_back(character);
         }
         return std::make_tuple(iterator, v);
@@ -91,8 +97,9 @@ namespace
         std::string token;
         int current_group_index = -1;
 
-        for (auto character = *iterator; iterator != last; character = *iterator)
+        for (; iterator != last;)
         {
+            auto character = *iterator;
             switch (character)
             {
                 case '\n':
