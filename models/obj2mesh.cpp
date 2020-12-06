@@ -63,6 +63,7 @@ namespace
     struct group_t {
         std::string         name;
         std::string         material;
+        bool                smooth = false;
         std::vector<face_t> faces;
     };
 
@@ -244,6 +245,30 @@ namespace
 
                         std::tie(iterator, token) = parse_token(iterator, last);
                         current_group.material = token;
+                    }
+                    break;
+                case 's':
+                    {
+                        ++iterator;
+
+                        std::tie(iterator, token) = parse_token(iterator, last);
+
+                        ensure_at_least_one_group();
+
+                        group_t& current_group = obj.groups[current_group_index];
+
+                        if (token == "1")
+                        {
+                            current_group.smooth = true;
+                        }
+                        else if (token == "off")
+                        {
+                            current_group.smooth = false;
+                        }
+                        else
+                        {
+                            throw std::runtime_error("Unexpected token for smoothing group: " + token);
+                        }
                     }
                     break;
                 case 'v':
