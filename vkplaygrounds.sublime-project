@@ -21,7 +21,9 @@
 				{
 					"cmd":
 					[
-						"rm", "-rf", "*"
+						"rm",
+						"-rf",
+						"*"
 					],
 					"name": "Delete"
 				},
@@ -30,16 +32,19 @@
 					[
 						"cmake",
 						"-Wdev",
- 						"-Wdeprecated",
- 						"-Werror=dev",
- 						"-Werror=deprecated",
- 						"-S", "C:\\devel\\vkplaygrounds",
- 						"-B", ".",
- 						"-G", "Ninja Multi-Config",
- 						"-DCMAKE_DEFAULT_BUILD_TYPE:STRING=Debug",
- 						"-DCMAKE_VS_JUST_MY_CODE_DEBUGGING:BOOL=ON",
- 						"-DCMAKE_TOOLCHAIN_FILE:PATH=C:\\devel\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake",
- 						"-DVCPKG_TARGET_TRIPLET:STRING=x64-windows"
+						"-Wdeprecated",
+						"-Werror=dev",
+						"-Werror=deprecated",
+						"-S",
+						"C:\\devel\\vkplaygrounds",
+						"-B",
+						".",
+						"-G",
+						"Ninja Multi-Config",
+						"-DCMAKE_DEFAULT_BUILD_TYPE:STRING=Debug",
+						"-DCMAKE_VS_JUST_MY_CODE_DEBUGGING:BOOL=ON",
+						"-DCMAKE_TOOLCHAIN_FILE:PATH=C:\\devel\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake",
+						"-DVCPKG_TARGET_TRIPLET:STRING=x64-windows"
 					],
 					"name": "Configure"
 				},
@@ -75,6 +80,15 @@
 					"name": "Single File [verbose]",
 					"selector": "source.c++"
 				},
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-v",
+                        "core"
+                    ],
+                    "name": "core"
+                },
 				{
 					"cmd":
 					[
@@ -153,7 +167,9 @@
 				{
 					"cmd":
 					[
-						"rm", "-rf", "*"
+						"rm",
+						"-rf",
+						"*"
 					],
 					"name": "Delete"
 				},
@@ -162,17 +178,20 @@
 					[
 						"cmake",
 						"-Wdev",
- 						"-Wdeprecated",
- 						"-Werror=dev",
- 						"-Werror=deprecated",
- 						"-S", "C:\\devel\\vkplaygrounds",
- 						"-B", ".",
- 						"-G", "Ninja Multi-Config",
- 						"-DCMAKE_DEFAULT_BUILD_TYPE:STRING=Debug",
- 						"-DCMAKE_VS_JUST_MY_CODE_DEBUGGING:BOOL=ON",
- 						"-DCMAKE_TOOLCHAIN_FILE:PATH=C:\\devel\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake",
- 						"-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE:PATH=C:\\devel\\vkplaygrounds\\toolchains\\windows-clang-x86-64.cmake",
- 						"-DVCPKG_TARGET_TRIPLET:STRING=x64-windows"
+						"-Wdeprecated",
+						"-Werror=dev",
+						"-Werror=deprecated",
+						"-S",
+						"C:\\devel\\vkplaygrounds",
+						"-B",
+						".",
+						"-G",
+						"Ninja Multi-Config",
+						"-DCMAKE_DEFAULT_BUILD_TYPE:STRING=Debug",
+						"-DCMAKE_VS_JUST_MY_CODE_DEBUGGING:BOOL=ON",
+						"-DCMAKE_TOOLCHAIN_FILE:PATH=C:\\devel\\vcpkg\\scripts\\buildsystems\\vcpkg.cmake",
+						"-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE:PATH=C:\\devel\\vkplaygrounds\\toolchains\\windows-clang-x86-64.cmake",
+						"-DVCPKG_TARGET_TRIPLET:STRING=x64-windows"
 					],
 					"name": "Configure"
 				},
@@ -264,9 +283,13 @@
 			"path": "."
 		},
 		{
-			"name": "vkplaygrounds (build)",
-			"path": "C:/builds/vkplaygrounds-windows-clang-x86-64"
+			"name": "vkplaygrounds (MSVC) (build)",
+			"path": "C:/builds/vkplaygrounds"
 		},
+        {
+            "name": "vkplaygrounds (Clang) (build)",
+            "path": "C:/builds/vkplaygrounds-windows-clang-x86-64"
+        },
 		{
 			"path": "C:/devel/vcpkg/installed/x64-windows"
 		},
@@ -277,12 +300,15 @@
 			"path": "C:/VulkanSDK/1.2.148.1/Include"
 		},
 		{
-			"name": "Microsoft Visual Studio - MSVC - 14.28.29304 - ATLMFC",
-			"path": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Preview/VC/Tools/MSVC/14.28.29304/ATLMFC/include"
+			"path": "C:/devel/USD"
 		},
 		{
-			"name": "Microsoft Visual Studio - MSVC - 14.28.29304",
-			"path": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Preview/VC/Tools/MSVC/14.28.29304/include"
+			"name": "Microsoft Visual Studio - MSVC - 14.28.29333 - ATLMFC",
+			"path": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.28.29333/ATLMFC/include"
+		},
+		{
+			"name": "Microsoft Visual Studio - MSVC - 14.28.29333",
+			"path": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.28.29333/include"
 		},
 		{
 			"name": "Windows Kits - NETFXSDK - 4.8 (um)",

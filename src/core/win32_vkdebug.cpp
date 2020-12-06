@@ -5,6 +5,7 @@
 #include <cassert>
 
 #include <sstream>
+#include <iostream>
 
 #include "./vkdebug.hpp"
 
@@ -24,6 +25,21 @@ void CHECK(bool v)
         DebugBreak();
     }
     assert(v);
+}
+
+VkBool32 StandardErrorDebugCallback(
+    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+    VkDebugUtilsMessageTypeFlagsEXT messageType,
+    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+    void* pUserData)
+{
+    return OutputStreamDebugCallback(
+        messageSeverity,
+        messageType,
+        pCallbackData,
+        pUserData,
+        std::cerr
+    );
 }
 
 VkBool32 DebuggerCallback(

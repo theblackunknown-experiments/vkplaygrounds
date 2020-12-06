@@ -6,6 +6,12 @@ target_sources(obj2mesh
         obj2mesh.cpp
 )
 
+target_link_libraries(obj2mesh
+    PRIVATE
+        core
+        range-v3::range-v3
+)
+
 add_custom_command(OUTPUT
         "${CMAKE_CURRENT_BINARY_DIR}/CornellBox-Original.mesh"
     COMMAND $<TARGET_FILE:obj2mesh>

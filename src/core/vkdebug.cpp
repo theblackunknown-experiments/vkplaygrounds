@@ -1,5 +1,3 @@
-#include <windows.h>
-
 #include <vulkan/vulkan.h>
 
 #include <cassert>
@@ -8,26 +6,6 @@
 #include <iostream>
 
 #include "./vkdebug.hpp"
-
-const std::string VkDebugUtilsMessageTypeFlagsEXTString(const VkDebugUtilsMessageTypeFlagsEXT messageType) {
-    std::ostringstream stream;
-    if (messageType & VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT) {
-        stream << "GENERAL";
-    }
-    else
-    {
-        if (messageType & VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT) {
-            stream << "VALIDATION";
-        }
-        if (messageType & VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT) {
-            if (messageType & VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT) {
-                stream << '|';
-            }
-            stream << "PERFORMANCE";
-        }
-    }
-    return stream.str();
-}
 
 VkBool32 OutputStreamDebugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
@@ -83,19 +61,4 @@ VkBool32 OutputStreamDebugCallback(
     // True is reserved for layer developers, and MAY mean calls are not distributed down the layer chain after validation error.
     // False SHOULD always be returned by apps:
     return VK_FALSE;
-}
-
-VKAPI_ATTR VkBool32 VKAPI_CALL StandardErrorDebugCallback(
-    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-    VkDebugUtilsMessageTypeFlagsEXT messageType,
-    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-    void* pUserData)
-{
-    return OutputStreamDebugCallback(
-        messageSeverity,
-        messageType,
-        pCallbackData,
-        pUserData,
-        std::cerr
-    );
 }

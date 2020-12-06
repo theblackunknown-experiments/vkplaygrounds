@@ -67,6 +67,7 @@ option(INSTALL_HEADERS   "Install the development headers" ON)
 ##############################
 
 include(GNUInstallDirs)
+include(GenerateExportHeader)
 include(CMakePackageConfigHelpers)
 
 ##############################
@@ -124,35 +125,16 @@ target_include_directories(utilities
         utilities
 )
 
+add_subdirectory(src/core)
+
 add_executable(default-sample WIN32)
 target_sources(default-sample
     PRIVATE
-        src/vkdebug.hpp
-        src/vkdebug.cpp
-
         src/vkutilities.hpp
         src/vkutilities.cpp
 
         src/vkapplication.hpp
         src/vkapplication.cpp
-
-        src/vkbuffer.hpp
-        src/vkbuffer.cpp
-
-        src/vkimage.hpp
-        src/vkimage.cpp
-
-        src/vkmemory.hpp
-        src/vkmemory.cpp
-
-        src/vkdevice.hpp
-        src/vkdevice.cpp
-
-        src/vkphysicaldevice.hpp
-        src/vkphysicaldevice.cpp
-
-        src/vkqueue.hpp
-        src/vkqueue.cpp
 
         src/vkengine.hpp
         src/vkengine.cpp
@@ -182,7 +164,6 @@ target_sources(default-sample
         # src/dearimgui/dearimguishowcase.cpp
 
         $<$<PLATFORM_ID:Windows>:src/win32_main.cpp>
-        $<$<PLATFORM_ID:Windows>:src/win32_vkdebug.cpp>
 )
 
 target_include_directories(default-sample
@@ -203,6 +184,7 @@ target_compile_definitions(default-sample
 )
 target_link_libraries(default-sample
     PRIVATE
+        core
         dearimgui
         utilities
         Vulkan::Vulkan
