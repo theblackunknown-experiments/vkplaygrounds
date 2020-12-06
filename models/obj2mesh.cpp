@@ -286,7 +286,7 @@ namespace
                         std::from_chars_result status;
 
                         assert(!token.empty());
-                        if (token.at(0) == 'v')
+                        if (token == "v")
                         {
                             std::tie(iterator, token) = parse_token(iterator, last);
                             status = std::from_chars(token.c_str(), token.c_str() + token.size(), x);
@@ -311,6 +311,18 @@ namespace
                             std::tie(iterator, token) = parse_token(iterator, last);
                             status = std::from_chars(token.c_str(), token.c_str() + token.size(), y);
                             assert(status.ec == std::errc());
+
+                            iterator = skip_spaces(iterator, last);
+                            if ((*iterator) != '\n')
+                            {
+                                std::tie(iterator, token) = parse_token(iterator, last);
+                                status = std::from_chars(token.c_str(), token.c_str() + token.size(), z);
+                                assert(status.ec == std::errc());
+                            }
+                            else
+                            {
+                                z = 0.0f;
+                            }
 
                             obj.texcoords.push_back({x, y});
                         }
