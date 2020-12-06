@@ -1,0 +1,18 @@
+# https://editorconfig-specification.readthedocs.io/en/latest/
+
+# top-most EditorConfig file
+root = true
+
+# Default settings:
+# Use 4 spaces as indentation
+[*]
+indent_style = space
+indent_size = 4
+
+end_of_line = lf
+
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[**.{cpp,h}]
+charset = utf-8
