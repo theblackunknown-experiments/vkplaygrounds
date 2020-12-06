@@ -151,11 +151,18 @@ namespace
             auto character = *iterator;
             if (is_face_attribute_separator(character))
             {
+                ++iterator;
                 switch (attribute)
                 {
-                    case face_attribute_t::Vertex  : next_attribute = face_attribute_t::TexCoord;
-                    case face_attribute_t::TexCoord: next_attribute = face_attribute_t::Normal;
-                    case face_attribute_t::Normal  : next_attribute = face_attribute_t::Vertex;
+                    case face_attribute_t::Vertex  :
+                        next_attribute = face_attribute_t::TexCoord;
+                        break;
+                    case face_attribute_t::TexCoord:
+                        next_attribute = face_attribute_t::Normal;
+                        break;
+                    case face_attribute_t::Normal  :
+                        next_attribute = face_attribute_t::Vertex;
+                        break;
                     default:
                         throw std::runtime_error("Unexpected face attribute: " + std::to_string((int)attribute));
                 }
