@@ -596,7 +596,7 @@ int main(int argc, char* argv[])
     if (index_normal)
     {
         static_assert(std::is_same_v<decltype(obj.normals)::value_type, normal_t>);
-        blk::BufferCPU& attribute_normal = obj_mesh_attributes.at(*index_texcoord);
+        blk::BufferCPU& attribute_normal = obj_mesh_attributes.at(*index_normal);
         attribute_normal.pointer        = obj.normals.data();
         attribute_normal.count          = obj.normals.size();
         attribute_normal.stride         = sizeof(normal_t);
