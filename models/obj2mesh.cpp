@@ -396,15 +396,15 @@ namespace
                                         switch(expected_attribute)
                                         {
                                             case face_attribute_t::Vertex:
-                                                // Vertex is always the first parsed attribute, start a point encountered
-                                                obj.points.push_back(point_t{});
-
-                                                face_point_index += 1;
-                                                assert(face_point_index < std::size(face.points));
-                                                face.points[face_point_index] = current_point_index = obj.points.size() - 1;
-
                                                 if (!token.empty())
                                                 {
+                                                    // Vertex is always the first parsed attribute, start a point encountered
+                                                    obj.points.push_back(point_t{});
+
+                                                    face_point_index += 1;
+                                                    assert(face_point_index < std::size(face.points));
+                                                    face.points[face_point_index] = current_point_index = obj.points.size() - 1;
+
                                                     status = std::from_chars(token.c_str(), token.c_str() + token.size(), attribute_index);
                                                     assert(status.ec == std::errc());
 
