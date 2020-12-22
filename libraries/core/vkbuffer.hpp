@@ -6,6 +6,8 @@
 
 #include <cinttypes>
 
+#include <core_export.h>
+
 namespace blk
 {
     struct Memory;
@@ -83,7 +85,7 @@ namespace blk
             return result;
         }
 
-        void destroy();
+        CORE_EXPORT void destroy();
 
         constexpr bool created() const
         {

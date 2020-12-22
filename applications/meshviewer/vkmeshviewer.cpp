@@ -1,4 +1,4 @@
-#include "./vksample0.hpp"
+#include "./vkmeshviewer.hpp"
 
 #include "./vkengine.hpp"
 #include "./vkdevice.hpp"
@@ -28,9 +28,9 @@ namespace
     };
 }
 
-namespace blk::sample0
+namespace blk::meshviewer
 {
-Sample::RenderPass::RenderPass(Engine& vkengine, VkFormat formatColor, VkFormat formatDepth)
+MeshViewer::RenderPass::RenderPass(Engine& vkengine, VkFormat formatColor, VkFormat formatDepth)
     : ::blk::RenderPass(vkengine.mDevice)
 {
     // Pass 0 : Draw UI    (write depth)
@@ -75,11 +75,11 @@ Sample::RenderPass::RenderPass(Engine& vkengine, VkFormat formatColor, VkFormat 
     };
     constexpr VkAttachmentReference write_stencil_reference{
         .attachment = kAttachmentDepth,
-        .layout     = VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL,
+        .layout     = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
     };
     constexpr VkAttachmentReference read_stencil_reference{
         .attachment = kAttachmentDepth,
-        .layout     = VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL,
+        .layout     = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL,
     };
     const/*expr*/ std::array subpasses{
         // Pass 0 : Draw UI    (write stencil, write color)
@@ -134,7 +134,7 @@ Sample::RenderPass::RenderPass(Engine& vkengine, VkFormat formatColor, VkFormat 
     CHECK(create(info));
 }
 
-Sample::Sample(blk::Engine& vkengine, VkFormat formatColor, const std::span<VkImage>& backbufferimages, const VkExtent2D& resolution)
+MeshViewer::MeshViewer(blk::Engine& vkengine, VkFormat formatColor, const std::span<VkImage>& backbufferimages, const VkExtent2D& resolution)
     : mEngine(vkengine)
     , mDevice(vkengine.mDevice)
 
@@ -258,7 +258,7 @@ Sample::Sample(blk::Engine& vkengine, VkFormat formatColor, const std::span<VkIm
     }
 }
 
-Sample::~Sample()
+MeshViewer::~MeshViewer()
 {
     for(auto&& vksemaphore : mRenderSemaphores)
         vkDestroySemaphore(mDevice, vksemaphore, nullptr);
@@ -270,13 +270,13 @@ Sample::~Sample()
         vkDestroyImageView(mDevice, view, nullptr);
 }
 
-void Sample::onIdle()
+void MeshViewer::onIdle()
 {
     mPassUIOverlay.render_imgui_frame();
     mPassUIOverlay.upload_imgui_draw_data();
 }
 
-void Sample::onResize(const VkExtent2D& resolution)
+void MeshViewer::onResize(const VkExtent2D& resolution)
 {
     mResolution = resolution;
     recreate_depth();
@@ -284,7 +284,7 @@ void Sample::onResize(const VkExtent2D& resolution)
     mPassScene.onResize(resolution);
 }
 
-void Sample::recreate_depth()
+void MeshViewer::recreate_depth()
 {
     mDepthImage = blk::Image(
         VkExtent3D{ .width = mResolution.width, .height = mResolution.height, .depth = 1 },
@@ -309,7 +309,7 @@ void Sample::recreate_depth()
     mDepthImageView.create(mDevice);
 }
 
-void Sample::recreate_backbuffers(VkFormat formatColor, const std::span<VkImage>& backbufferimages)
+void MeshViewer::recreate_backbuffers(VkFormat formatColor, const std::span<VkImage>& backbufferimages)
 {
     for(auto&& vksemaphore : mRenderSemaphores)
         vkDestroySemaphore(mDevice, vksemaphore, nullptr);
@@ -378,7 +378,7 @@ void Sample::recreate_backbuffers(VkFormat formatColor, const std::span<VkImage>
     }
 }
 
-void Sample::record(std::uint32_t backbufferindex, VkCommandBuffer commandbuffer)
+void MeshViewer::record(std::uint32_t backbufferindex, VkCommandBuffer commandbuffer)
 {
     constexpr VkCommandBufferBeginInfo info{
         .sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,

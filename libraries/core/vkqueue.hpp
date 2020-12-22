@@ -4,6 +4,8 @@
 
 #include <cinttypes>
 
+#include <core_export.h>
+
 namespace blk
 {
     struct PhysicalDevice;
@@ -21,9 +23,9 @@ namespace blk
         {
         }
 
-        bool supports_presentation() const;
+        CORE_EXPORT bool supports_presentation() const;
 
-        bool supports_surface(VkSurfaceKHR) const;
+        CORE_EXPORT bool supports_surface(VkSurfaceKHR) const;
 
         operator VkQueueFamilyProperties() const
         {

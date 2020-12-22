@@ -25,7 +25,7 @@ namespace blk
     struct Queue;
 }
 
-namespace blk::sample0
+namespace blk::meshviewer
 {
     struct PassUIOverlay : Pass
     {
@@ -87,7 +87,7 @@ namespace blk::sample0
         blk::Queue*                          mComputeQueue = nullptr;
         blk::Queue*                          mTransferQueue = nullptr;
         blk::Queue*                          mGraphicsQueue = nullptr;
-        
+
         VkCommandPool                        mComputeCommandPool  = VK_NULL_HANDLE;
         VkCommandPool                        mTransferCommandPool = VK_NULL_HANDLE;
 

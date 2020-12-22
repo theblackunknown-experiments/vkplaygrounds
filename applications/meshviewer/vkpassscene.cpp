@@ -14,7 +14,7 @@ namespace
     constexpr std::uint32_t kStencilReference = 0x01;
 }
 
-namespace blk::sample0
+namespace blk::meshviewer
 {
 
 PassScene::PassScene(const blk::RenderPass& renderpass, std::uint32_t subpass, Arguments arguments)

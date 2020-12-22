@@ -20,9 +20,9 @@ namespace blk
     struct Memory;
 }
 
-namespace blk::sample0
+namespace blk::meshviewer
 {
-    struct Sample
+    struct MeshViewer
     {
         using multipass_type = MultiPass<
             PassTrait<PassUIOverlay, PassUIOverlay::Arguments>,
@@ -57,13 +57,13 @@ namespace blk::sample0
         std::vector<VkImageView>     mBackBufferViews;
         std::vector<VkFramebuffer>   mFrameBuffers;
 
-        Sample(
+        MeshViewer(
             blk::Engine& vkengine,
             VkFormat formatColor,
             const std::span<VkImage>& backbufferimages,
             const VkExtent2D& resolution
         );
-        ~Sample();
+        ~MeshViewer();
 
         void recreate_depth();
         void recreate_backbuffers(VkFormat formatColor, const std::span<VkImage>& backbufferimages);

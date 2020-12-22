@@ -55,7 +55,7 @@ namespace
     };
 }
 
-namespace blk::sample0
+namespace blk::meshviewer
 {
 
 PassUIOverlay::PassUIOverlay(const blk::RenderPass& renderpass, std::uint32_t subpass, Arguments args)
@@ -179,7 +179,10 @@ PassUIOverlay::PassUIOverlay(const blk::RenderPass& renderpass, std::uint32_t su
 
         constexpr std::array kConstantRanges{
             VkPushConstantRange{
-                .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                // .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                // FIXME: UNASSIGNED-CoreValidation-Shader-PushConstantOutOfRange
+                //  Because UI shader module contains both vertex & fragment
+                .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
                 .offset     = 0,
                 .size       = sizeof(DearImGuiConstants),
             },
@@ -929,7 +932,7 @@ void PassUIOverlay::record_pass(VkCommandBuffer commandbuffer)
         constants.scale    [1] =  2.0f / data->DisplaySize.y;
         constants.translate[0] = -1.0f - data->DisplayPos.x * constants.scale[0];
         constants.translate[1] = -1.0f - data->DisplayPos.y * constants.scale[1];
-        vkCmdPushConstants(commandbuffer, mPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(constants), &constants);
+        vkCmdPushConstants(commandbuffer, mPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(constants), &constants);
     }
     if (data->TotalVtxCount > 0)
     {// Buffer Bindings

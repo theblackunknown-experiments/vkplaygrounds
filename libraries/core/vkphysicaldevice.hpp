@@ -11,6 +11,8 @@
 #include "./vkqueue.hpp"
 #include "./vkmemory.hpp"
 
+#include <core_export.h>
+
 namespace blk
 {
     struct QueueFamily;
@@ -25,7 +27,7 @@ namespace blk
         std::vector<VkExtensionProperties>   mExtensions;
         blk::PhysicalDeviceMemories          mMemories;
 
-        explicit PhysicalDevice(VkPhysicalDevice vkphysicaldevice);
+        CORE_EXPORT explicit PhysicalDevice(VkPhysicalDevice vkphysicaldevice);
 
         operator VkPhysicalDevice() const
         {

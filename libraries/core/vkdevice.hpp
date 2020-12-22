@@ -4,6 +4,8 @@
 
 #include "./vkdebug.hpp"
 
+#include <core_export.h>
+
 namespace blk
 {
     struct PhysicalDevice;
@@ -46,7 +48,7 @@ namespace blk
             return *this;
         }
 
-        VkResult create();
+        CORE_EXPORT VkResult create();
 
         void destroy()
         {

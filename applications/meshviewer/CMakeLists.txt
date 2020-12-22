@@ -31,8 +31,8 @@ target_sources(meshviewer
 
         # sample specific
 
-        vksample0.hpp
-        vksample0.cpp
+        vkmeshviewer.hpp
+        vkmeshviewer.cpp
 
         vkpassuioverlay.hpp
         vkpassuioverlay.cpp
@@ -77,3 +77,11 @@ target_link_libraries(meshviewer
 # add_dependencies(meshviewer
 #     baked_meshes
 # )
+
+if(WIN32)
+    add_custom_command(TARGET meshviewer
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:core> $<TARGET_FILE_DIR:meshviewer>
+        COMMENT "Fetching runtime dependencies next to executable..."
+    )
+endif()

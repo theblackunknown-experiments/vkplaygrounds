@@ -12,6 +12,8 @@
 
 #include "./vkdebug.hpp"
 
+#include <core_export.h>
+
 namespace blk
 {
     struct Buffer;
@@ -119,7 +121,7 @@ namespace blk
         VkResult reallocate(VkDevice vkdevice, VkDeviceSize size)
         {
             assert((mDevice == VK_NULL_HANDLE) || (mDevice == vkdevice));
-            
+
             if (mInfo.allocationSize >= size)
                 return VK_SUCCESS;
 
@@ -144,12 +146,12 @@ namespace blk
             }
         }
 
-        VkResult bind(Buffer& buffer);
-        VkResult bind(const std::span<Buffer*>& buffers);
-        VkResult bind(const std::initializer_list<Buffer*>& buffers);
-        VkResult bind(Image& image);
-        VkResult bind(const std::span<Image*>& images);
-        VkResult bind(const std::initializer_list<Image*>& images);
+        CORE_EXPORT VkResult bind(Buffer& buffer);
+        CORE_EXPORT VkResult bind(const std::span<Buffer*>& buffers);
+        CORE_EXPORT VkResult bind(const std::initializer_list<Buffer*>& buffers);
+        CORE_EXPORT VkResult bind(Image& image);
+        CORE_EXPORT VkResult bind(const std::span<Image*>& images);
+        CORE_EXPORT VkResult bind(const std::initializer_list<Image*>& images);
 
         constexpr operator VkDeviceMemory() const
         {
@@ -162,10 +164,6 @@ namespace blk
         VkPhysicalDeviceMemoryProperties mProperties;
         std::vector<MemoryHeap>          mHeaps;
         std::vector<MemoryType>          mTypes;
-
-        explicit PhysicalDeviceMemories()
-        {
-        }
 
         void initialize(const VkPhysicalDeviceMemoryProperties& properties)
         {
@@ -183,7 +181,7 @@ namespace blk
             }
         }
 
-        const MemoryType* find_compatible(const Buffer& buffer, VkMemoryPropertyFlags flags = 0) const;
-        const MemoryType* find_compatible(const Image& image, VkMemoryPropertyFlags flags = 0) const;
+        CORE_EXPORT const MemoryType* find_compatible(const Buffer& buffer, VkMemoryPropertyFlags flags = 0) const;
+        CORE_EXPORT const MemoryType* find_compatible(const Image& image, VkMemoryPropertyFlags flags = 0) const;
     };
 }

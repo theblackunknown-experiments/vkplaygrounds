@@ -21,7 +21,7 @@ namespace blk
     struct Engine;
 }
 
-namespace blk::sample0
+namespace blk::meshviewer
 {
     struct PassScene : Pass
     {

@@ -330,10 +330,10 @@
 			"path": "C:/devel/vcpkg/installed/x64-windows"
 		},
 		{
-			"path": "C:/VulkanSDK/1.2.148.1/Demos"
+			"path": "C:/VulkanSDK/1.2.162.0/Demos"
 		},
 		{
-			"path": "C:/VulkanSDK/1.2.148.1/Include"
+			"path": "C:/VulkanSDK/1.2.162.0/Include"
 		},
 		{
 			"path": "C:/devel/USD"

@@ -33,7 +33,7 @@
 
 #include "./vkpass.hpp"
 
-#include "./vksample0.hpp"
+#include "./vkmeshviewer.hpp"
 
 namespace
 {
@@ -44,7 +44,7 @@ namespace
     {
         blk::Engine& engine;
         blk::Presentation& presentation;
-        blk::sample0::Sample& sample;
+        blk::meshviewer::MeshViewer& meshviewer;
         bool& ready;
         bool& shutting_down;
         bool& resizing;
@@ -301,12 +301,12 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
     blk::Presentation presentation(engine, vksurface, kResolution);
 
-    blk::sample0::Sample sample(engine, presentation.mColorFormat, presentation.mImages, kResolution);
+    blk::meshviewer::MeshViewer meshviewer(engine, presentation.mColorFormat, presentation.mImages, kResolution);
 
     bool ready = false;
     bool shutting_down = false;
     bool resizing = false;
-    WindowUserData user_data{engine, presentation, sample, ready, shutting_down, resizing};
+    WindowUserData user_data{engine, presentation, meshviewer, ready, shutting_down, resizing};
 
     ShowWindow(hWindow, nCmdShow);
     SetForegroundWindow(hWindow);
@@ -315,8 +315,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     SetWindowLongPtr(hWindow, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(&user_data));
     SetWindowLongPtr(hWindow, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(MainWindowProcedure));
 
-    auto& passui = sample.mPassUIOverlay;
-    auto& passscene = sample.mPassScene;
+    auto& passui = meshviewer.mPassUIOverlay;
+    auto& passscene = meshviewer.mPassScene;
 
     {// Font Image
         const blk::Queue* queue = passui.mGraphicsQueue;
@@ -348,18 +348,18 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         }
 
         if (ready)
-            sample.onIdle();
+            meshviewer.onIdle();
 
             if (!shutting_down)
             {
                 if(!IsIconic(hWindow))
                 {
                     blk::Presentation::Image presentation_image = presentation.acquire_next(kTimeoutAcquirePresentationImage);
-                    sample.record(presentation_image.index, presentation_image.commandbuffer);
+                    meshviewer.record(presentation_image.index, presentation_image.commandbuffer);
 
-                    VkSemaphore render_semaphore = sample.mRenderSemaphores.at(presentation_image.index);
+                    VkSemaphore render_semaphore = meshviewer.mRenderSemaphores.at(presentation_image.index);
 
-                    // TODO Figure out how we can use different queue for sample computations and presentation job
+                    // TODO Figure out how we can use different queue for meshviewer computations and presentation job
                     //  This probably means that we need to record computations with commandbuffers than ones from presentation
                     engine.submit(
                         *presentation_queue,
@@ -379,12 +379,12 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
                         vkDeviceWaitIdle(engine.mDevice);
                         auto new_resolution = presentation.recreate_swapchain();
 
-                        if (std::memcmp(&(sample.mResolution), &(new_resolution), sizeof(new_resolution)) != 0)
+                        if (std::memcmp(&(meshviewer.mResolution), &(new_resolution), sizeof(new_resolution)) != 0)
                         {
-                            sample.onResize(new_resolution);
+                            meshviewer.onResize(new_resolution);
                         }
 
-                        sample.recreate_backbuffers(presentation.mColorFormat, presentation.mImages);
+                        meshviewer.recreate_backbuffers(presentation.mColorFormat, presentation.mImages);
                     }
                 }
             }
@@ -427,10 +427,10 @@ LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
 
     blk::Engine& engine = userdata->engine;
     blk::Presentation& presentation = userdata->presentation;
-    blk::sample0::Sample& sample = userdata->sample;
+    blk::meshviewer::MeshViewer& meshviewer = userdata->meshviewer;
 
-    auto& passui = sample.mPassUIOverlay;
-    auto& passscene = sample.mPassScene;
+    auto& passui = meshviewer.mPassUIOverlay;
+    auto& passscene = meshviewer.mPassScene;
 
     switch (uMsg)
     {
@@ -450,14 +450,14 @@ LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
     case WM_PAINT:
         {
             // NOTE To make UI pass aware of resize changes
-            sample.onIdle();
+            meshviewer.onIdle();
 
             blk::Presentation::Image presentation_image = presentation.acquire_next(kTimeoutAcquirePresentationImage);
-            sample.record(presentation_image.index, presentation_image.commandbuffer);
+            meshviewer.record(presentation_image.index, presentation_image.commandbuffer);
 
-            VkSemaphore render_semaphore = sample.mRenderSemaphores.at(presentation_image.index);
+            VkSemaphore render_semaphore = meshviewer.mRenderSemaphores.at(presentation_image.index);
 
-            // TODO Figure out how we can use different queue for sample computations and presentation job
+            // TODO Figure out how we can use different queue for meshviewer computations and presentation job
             //  This probably means that we need to record computations with commandbuffers than ones from presentation
             const blk::Queue* presentation_queue = presentation.mPresentationQueues.at(0);
             engine.submit(
@@ -478,12 +478,12 @@ LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
                 vkDeviceWaitIdle(engine.mDevice);
                 auto new_resolution = presentation.recreate_swapchain();
 
-                if (std::memcmp(&(sample.mResolution), &(new_resolution), sizeof(new_resolution)) != 0)
+                if (std::memcmp(&(meshviewer.mResolution), &(new_resolution), sizeof(new_resolution)) != 0)
                 {
-                    sample.onResize(new_resolution);
+                    meshviewer.onResize(new_resolution);
                 }
 
-                sample.recreate_backbuffers(presentation.mColorFormat, presentation.mImages);
+                meshviewer.recreate_backbuffers(presentation.mColorFormat, presentation.mImages);
             }
 
             ValidateRect(hWnd, NULL);
@@ -595,8 +595,8 @@ LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
 
                     presentation.onResize(new_resolution);
 
-                    sample.onResize(presentation.mResolution);
-                    sample.recreate_backbuffers(presentation.mColorFormat, presentation.mImages);
+                    meshviewer.onResize(presentation.mResolution);
+                    meshviewer.recreate_backbuffers(presentation.mColorFormat, presentation.mImages);
                     return 0;
                 }
             case SIZE_MINIMIZED:
