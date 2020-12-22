@@ -1,6 +1,7 @@
 #include "./vkpassuioverlay.hpp"
 
 #include "./vkutilities.hpp"
+#include "./vksize.hpp"
 #include "./vkdebug.hpp"
 
 #include "./vkphysicaldevice.hpp"
@@ -44,10 +45,11 @@ namespace
     constexpr std::uint32_t kStencilMask                  = 0xFF;
     constexpr std::uint32_t kStencilReference             = 0x01;
 
-    // TODO(andrea.machizaud) use literals...
+    using namespace blk;
+
     // TODO(andrea.machizaud) pre-allocate a reasonable amount for buffers
-    constexpr std::size_t kInitialVertexBufferSize = 2 << 20; // 1 Mb
-    constexpr std::size_t kInitialIndexBufferSize  = 2 << 20; // 1 Mb
+    constexpr std::size_t kInitialVertexBufferSize = 1_MB;
+    constexpr std::size_t kInitialIndexBufferSize  = 1_MB;
 
     struct alignas(4) DearImGuiConstants {
         float scale    [2];
@@ -247,8 +249,8 @@ PassUIOverlay::PassUIOverlay(const blk::RenderPass& renderpass, std::uint32_t su
     {// Memories
         auto vkphysicaldevice = *(mDevice.mPhysicalDevice);
 
-        auto memory_type_index   = vkphysicaldevice.mMemories.find_compatible(mVertexBuffer          , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-        auto memory_type_vertex  = vkphysicaldevice.mMemories.find_compatible(mIndexBuffer           , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        auto memory_type_vertex  = vkphysicaldevice.mMemories.find_compatible(mVertexBuffer          , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        auto memory_type_index   = vkphysicaldevice.mMemories.find_compatible(mIndexBuffer           , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
         auto memory_type_font    = vkphysicaldevice.mMemories.find_compatible(mFontImage             , 0);
         auto memory_type_staging = vkphysicaldevice.mMemories.find_compatible(mFontImageStagingBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
@@ -676,7 +678,6 @@ void PassUIOverlay::render_imgui_frame()
             io.MouseWheel                         = mMouse.wheel.vdelta;
             io.MouseWheelH                        = mMouse.wheel.hdelta;
 
-            static bool show_open_model = false;
             static bool show_gpu_information = false;
             static bool show_demos = false;
             static bool show_font_selector = false;
@@ -717,15 +718,6 @@ void PassUIOverlay::render_imgui_frame()
                         ImGui::EndMenu();
                     }
                     ImGui::EndMainMenuBar();
-                }
-
-                if (show_open_model)
-                {
-                    if (ImGui::Begin("Model Browser", &show_open_model))
-                    {
-
-                    }
-                    ImGui::End();
                 }
 
                 if (show_gpu_information)

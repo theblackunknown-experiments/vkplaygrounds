@@ -4,13 +4,13 @@
 
 #include <cinttypes>
 
-#include <chrono>
 #include <vector>
+#include <array>
 
 #include "./vkdevice.hpp"
 #include "./vkrenderpass.hpp"
 #include "./vkbuffer.hpp"
-#include "./vkimage.hpp"
+#include "./vkqueue.hpp"
 
 #include "./vkpass.hpp"
 
@@ -25,11 +25,6 @@ namespace blk::meshviewer
 {
     struct PassScene : Pass
     {
-        using frame_clock_t         = std::chrono::high_resolution_clock;
-        using frame_tick_t          = frame_clock_t::time_point;
-        using frame_time_delta_s_t  = std::chrono::duration<float/*, std::seconds*/>;
-        using frame_time_delta_ms_t = std::chrono::duration<float, std::milli>;
-
         struct Arguments
         {
             blk::Engine& engine;
@@ -56,6 +51,22 @@ namespace blk::meshviewer
         VkPipelineCache                      mPipelineCache                = VK_NULL_HANDLE;
 
         VkPipeline                           mPipeline                     = VK_NULL_HANDLE;
+
+        blk::Buffer                          mVertexBuffer;
+        blk::Buffer                          mIndexBuffer;
+        blk::Buffer                          mStagingBuffer;
+
+        std::unique_ptr<blk::Memory>         mGeometryMemory;
+        std::unique_ptr<blk::Memory>         mStagingMemory;
+
+        blk::Queue*                          mGraphicsQueue = nullptr;
+
+        VkCommandPool                        mGraphicsCommandPoolTransient = VK_NULL_HANDLE;
+
+        VkCommandBuffer                      mStagingCommandBuffer = VK_NULL_HANDLE;
+        VkFence                              mStagingFence         = VK_NULL_HANDLE;
+        VkSemaphore                          mStagingSemaphore     = VK_NULL_HANDLE;
+
     };
 
 }

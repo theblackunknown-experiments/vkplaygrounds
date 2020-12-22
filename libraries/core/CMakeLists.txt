@@ -2,6 +2,8 @@
 add_library(core)
 target_sources(core
     PRIVATE
+        vksize.hpp
+
         vkdebug.hpp
         vkdebug.cpp
 
