@@ -142,6 +142,15 @@
                         "obj2mesh"
                     ],
                     "name": "obj2mesh"
+                },
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-v",
+                        "meshviewer"
+                    ],
+                    "name": "meshviewer"
                 }
 			],
 			"working_dir": "C:/builds/vkplaygrounds"
@@ -289,7 +298,16 @@
 						"obj2mesh"
 					],
 					"name": "obj2mesh"
-				}
+				},
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-v",
+                        "meshviewer"
+                    ],
+                    "name": "meshviewer"
+                }
 			],
 			"working_dir": "C:/builds/vkplaygrounds-windows-clang-x86-64"
 		}

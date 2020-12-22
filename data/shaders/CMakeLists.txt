@@ -117,17 +117,19 @@ add_custom_target(shaders_headers
         "${CMAKE_CURRENT_BINARY_DIR}/triangle-shader.hpp"
 )
 
-target_include_directories(default-sample
-    PRIVATE
+add_library(baked_shaders INTERFACE)
+
+# target_sources(baked_shaders
+#     INTERFACE
+#         "${CMAKE_CURRENT_BINARY_DIR}/ui-shader.hpp"
+#         "${CMAKE_CURRENT_BINARY_DIR}/triangle-shader.hpp"
+# )
+
+target_include_directories(baked_shaders
+    INTERFACE
         ${CMAKE_CURRENT_BINARY_DIR}
 )
 
-target_sources(default-sample
-    PRIVATE
-        "${CMAKE_CURRENT_BINARY_DIR}/ui-shader.hpp"
-        "${CMAKE_CURRENT_BINARY_DIR}/triangle-shader.hpp"
-)
-
-add_dependencies(default-sample
+add_dependencies(baked_shaders
     shaders_headers
 )

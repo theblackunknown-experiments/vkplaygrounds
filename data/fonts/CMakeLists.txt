@@ -18,12 +18,14 @@ constexpr const unsigned char kFont[]    = {
 };
 ")
 
-target_include_directories(default-sample
-    PRIVATE
-        ${CMAKE_CURRENT_BINARY_DIR}
-)
+add_library(baked_font INTERFACE)
 
-target_sources(default-sample
-    PRIVATE
-        "${CMAKE_CURRENT_BINARY_DIR}/font.hpp"
+# target_sources(baked_font
+#     INTERFACE
+#         "${CMAKE_CURRENT_BINARY_DIR}/font.hpp"
+# )
+
+target_include_directories(baked_font
+    INTERFACE
+        ${CMAKE_CURRENT_BINARY_DIR}
 )

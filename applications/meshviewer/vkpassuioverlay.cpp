@@ -1,13 +1,13 @@
 #include "./vkpassuioverlay.hpp"
 
-#include "../vkutilities.hpp"
-#include "../vkdebug.hpp"
+#include "./vkutilities.hpp"
+#include "./vkdebug.hpp"
 
-#include "../vkphysicaldevice.hpp"
-#include "../vkengine.hpp"
+#include "./vkphysicaldevice.hpp"
+#include "./vkengine.hpp"
 
-#include "../vkmemory.hpp"
-#include "../vkqueue.hpp"
+#include "./vkmemory.hpp"
+#include "./vkqueue.hpp"
 
 #include "font.hpp"
 #include "ui-shader.hpp"
@@ -419,7 +419,7 @@ PassUIOverlay::PassUIOverlay(const blk::RenderPass& renderpass, std::uint32_t su
             .pInheritanceInfo = nullptr,
         };
         CHECK(vkBeginCommandBuffer(mFontImageStagingCommandBuffer, &info));
-        
+
         record_font_image_upload(mFontImageStagingCommandBuffer, mFontImageStagingBuffer);
         CHECK(vkEndCommandBuffer(mFontImageStagingCommandBuffer));
     }
@@ -1094,7 +1094,7 @@ void PassUIOverlay::clear_font_image_transient_data()
 void PassUIOverlay::onResize(const VkExtent2D& resolution)
 {
     mResolution = resolution;
-    
+
     ImGuiIO& io = ImGui::GetIO();
     io.DisplaySize = ImVec2(mResolution.width, mResolution.height);
 }

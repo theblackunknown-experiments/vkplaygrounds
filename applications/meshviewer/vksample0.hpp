@@ -2,10 +2,10 @@
 
 #include <vulkan/vulkan_core.h>
 
-#include "../vkpass.hpp"
-#include "../vkrenderpass.hpp"
+#include "./vkpass.hpp"
+#include "./vkrenderpass.hpp"
 
-#include "../vkimage.hpp"
+#include "./vkimage.hpp"
 
 #include "./vkpassscene.hpp"
 #include "./vkpassuioverlay.hpp"
@@ -36,18 +36,18 @@ namespace blk::sample0
 
         Engine&                      mEngine;
         const Device&                mDevice;
-          
+
         VkFormat                     mColorFormat;
         VkFormat                     mDepthFormat;
-          
+
         VkExtent2D                   mResolution;
-          
+
         RenderPass                   mRenderPass;
         multipass_type               mMultipass;
-          
+
         PassUIOverlay&               mPassUIOverlay;
         PassScene&                   mPassScene;
-          
+
         blk::Image                   mDepthImage;
         blk::ImageView               mDepthImageView;
 

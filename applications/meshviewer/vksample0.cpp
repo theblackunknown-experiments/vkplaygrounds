@@ -1,10 +1,10 @@
 #include "./vksample0.hpp"
 
-#include "../vkengine.hpp"
-#include "../vkdevice.hpp"
-#include "../vkphysicaldevice.hpp"
+#include "./vkengine.hpp"
+#include "./vkdevice.hpp"
+#include "./vkphysicaldevice.hpp"
 
-#include "../vkmemory.hpp"
+#include "./vkmemory.hpp"
 
 #include <vulkan/vulkan_core.h>
 
@@ -234,7 +234,7 @@ Sample::Sample(blk::Engine& vkengine, VkFormat formatColor, const std::span<VkIm
                 },
             };
             CHECK(vkCreateImageView(mDevice, &info_imageview, nullptr, &view));
-            
+
             const std::array attachments{
                 view,
                 // NOTE(andrea.machizaud) Is it safe to re-use depth here ?
@@ -252,7 +252,7 @@ Sample::Sample(blk::Engine& vkengine, VkFormat formatColor, const std::span<VkIm
                 .layers          = 1,
             };
             CHECK(vkCreateFramebuffer(mDevice, &info_framebuffer, nullptr, &framebuffer));
-        
+
             CHECK(vkCreateSemaphore(mDevice, &info_semaphore, nullptr, &render_semaphore));
         }
     }
@@ -355,7 +355,7 @@ void Sample::recreate_backbuffers(VkFormat formatColor, const std::span<VkImage>
             },
         };
         CHECK(vkCreateImageView(mDevice, &info_imageview, nullptr, &view));
-        
+
         const std::array attachments{
             view,
             // NOTE(andrea.machizaud) Is it safe to re-use depth here ?
@@ -373,7 +373,7 @@ void Sample::recreate_backbuffers(VkFormat formatColor, const std::span<VkImage>
             .layers          = 1,
         };
         CHECK(vkCreateFramebuffer(mDevice, &info_framebuffer, nullptr, &framebuffer));
-    
+
         CHECK(vkCreateSemaphore(mDevice, &info_semaphore, nullptr, &render_semaphore));
     }
 }
@@ -387,7 +387,7 @@ void Sample::record(std::uint32_t backbufferindex, VkCommandBuffer commandbuffer
         .pInheritanceInfo = nullptr,
     };
     CHECK(vkBeginCommandBuffer(commandbuffer, &info));
-    
+
     constexpr std::array kClearValues {
         VkClearValue {
             .color = VkClearColorValue{

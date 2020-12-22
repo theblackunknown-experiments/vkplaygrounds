@@ -57,7 +57,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 ##############################
 
 option(BUILD_SHARED_LIBS "Build shared libraries"          ON)
-option(INSTALL_HEADERS   "Install the development headers" ON)
 
 ##############################
 ##        Includes          ##
@@ -122,82 +121,16 @@ target_include_directories(utilities
         utilities
 )
 
-add_subdirectory(core)
+add_subdirectory(libraries/core)
 add_subdirectory(xxx2mesh)
 
 # FIXME: NYI mesh serialization
-# add_subdirectory(models)
+# add_subdirectory(data/models)
 
-add_executable(default-sample WIN32)
-target_sources(default-sample
-    PRIVATE
-        src/vkutilities.hpp
-        src/vkutilities.cpp
+add_subdirectory(data/fonts)
+add_subdirectory(data/shaders)
 
-        src/vkapplication.hpp
-        src/vkapplication.cpp
-
-        src/vkengine.hpp
-        src/vkengine.cpp
-
-        src/vkpresentation.hpp
-        src/vkpresentation.cpp
-
-        src/vkpass.hpp
-        src/vkpass.cpp
-
-        src/vkrenderpass.hpp
-        src/vkrenderpass.cpp
-
-        src/vksurface.hpp
-        $<$<PLATFORM_ID:Windows>:src/win32_vksurface.cpp>
-
-        src/sample0/vksample0.hpp
-        src/sample0/vksample0.cpp
-
-        src/sample0/vkpassuioverlay.hpp
-        src/sample0/vkpassuioverlay.cpp
-
-        src/sample0/vkpassscene.hpp
-        src/sample0/vkpassscene.cpp
-
-        # src/dearimgui/dearimguishowcase.hpp
-        # src/dearimgui/dearimguishowcase.cpp
-
-        $<$<PLATFORM_ID:Windows>:src/win32_main.cpp>
-)
-
-target_include_directories(default-sample
-    PRIVATE
-        src
-        ${CMAKE_CURRENT_BINARY_DIR}
-)
-
-target_compile_definitions(default-sample
-    PRIVATE
-        $<$<PLATFORM_ID:Windows>:
-            VK_USE_PLATFORM_WIN32_KHR
-            WIN32_LEAN_AND_MEAN
-            NOMINMAX
-            NOCOMM
-        >
-        $<$<PLATFORM_ID:Windows>:OS_WINDOWS>
-)
-target_link_libraries(default-sample
-    PRIVATE
-        core
-        dearimgui
-        utilities
-        Vulkan::Vulkan
-        range-v3::range-v3
-)
-
-add_subdirectory(fonts)
-add_subdirectory(shaders)
-
-# add_dependencies(default-sample
-#     baked_meshes
-# )
+add_subdirectory(applications/meshviewer)
 
 ##############################
 ##          Config          ##
@@ -226,7 +159,7 @@ write_basic_package_version_file("${CMAKE_CURRENT_BINARY_DIR}/vkplaygrounds-conf
 ##############################
 
 install(
-    TARGETS default-sample
+    TARGETS meshviewer
     EXPORT vkplaygrounds-targets
     COMPONENT runtime
 )
@@ -244,13 +177,6 @@ install(
         "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAME}"
 )
 
-if(INSTALL_HEADERS)
-    install(FILES
-        ${PUBLIC_HEADERS}
-        TYPE INCLUDE
-    )
-endif()
-
 ##############################
 ##          Fixes           ##
 ##############################
@@ -258,22 +184,22 @@ endif()
 # https://gitlab.kitware.com/cmake/cmake/-/issues/18399#note_459496
 set_property(
     SOURCE
-        ${CMAKE_CURRENT_BINARY_DIR}/shaders/ui-shader.hpp
-        ${CMAKE_CURRENT_BINARY_DIR}/shaders/triangle-shader.hpp
+        ${CMAKE_CURRENT_BINARY_DIR}/data/shaders/ui-shader.hpp
+        ${CMAKE_CURRENT_BINARY_DIR}/data/shaders/triangle-shader.hpp
     PROPERTY
         GENERATED 1
 )
 
 set_property(
     SOURCE
-        ${CMAKE_CURRENT_BINARY_DIR}/fonts/font.hpp
+        ${CMAKE_CURRENT_BINARY_DIR}/data/fonts/font.hpp
     PROPERTY
         GENERATED 1
 )
 
 set_property(
     SOURCE
-        ${CMAKE_CURRENT_BINARY_DIR}/models/CornellBox-Original.mesh
+        ${CMAKE_CURRENT_BINARY_DIR}/data/models/CornellBox-Original.mesh
     PROPERTY
         GENERATED 1
 )

@@ -33,7 +33,7 @@
 
 #include "./vkpass.hpp"
 
-#include "./sample0/vksample0.hpp"
+#include "./vksample0.hpp"
 
 namespace
 {
@@ -100,7 +100,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
     struct ConsoleHolder
     {
-        ConsoleHolder()   
+        ConsoleHolder()
         {
             auto success = AllocConsole();
             assert(success);
@@ -349,7 +349,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
         if (ready)
             sample.onIdle();
-        
+
             if (!shutting_down)
             {
                 if(!IsIconic(hWindow))
@@ -417,7 +417,7 @@ LRESULT CALLBACK MinimalWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPA
     default:
         return DefWindowProc(hWnd, uMsg, wParam, lParam);
     }
-    
+
 }
 
 LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
