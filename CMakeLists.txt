@@ -49,9 +49,6 @@ project(vkplaygrounds
 #  NODEFERWINDOWPOS  - DeferWindowPos routines
 #  NOMCX             - Modem Configuration Extensions
 
-message(VERBOSE "CMAKE_SYSTEM_NAME: ${CMAKE_SYSTEM_NAME}")
-message(VERBOSE "CMAKE_SYSTEM_VERSION: ${CMAKE_SYSTEM_VERSION}")
-
 set(CMAKE_CXX_STANDARD   20)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -125,7 +122,11 @@ target_include_directories(utilities
         utilities
 )
 
-add_subdirectory(src/core)
+add_subdirectory(core)
+add_subdirectory(xxx2mesh)
+
+# FIXME: NYI mesh serialization
+# add_subdirectory(models)
 
 add_executable(default-sample WIN32)
 target_sources(default-sample
@@ -193,7 +194,10 @@ target_link_libraries(default-sample
 
 add_subdirectory(fonts)
 add_subdirectory(shaders)
-add_subdirectory(models)
+
+# add_dependencies(default-sample
+#     baked_meshes
+# )
 
 ##############################
 ##          Config          ##

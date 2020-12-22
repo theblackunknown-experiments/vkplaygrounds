@@ -130,10 +130,19 @@
 					[
 						"ninja",
 						"-v",
-						"obj2mesh"
+						"libobj2mesh"
 					],
-					"name": "obj2mesh"
-				}
+					"name": "libobj2mesh"
+				},
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-v",
+                        "obj2mesh"
+                    ],
+                    "name": "obj2mesh"
+                }
 			],
 			"working_dir": "C:/builds/vkplaygrounds"
 		},
@@ -263,6 +272,15 @@
 					],
 					"name": "shaders_headers"
 				},
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-v",
+                        "libobj2mesh"
+                    ],
+                    "name": "libobj2mesh"
+                },
 				{
 					"cmd":
 					[

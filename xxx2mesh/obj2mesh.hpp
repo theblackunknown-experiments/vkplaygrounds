@@ -1,27 +1,24 @@
 
+#include <vkmesh.hpp>
+
 #include <cstdlib>
 #include <cassert>
 
-#include <fstream>
-#include <iostream>
 #include <charconv>
-#include <type_traits>
 
-#include <span>
 #include <memory>
 #include <string>
 #include <iterator>
 #include <optional>
+#include <unordered_map>
 
 #include <filesystem>
 
-#include <vkmesh.hpp>
-
-#include <range/v3/view/zip.hpp>
+#include <obj2mesh_export.h>
 
 namespace fs = std::filesystem;
 
-namespace
+namespace blk::meshes::obj
 {
     enum class face_attribute_t
     {
@@ -29,7 +26,6 @@ namespace
         Vertex,
         TexCoord,
         Normal
-
     };
 
     struct vertex_t {
@@ -77,17 +73,20 @@ namespace
         std::vector<group_t>    groups;
     };
 
+    inline
     bool is_face_attribute_separator(char c)
     {
         return (c == '/');
     }
 
+    inline
     bool is_space_separator(char c)
     {
         return (c == ' ')
             || (c == '\t');
     }
 
+    inline
     bool is_token_separator(char c)
     {
         return is_space_separator(c)
@@ -179,7 +178,7 @@ namespace
     }
 
     template<typename Iterator>
-    obj_t process_obj_stream(const fs::path& folderpath, Iterator iterator, Iterator last)
+    obj_t parse_obj_stream(const fs::path& folderpath, Iterator iterator, Iterator last)
     {
         obj_t obj;
         obj.vertices .reserve(256);
@@ -484,179 +483,16 @@ namespace
 
         return obj;
     }
-}
 
-int main(int argc, char* argv[])
-{
-    int inputidx = -1, outputidx = -1;
-    for (int idx = 1; idx < argc; ++idx)
+    struct result_t
     {
-        if ((std::strcmp(argv[idx], "-i") == 0) || (std::strcmp(argv[idx], "--input") == 0))
-        {
-            inputidx = ++idx;
-        }
-        else  if ((std::strcmp(argv[idx], "-o") == 0) || (std::strcmp(argv[idx], "--output") == 0))
-        {
-            outputidx = ++idx;
-        }
-        else if (inputidx == -1)
-        {// no input defined yet, pick first positional arg
-            inputidx = idx;
-        }
-        else if (outputidx == -1)
-        {// no output defined yet, pick first positional arg
-            outputidx = idx;
-        }
-    }
+        blk::BufferCPU                                  vertices;
+        blk::BufferCPU                                  points;
+        std::optional<blk::BufferCPU>                   texcoords;
+        std::optional<blk::BufferCPU>                   normals;
+        std::unordered_map<std::string, blk::BufferCPU> faces_by_group;
+    };
 
-    if (inputidx == -1)
-    {
-        std::cerr << "No input given." << std::endl;
-        return 1;
-    }
-
-    if (outputidx == -1)
-    {
-        std::cerr << "No output given." << std::endl;
-        return 1;
-    }
-
-    fs::path input(argv[inputidx]), output(argv[outputidx]);
-
-    std::ifstream istream(input, std::ios::in);
-    std::ofstream ostream(output);
-
-    if (!istream.is_open())
-    {
-        std::cerr << "Failed to open " << input << '.' << std::endl;
-        return 2;
-    }
-
-    if (!ostream.is_open())
-    {
-        std::cerr << "Failed to open " << output << '.' << std::endl;
-        return 2;
-    }
-
-    std::istreambuf_iterator<char> streambegin(istream), streamend;
-
-    obj_t obj = process_obj_stream(input.parent_path(), streambegin, streamend);
-
-    istream.close();
-
-    constexpr std::size_t      kIndexVertex = 0;
-    constexpr std::size_t      kIndexPoint = 1;
-    std::optional<std::size_t> index_texcoord;
-    std::optional<std::size_t> index_normal;
-
-    int shared_attribute_count = 2; // Vertex + Point
-    if (!obj.texcoords.empty())
-    {
-        index_texcoord = shared_attribute_count;
-        shared_attribute_count += 1;
-    }
-    if (!obj.normals.empty())
-    {
-        index_normal = shared_attribute_count;
-        shared_attribute_count += 1;
-    }
-
-    std::vector<blk::BufferCPU> obj_mesh_attributes(shared_attribute_count + obj.groups.size());
-
-    static_assert(std::is_same_v<decltype(obj.vertices)::value_type, vertex_t>);
-    blk::BufferCPU& attribute_vertices = obj_mesh_attributes.at(kIndexVertex);
-    attribute_vertices.pointer        = obj.vertices.data();
-    attribute_vertices.count          = obj.vertices.size();
-    attribute_vertices.stride         = sizeof(vertex_t);
-    attribute_vertices.element_stride = sizeof(float);
-    attribute_vertices.usage          = blk::AttributeUsage::Vertex;
-    attribute_vertices.datatype       = blk::AttributeDataType::Float;
-
-    static_assert(std::is_same_v<decltype(obj.points)::value_type, point_t>);
-    blk::BufferCPU& attribute_points = obj_mesh_attributes.at(kIndexPoint);
-    attribute_points.pointer        = obj.points.data();
-    attribute_points.count          = obj.points.size();
-    attribute_points.stride         = sizeof(point_t);
-    attribute_points.element_stride = sizeof(std::size_t);
-    attribute_points.usage          = blk::AttributeUsage::Point;
-    attribute_points.datatype       = blk::AttributeDataType::Unsigned;
-
-    if (index_texcoord)
-    {
-        static_assert(std::is_same_v<decltype(obj.texcoords)::value_type, texcoord_t>);
-        blk::BufferCPU& attribute_texcoord = obj_mesh_attributes.at(*index_texcoord);
-        attribute_texcoord.pointer        = obj.texcoords.data();
-        attribute_texcoord.count          = obj.texcoords.size();
-        attribute_texcoord.stride         = sizeof(texcoord_t);
-        attribute_texcoord.element_stride = sizeof(float);
-        attribute_texcoord.usage          = blk::AttributeUsage::TexCoord;
-        attribute_texcoord.datatype       = blk::AttributeDataType::Float;
-    }
-
-    if (index_normal)
-    {
-        static_assert(std::is_same_v<decltype(obj.normals)::value_type, normal_t>);
-        blk::BufferCPU& attribute_normal = obj_mesh_attributes.at(*index_normal);
-        attribute_normal.pointer        = obj.normals.data();
-        attribute_normal.count          = obj.normals.size();
-        attribute_normal.stride         = sizeof(normal_t);
-        attribute_normal.element_stride = sizeof(float);
-        attribute_normal.usage          = blk::AttributeUsage::Normal;
-        attribute_normal.datatype       = blk::AttributeDataType::Float;
-    }
-
-    int index_shared_group_face = shared_attribute_count;
-    std::vector<blk::MeshCPU> meshes(obj.groups.size());
-    for (auto&& [mesh, group] : ranges::views::zip(meshes, obj.groups))
-    {
-        // assert(!group.faces.empty());
-        if (group.faces.empty())
-            continue;
-
-        mesh.name = group.name;
-        mesh.attributes.resize(shared_attribute_count + 1); // Global Attributes + Faces
-
-        int index_local_group_face = shared_attribute_count;
-
-        static_assert(std::is_same_v<decltype(group.faces)::value_type, face_t>);
-        blk::BufferCPU& attribute_face = obj_mesh_attributes.at(index_shared_group_face);
-        attribute_face.pointer        = group.faces.data();
-        attribute_face.count          = group.faces.size();
-        attribute_face.stride         = sizeof(face_t);
-        attribute_face.element_stride = sizeof(std::size_t);
-        attribute_face.usage          = blk::AttributeUsage::Face;
-        attribute_face.datatype       = blk::AttributeDataType::Unsigned;
-
-        mesh.attributes.at(kIndexVertex     ) = std::addressof(obj_mesh_attributes.at(kIndexVertex));
-        mesh.attributes.at(kIndexPoint      ) = std::addressof(obj_mesh_attributes.at(kIndexPoint));
-        mesh.attributes.at(index_local_group_face) = std::addressof(obj_mesh_attributes.at(index_shared_group_face));
-        if (index_texcoord)
-            mesh.attributes.at(*index_texcoord) = std::addressof(obj_mesh_attributes.at(*index_texcoord));
-        if (index_normal)
-            mesh.attributes.at(*index_normal)   = std::addressof(obj_mesh_attributes.at(*index_normal));
-
-        index_shared_group_face += 1;
-    }
-
-    std::cout << "Parsed meshes (" << meshes.size() << "):" << std::endl;
-    for (auto&& mesh : meshes)
-    {
-        std::cout << '\t' << "name: " << mesh.name << std::endl;
-        std::cout << '\t' << "attributes (" << mesh.attributes.size() << "): " << mesh.name << std::endl;
-        for (auto&& attribute : mesh.attributes)
-        {
-            std::cout << std::endl;
-            std::cout << "\t\t" << "pointer        : " << std::hex << attribute->pointer         << std::endl;
-            std::cout << "\t\t" << "count          : " << std::dec << attribute->count           << std::endl;
-            std::cout << "\t\t" << "stride         : " << std::dec << attribute->stride          << std::endl;
-            std::cout << "\t\t" << "element_stride : " << std::dec << attribute->element_stride  << std::endl;
-            std::cout << "\t\t" << "element_count  : " << std::dec << attribute->element_count() << std::endl;
-            std::cout << "\t\t" << "usage          : " << blk::label(attribute->usage)           << std::endl;
-            std::cout << "\t\t" << "datatype       : " << blk::label(attribute->datatype)        << std::endl;
-            std::cout << "\t\t" << "buffersize     : " << std::dec << attribute->buffer_size()   << std::endl;
-
-        }
-    }
-
-    return EXIT_FAILURE;
+    OBJ2MESH_EXPORT
+    result_t wrap_as_buffers(const obj_t& obj);
 }

@@ -58,7 +58,7 @@ namespace blk
 
     struct BufferCPU
     {
-        void*             pointer;        // Where does the attribute starts in storage
+        const void*       pointer;        // Where does the attribute starts in storage
         std::uint64_t     count;          // Number of attributes
         std::uint32_t     stride;         // Size in bytes between two consecutives Attribute in storage
         std::uint32_t     element_stride; // Size in bytes between two consecutives Attribute element in storage
@@ -74,11 +74,5 @@ namespace blk
         {
             return count * stride;
         }
-    };
-
-    struct MeshCPU
-    {
-        std::string             name;
-        std::vector<BufferCPU*> attributes;
     };
 }
