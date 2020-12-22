@@ -157,7 +157,11 @@ MeshViewer::MeshViewer(blk::Engine& vkengine, VkFormat formatColor, const std::s
 
     , mRenderPass(vkengine, mColorFormat, mDepthFormat)
 
-    , mMultipass(mRenderPass, PassUIOverlay::Arguments{ vkengine, resolution }, PassScene::Arguments{ vkengine, resolution })
+    , mMultipass(
+        mRenderPass,
+        PassUIOverlay::Arguments{ vkengine, resolution, mUIMeshInformation },
+        PassScene::Arguments{ vkengine, resolution, mUIMeshInformation }
+    )
     , mPassUIOverlay(subpass<0>(mMultipass))
     , mPassScene(subpass<1>(mMultipass))
 

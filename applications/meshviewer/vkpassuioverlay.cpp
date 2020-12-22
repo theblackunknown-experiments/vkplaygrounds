@@ -66,6 +66,7 @@ PassUIOverlay::PassUIOverlay(const blk::RenderPass& renderpass, std::uint32_t su
     , mDevice(mEngine.mDevice)
 
     , mResolution(args.resolution)
+    , mUIMeshInformation(args.mesh_information)
 
     , mContext(ImGui::CreateContext())
 
@@ -682,27 +683,19 @@ void PassUIOverlay::render_imgui_frame()
             static bool show_demos = false;
             static bool show_font_selector = false;
 
-            constexpr std::array kModels{
-                "Dummy0",
-                "Dummy1",
-                "Dummy2"
-            };
-            static int model_index = 0;
-            const char* current_model = kModels[model_index];
-
             ImGui::NewFrame();
             {// Window
                 if (ImGui::BeginMainMenuBar())
                 {
                     if (ImGui::BeginMenu("Models"))
                     {
-                        if (ImGui::BeginCombo("https://casual-effects.com/data/", current_model))
+                        if (ImGui::BeginCombo("https://casual-effects.com/data/", mUIMeshInformation.mMeshLabels[mUIMeshInformation.mSelectedMeshIndex].c_str()))
                         {
-                            for (auto [idx, model] : enumerate(kModels))
+                            for (auto [idx, model] : enumerate(mUIMeshInformation.mMeshLabels))
                             {
-                                auto is_selected = idx == model_index;
-                                if (ImGui::Selectable(model, is_selected))
-                                    model_index = idx;
+                                auto is_selected = idx == mUIMeshInformation.mSelectedMeshIndex;
+                                if (ImGui::Selectable(model.c_str(), is_selected))
+                                    mUIMeshInformation.mSelectedMeshIndex = idx;
 
                                 if (is_selected)
                                     ImGui::SetItemDefaultFocus();

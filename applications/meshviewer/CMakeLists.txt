@@ -34,6 +34,9 @@ target_sources(meshviewer
         vkmeshviewer.hpp
         vkmeshviewer.cpp
 
+        vkmeshviewerui.hpp
+        vkmeshviewerui.cpp
+
         vkpassuioverlay.hpp
         vkpassuioverlay.cpp
 

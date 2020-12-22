@@ -258,11 +258,12 @@ namespace
 namespace blk::meshviewer
 {
 
-PassScene::PassScene(const blk::RenderPass& renderpass, std::uint32_t subpass, Arguments arguments)
+PassScene::PassScene(const blk::RenderPass& renderpass, std::uint32_t subpass, Arguments args)
     : Pass(renderpass, subpass)
-    , mEngine(arguments.engine)
+    , mEngine(args.engine)
     , mDevice(renderpass.mDevice)
-    , mResolution(arguments.resolution)
+    , mResolution(args.resolution)
+    , mUIMeshInformation(args.mesh_information)
 
     , mVertexBuffer(kInitialVertexBufferSize  , VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT)
     , mIndexBuffer(kInitialIndexBufferSize    , VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT)

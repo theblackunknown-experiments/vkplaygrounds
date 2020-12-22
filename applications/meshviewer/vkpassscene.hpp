@@ -14,6 +14,8 @@
 
 #include "./vkpass.hpp"
 
+#include "./vkmeshviewerui.hpp"
+
 struct ImGuiContext;
 
 namespace blk
@@ -27,8 +29,9 @@ namespace blk::meshviewer
     {
         struct Arguments
         {
-            blk::Engine& engine;
-            VkExtent2D   resolution;
+            blk::Engine&       engine;
+            VkExtent2D         resolution;
+            UIMeshInformation& mesh_information;
         };
 
         // TODO Re-use pipeline cache object, instead of one per pass
@@ -44,6 +47,7 @@ namespace blk::meshviewer
         blk::Engine&                         mEngine;
         const blk::Device&                   mDevice;
         VkExtent2D                           mResolution;
+        UIMeshInformation&                   mUIMeshInformation;
         ImGuiContext*                        mContext = nullptr;
 
         VkPipelineLayout                     mPipelineLayout               = VK_NULL_HANDLE;
