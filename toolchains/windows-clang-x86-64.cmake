@@ -8,13 +8,13 @@ set(CMAKE_SYSTEM_VERSION   10.0.19041.0)
 set(TARGET x86_64-pc-windows-msvc)
 
 find_program(CMAKE_C_COMPILER          clang)
-find_program(CMAKE_C_COMPILER_TARGET   ${TARGET})
+set         (CMAKE_C_COMPILER_TARGET   ${TARGET})
 
 find_program(CMAKE_CXX_COMPILER        clang++)
-find_program(CMAKE_CXX_COMPILER_TARGET ${TARGET})
+set         (CMAKE_CXX_COMPILER_TARGET ${TARGET})
 
 find_program(CMAKE_ASM_COMPILER        clang)
-find_program(CMAKE_ASM_COMPILER_TARGET ${TARGET})
+set         (CMAKE_ASM_COMPILER_TARGET ${TARGET})
 
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 # set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
