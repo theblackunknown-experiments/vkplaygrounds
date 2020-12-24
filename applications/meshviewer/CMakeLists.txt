@@ -34,8 +34,8 @@ target_sources(meshviewer
         vkmeshviewer.hpp
         vkmeshviewer.cpp
 
-        vkmeshviewerui.hpp
-        vkmeshviewerui.cpp
+        vkmeshviewerdata.hpp
+        vkmeshviewerdata.cpp
 
         vkpassuioverlay.hpp
         vkpassuioverlay.cpp
@@ -68,6 +68,8 @@ target_compile_definitions(meshviewer
 target_link_libraries(meshviewer
     PRIVATE
         core
+        libobj2mesh
+
         dearimgui
         utilities
         Vulkan::Vulkan
@@ -85,6 +87,7 @@ if(WIN32)
     add_custom_command(TARGET meshviewer
         POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:core> $<TARGET_FILE_DIR:meshviewer>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:libobj2mesh> $<TARGET_FILE_DIR:meshviewer>
         COMMENT "Fetching runtime dependencies next to executable..."
     )
 endif()

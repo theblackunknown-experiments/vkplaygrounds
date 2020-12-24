@@ -10,7 +10,7 @@
 #include "./vkpassscene.hpp"
 #include "./vkpassuioverlay.hpp"
 
-#include "./vkmeshviewerui.hpp"
+#include "./vkmeshviewerdata.hpp"
 
 #include <span>
 #include <memory>
@@ -47,7 +47,7 @@ namespace blk::meshviewer
         VkFormat                     mDepthFormat;
 
         VkExtent2D                   mResolution;
-        UIMeshInformation            mUIMeshInformation;
+        SharedData                   mSharedData;
 
         RenderPass                   mRenderPass;
         multipass_type               mMultipass;

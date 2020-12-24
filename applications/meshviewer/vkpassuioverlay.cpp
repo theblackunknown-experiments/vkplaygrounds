@@ -66,7 +66,7 @@ PassUIOverlay::PassUIOverlay(const blk::RenderPass& renderpass, std::uint32_t su
     , mDevice(mEngine.mDevice)
 
     , mResolution(args.resolution)
-    , mUIMeshInformation(args.mesh_information)
+    , mSharedData(args.shared_data)
 
     , mContext(ImGui::CreateContext())
 
@@ -429,6 +429,27 @@ PassUIOverlay::PassUIOverlay(const blk::RenderPass& renderpass, std::uint32_t su
         record_font_image_upload(mFontImageStagingCommandBuffer, mFontImageStagingBuffer);
         CHECK(vkEndCommandBuffer(mFontImageStagingCommandBuffer));
     }
+
+    {// Font Image
+        const std::array infos{
+            VkSubmitInfo{
+                .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                .pNext                = nullptr,
+                .waitSemaphoreCount   = 0,
+                .pWaitSemaphores      = nullptr,
+                .pWaitDstStageMask    = 0,
+                .commandBufferCount   = 1,
+                .pCommandBuffers      = &mFontImageStagingCommandBuffer,
+                .signalSemaphoreCount = 1,
+                .pSignalSemaphores    = &mFontImageStagingSemaphore,
+            }
+        };
+        CHECK(vkQueueSubmit(*mGraphicsQueue, infos.size(), infos.data(), mFontImageStagingFence));
+        // TODO Do not block on that fence, inject the font image update semaphore into later queue submission for synchronization
+        CHECK(vkWaitForFences(mDevice, 1, &mFontImageStagingFence, VK_TRUE, UINT64_MAX));
+
+        clear_font_image_transient_data();
+    }
 }
 
 PassUIOverlay::~PassUIOverlay()
@@ -672,12 +693,12 @@ void PassUIOverlay::render_imgui_frame()
             ImGuiIO& io = ImGui::GetIO();
             io.DeltaTime = frame_time_delta_ms_t(mFrameTick - previous_frame_tick).count();
 
-            io.MousePos                           = ImVec2(mMouse.offset.x, mMouse.offset.y);
-            io.MouseDown[ImGuiMouseButton_Left  ] = mMouse.buttons.left;
-            io.MouseDown[ImGuiMouseButton_Right ] = mMouse.buttons.right;
-            io.MouseDown[ImGuiMouseButton_Middle] = mMouse.buttons.middle;
-            io.MouseWheel                         = mMouse.wheel.vdelta;
-            io.MouseWheelH                        = mMouse.wheel.hdelta;
+            io.MousePos                           = ImVec2(mSharedData.mMouse.offset.x, mSharedData.mMouse.offset.y);
+            io.MouseDown[ImGuiMouseButton_Left  ] = mSharedData.mMouse.buttons.left;
+            io.MouseDown[ImGuiMouseButton_Right ] = mSharedData.mMouse.buttons.right;
+            io.MouseDown[ImGuiMouseButton_Middle] = mSharedData.mMouse.buttons.middle;
+            io.MouseWheel                         = mSharedData.mMouse.wheel.vdelta;
+            io.MouseWheelH                        = mSharedData.mMouse.wheel.hdelta;
 
             static bool show_gpu_information = false;
             static bool show_demos = false;
@@ -687,15 +708,16 @@ void PassUIOverlay::render_imgui_frame()
             {// Window
                 if (ImGui::BeginMainMenuBar())
                 {
+                    ImGui::Checkbox("Visualize Mesh", &mSharedData.mVisualizeMesh);
                     if (ImGui::BeginMenu("Models"))
                     {
-                        if (ImGui::BeginCombo("https://casual-effects.com/data/", mUIMeshInformation.mMeshLabels[mUIMeshInformation.mSelectedMeshIndex].c_str()))
+                        if (ImGui::BeginCombo("https://casual-effects.com/data/", mSharedData.mMeshLabels[mSharedData.mSelectedMeshIndex].c_str()))
                         {
-                            for (auto [idx, model] : enumerate(mUIMeshInformation.mMeshLabels))
+                            for (auto [idx, model] : enumerate(mSharedData.mMeshLabels))
                             {
-                                auto is_selected = idx == mUIMeshInformation.mSelectedMeshIndex;
+                                auto is_selected = idx == mSharedData.mSelectedMeshIndex;
                                 if (ImGui::Selectable(model.c_str(), is_selected))
-                                    mUIMeshInformation.mSelectedMeshIndex = idx;
+                                    mSharedData.mSelectedMeshIndex = idx;
 
                                 if (is_selected)
                                     ImGui::SetItemDefaultFocus();

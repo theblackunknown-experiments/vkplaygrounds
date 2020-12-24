@@ -16,7 +16,7 @@
 
 #include "./vkpass.hpp"
 
-#include "./vkmeshviewerui.hpp"
+#include "./vkmeshviewerdata.hpp"
 
 struct ImGuiContext;
 
@@ -38,9 +38,9 @@ namespace blk::meshviewer
 
         struct Arguments
         {
-            blk::Engine&       engine;
-            VkExtent2D         resolution;
-            UIMeshInformation& mesh_information;
+            blk::Engine& engine;
+            VkExtent2D   resolution;
+            SharedData&  shared_data;
         };
 
         // TODO Re-use pipeline cache object, instead of one per pass
@@ -63,7 +63,7 @@ namespace blk::meshviewer
         blk::Engine&                         mEngine;
         const blk::Device&                   mDevice;
         VkExtent2D                           mResolution;
-        UIMeshInformation&                   mUIMeshInformation;
+        SharedData&                          mSharedData;
         ImGuiContext*                        mContext = nullptr;
 
         VkExtent3D                           mFontExtent;
@@ -116,27 +116,6 @@ namespace blk::meshviewer
             float                 frame_time_min;
             float                 frame_time_max;
         } mUI;
-
-        struct Mouse
-        {
-            struct Buttons
-            {
-                bool left   = false;
-                bool middle = false;
-                bool right  = false;
-            } buttons;
-            struct Positions
-            {
-                float x = 0.0f;
-                float y = 0.0f;
-            } offset;
-            struct Wheel
-            {
-                float vdelta = 0.0f;
-                float hdelta = 0.0f;
-            } wheel;
-        } mMouse;
-
 
         static_assert(std::chrono::treat_as_floating_point_v<frame_time_delta_s_t::rep>, "required to be floating point");
         static_assert(std::chrono::treat_as_floating_point_v<frame_time_delta_ms_t::rep>, "required to be floating point");

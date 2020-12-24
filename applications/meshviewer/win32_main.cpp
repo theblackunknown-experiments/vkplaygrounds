@@ -315,26 +315,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     SetWindowLongPtr(hWindow, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(&user_data));
     SetWindowLongPtr(hWindow, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(MainWindowProcedure));
 
-    auto& passui = meshviewer.mPassUIOverlay;
-    auto& passscene = meshviewer.mPassScene;
-
-    {// Font Image
-        const blk::Queue* queue = passui.mGraphicsQueue;
-
-        engine.submit(
-            *passui.mGraphicsQueue,
-            { passui.mFontImageStagingCommandBuffer },
-            { },
-            { },
-            { passui.mFontImageStagingSemaphore },
-            passui.mFontImageStagingFence);
-
-        // TODO Do not block on that fence, inject the font image update semaphore into later queue submission for synchronization
-        vkWaitForFences(engine.mDevice, 1, &(passui.mFontImageStagingFence), VK_TRUE, std::numeric_limits<std::uint64_t>::max());
-
-        passui.clear_font_image_transient_data();
-    }
-
     ready = true;
     const blk::Queue* presentation_queue = presentation.mPresentationQueues.at(0);
 
@@ -545,39 +525,39 @@ LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
     //     }
     //     break;
     case WM_LBUTTONDOWN:
-        passui.mMouse.offset.x = static_cast<float>(LOWORD(lParam));
-        passui.mMouse.offset.y = static_cast<float>(HIWORD(lParam));
-        passui.mMouse.buttons.left = true;
+        meshviewer.mSharedData.mMouse.offset.x = static_cast<float>(LOWORD(lParam));
+        meshviewer.mSharedData.mMouse.offset.y = static_cast<float>(HIWORD(lParam));
+        meshviewer.mSharedData.mMouse.buttons.left = true;
         return 0;
     case WM_RBUTTONDOWN:
-        passui.mMouse.offset.x = static_cast<float>(LOWORD(lParam));
-        passui.mMouse.offset.y = static_cast<float>(HIWORD(lParam));
-        passui.mMouse.buttons.right = true;
+        meshviewer.mSharedData.mMouse.offset.x = static_cast<float>(LOWORD(lParam));
+        meshviewer.mSharedData.mMouse.offset.y = static_cast<float>(HIWORD(lParam));
+        meshviewer.mSharedData.mMouse.buttons.right = true;
         return 0;
     case WM_MBUTTONDOWN:
-        passui.mMouse.offset.x = static_cast<float>(LOWORD(lParam));
-        passui.mMouse.offset.y = static_cast<float>(HIWORD(lParam));
-        passui.mMouse.buttons.middle = true;
+        meshviewer.mSharedData.mMouse.offset.x = static_cast<float>(LOWORD(lParam));
+        meshviewer.mSharedData.mMouse.offset.y = static_cast<float>(HIWORD(lParam));
+        meshviewer.mSharedData.mMouse.buttons.middle = true;
         return 0;
     case WM_LBUTTONUP:
-        passui.mMouse.buttons.left = false;
+        meshviewer.mSharedData.mMouse.buttons.left = false;
         return 0;
     case WM_RBUTTONUP:
-        passui.mMouse.buttons.right = false;
+        meshviewer.mSharedData.mMouse.buttons.right = false;
         return 0;
     case WM_MBUTTONUP:
-        passui.mMouse.buttons.middle = false;
+        meshviewer.mSharedData.mMouse.buttons.middle = false;
         return 0;
     case WM_MOUSEWHEEL:
-        passui.mMouse.wheel.vdelta += (float)GET_WHEEL_DELTA_WPARAM(wParam) / (float)WHEEL_DELTA;
+        meshviewer.mSharedData.mMouse.wheel.vdelta += (float)GET_WHEEL_DELTA_WPARAM(wParam) / (float)WHEEL_DELTA;
         return 0;
     case WM_MOUSEHWHEEL:
-        passui.mMouse.wheel.hdelta += (float)GET_WHEEL_DELTA_WPARAM(wParam) / (float)WHEEL_DELTA;
+        meshviewer.mSharedData.mMouse.wheel.hdelta += (float)GET_WHEEL_DELTA_WPARAM(wParam) / (float)WHEEL_DELTA;
         return 0;
     case WM_MOUSEMOVE:
     {
-        passui.mMouse.offset.x = static_cast<float>(LOWORD(lParam));
-        passui.mMouse.offset.y = static_cast<float>(HIWORD(lParam));
+        meshviewer.mSharedData.mMouse.offset.x = static_cast<float>(LOWORD(lParam));
+        meshviewer.mSharedData.mMouse.offset.y = static_cast<float>(HIWORD(lParam));
         return 0;
     }
     case WM_SIZE:

@@ -316,7 +316,22 @@
 	[
 		{
 			"name": "vkplaygrounds (source)",
-			"path": "."
+			"path": ".",
+            "file_exclude_patterns":
+            [
+            ],
+            "folder_exclude_patterns":
+            [
+            ],
+            "binary_file_patterns":
+            [
+            ],
+            "index_include_patterns":
+            [
+            ],
+            "index_exclude_patterns":
+            [
+            ]
 		},
 		{
 			"name": "vkplaygrounds (MSVC) (build)",
@@ -385,5 +400,23 @@
 		{
 			"path": "C:/devel/Vulkan-Samples"
 		}
-	]
+	],
+    "settings": {
+
+        "file_exclude_patterns":
+        [
+        ],
+        "folder_exclude_patterns":
+        [
+        ],
+        "binary_file_patterns":
+        [
+        ],
+        "index_include_patterns":
+        [
+        ],
+        "index_exclude_patterns":
+        [
+        ]
+    }
 }

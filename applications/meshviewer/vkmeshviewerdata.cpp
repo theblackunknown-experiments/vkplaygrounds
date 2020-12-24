@@ -1,9 +1,9 @@
-#include "./vkmeshviewerui.hpp"
+#include "./vkmeshviewerdata.hpp"
 
 namespace blk::meshviewer
 {
 
-UIMeshInformation::UIMeshInformation()
+SharedData::SharedData()
     : mMeshPaths{
         fs::path("C:/devel/vkplaygrounds/data/models/CornellBox/CornellBox-Original.obj")
     }

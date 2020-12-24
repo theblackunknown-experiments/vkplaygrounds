@@ -32,7 +32,7 @@ namespace
     // TODO(andrea.machizaud) pre-allocate a reasonable amount for buffers
     constexpr std::size_t kStagingBufferSize = 2 << 20; // 1 Mb
 
-    constexpr VkPhysicalDeviceFeatures kFeatures{
+    VkPhysicalDeviceFeatures kFeatures{
         .robustBufferAccess                      = VK_FALSE,
         .fullDrawIndexUint32                     = VK_FALSE,
         .imageCubeArray                          = VK_FALSE,
@@ -90,7 +90,7 @@ namespace
         .inheritedQueries                        = VK_FALSE,
     };
 
-    constexpr VkPhysicalDeviceVulkan12Features kVK12Features{
+    VkPhysicalDeviceVulkan12Features kVK12Features{
         .sType                                              = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
         .pNext                                              = nullptr,
         .samplerMirrorClampToEdge                           = VK_FALSE,

@@ -14,7 +14,9 @@
 
 #include "./vkpass.hpp"
 
-#include "./vkmeshviewerui.hpp"
+#include "./vkmeshviewerdata.hpp"
+
+#include <obj2mesh.hpp>
 
 struct ImGuiContext;
 
@@ -29,9 +31,9 @@ namespace blk::meshviewer
     {
         struct Arguments
         {
-            blk::Engine&       engine;
-            VkExtent2D         resolution;
-            UIMeshInformation& mesh_information;
+            blk::Engine& engine;
+            VkExtent2D   resolution;
+            SharedData&  shared_data;
         };
 
         // TODO Re-use pipeline cache object, instead of one per pass
@@ -40,6 +42,8 @@ namespace blk::meshviewer
 
         void initialize_graphic_pipelines();
 
+        void upload_mesh_from_path(blk::Buffer& staging_buffer, const fs::path& mesh_path);
+
         void record_pass(VkCommandBuffer commandbuffer) override;
 
         void onResize(const VkExtent2D& resolution);
@@ -47,14 +51,21 @@ namespace blk::meshviewer
         blk::Engine&                         mEngine;
         const blk::Device&                   mDevice;
         VkExtent2D                           mResolution;
-        UIMeshInformation&                   mUIMeshInformation;
+
+        int                                  previous_selected_mesh_index;
+        SharedData&                          mSharedData;
+
+        blk::meshes::obj::obj_t              mParsedOBJ;
+        blk::meshes::obj::result_t           mMeshOBJ;
+
         ImGuiContext*                        mContext = nullptr;
 
         VkPipelineLayout                     mPipelineLayout               = VK_NULL_HANDLE;
 
         VkPipelineCache                      mPipelineCache                = VK_NULL_HANDLE;
 
-        VkPipeline                           mPipeline                     = VK_NULL_HANDLE;
+        VkPipeline                           mPipelineDefault              = VK_NULL_HANDLE;
+        VkPipeline                           mPipelineOBJ                  = VK_NULL_HANDLE;
 
         blk::Buffer                          mVertexBuffer;
         blk::Buffer                          mIndexBuffer;
