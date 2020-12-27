@@ -1,11 +1,13 @@
 #version 450 core
 
-layout (location = 0) in vec3 inPos;
+// column-major
+layout (push_constant) uniform ModelTransformation{
+    mat4 model;
+    mat4 view;
+    mat4 projection;
+} transformation;
 
-// layout (push_constant) uniform PushConstants {
-//     vec2 scale;
-//     vec2 translate;
-// } pushConstants;
+layout (location = 0) in vec3 inPos;
 
 out gl_PerVertex
 {
@@ -14,5 +16,5 @@ out gl_PerVertex
 
 void main(void)
 {
-    gl_Position = vec4(inPos, 1.0);
+    gl_Position = transformation.projection * transformation.view * transformation.model * vec4(inPos, 1.0);
 }

@@ -1,13 +1,18 @@
 #include "./vkpassscene.hpp"
 
-#include "./vksize.hpp"
-#include "./vkdebug.hpp"
+#include <vkdebug.hpp>
 
-#include "./vkmemory.hpp"
-#include "./vkphysicaldevice.hpp"
+#include <vksize.hpp>
+#include <vkvec3.hpp>
+#include <vkmat4.hpp>
+#include <vkcamera.hpp>
+
+#include <vkmemory.hpp>
+#include <vkphysicaldevice.hpp>
+
+#include <vkmesh.hpp>
 
 #include "./vkengine.hpp"
-#include "./vkmesh.hpp"
 
 #include "obj-shader.hpp"
 #include "triangle-shader.hpp"
@@ -15,6 +20,8 @@
 #include <vulkan/vulkan_core.h>
 
 #include <cassert>
+#define _USE_MATH_DEFINES
+#include <math.h>
 
 #include <iterator>
 
@@ -39,6 +46,13 @@ namespace
     constexpr std::size_t kInitialStagingBufferSize  = 1_MB;
 
     constexpr VkFrontFace kTriangleFrontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+
+    struct alignas(4) UniformObjectTransformation
+    {
+        float model     [16];
+        float view      [16];
+        float projection[16];
+    };
 
     struct GraphicPipelineBuilderTriangle
     {
@@ -532,12 +546,27 @@ PassScene::PassScene(const blk::RenderPass& renderpass, std::uint32_t subpass, A
     , mStagingBuffer(kInitialStagingBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT)
 {
     {// Pipeline Layouts
+        constexpr std::size_t kAlignOf    = alignof(UniformObjectTransformation);
+        constexpr std::size_t kMaxAlignOf = alignof(std::max_align_t);
+        constexpr std::size_t kSizeOf     = sizeof(UniformObjectTransformation);
+
+        constexpr std::array kConstantRanges{
+            VkPushConstantRange{
+                // .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+                // FIXME: UNASSIGNED-CoreValidation-Shader-PushConstantOutOfRange
+                //  Because OBJ shader module contains both vertex & fragment
+                .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+                .offset     = 0,
+                .size       = sizeof(UniformObjectTransformation),
+            },
+        };
         const VkPipelineLayoutCreateInfo info{
             .sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
             .pNext                  = nullptr,
             .flags                  = 0,
             .setLayoutCount         = 0,
-            .pushConstantRangeCount = 0,
+            .pushConstantRangeCount = kConstantRanges.size(),
+            .pPushConstantRanges    = kConstantRanges.data(),
         };
         CHECK(vkCreatePipelineLayout(mDevice, &info, nullptr, &mPipelineLayout));
     }
@@ -759,14 +788,14 @@ void PassScene::upload_mesh_from_path(blk::Buffer& staging_buffer, const fs::pat
         CHECK(vkResetCommandPool(mDevice, mGraphicsCommandPoolTransient, 0));
     }
     {// Indices
-
         std::size_t indices_count = 0;
         for (auto&& group : mParsedOBJ.groups)
         {
             // Each face yields 2 triangles
             indices_count += group.faces.size() * 2 * 3;
         }
-        std::vector<std::uint16_t> indices(indices_count);
+        std::vector<std::uint16_t> indices;
+        indices.reserve(indices_count);
 
         const std::size_t indices_bytes_size = indices_count * sizeof(std::uint16_t);
         assert(indices_bytes_size <= mStagingBuffer.mMemory->mInfo.allocationSize);
@@ -787,50 +816,38 @@ void PassScene::upload_mesh_from_path(blk::Buffer& staging_buffer, const fs::pat
 
                     assert(is_quad);
 
-                    auto& p0 = mParsedOBJ.points.at(face.points[0]);
-                    auto& p1 = mParsedOBJ.points.at(face.points[1]);
-                    auto& p2 = mParsedOBJ.points.at(face.points[2]);
-                    auto& p3 = mParsedOBJ.points.at(face.points[3]);
+                    auto& p1 = mParsedOBJ.points.at(face.points[0]);
+                    auto& p2 = mParsedOBJ.points.at(face.points[1]);
+                    auto& p3 = mParsedOBJ.points.at(face.points[2]);
+                    auto& p4 = mParsedOBJ.points.at(face.points[3]);
 
-                    auto v0 = p0.vertex;
                     auto v1 = p1.vertex;
                     auto v2 = p2.vertex;
                     auto v3 = p3.vertex;
+                    auto v4 = p4.vertex;
 
-                    assert(v0 <= std::numeric_limits<std::uint16_t>::max());
                     assert(v1 <= std::numeric_limits<std::uint16_t>::max());
                     assert(v2 <= std::numeric_limits<std::uint16_t>::max());
                     assert(v3 <= std::numeric_limits<std::uint16_t>::max());
+                    assert(v4 <= std::numeric_limits<std::uint16_t>::max());
 
                     /*
-                        p2 ---- p3
+                         1 ----  2
                          | \     |
                          |  \    |
                          |   \   |
                          |    \  |
-                        p1 ---- p0
+                         4 ----  3
                     */
 
-                    if constexpr (kTriangleFrontFace == VK_FRONT_FACE_COUNTER_CLOCKWISE)
-                    {
-                        indices.push_back( static_cast<std::uint16_t>(v0) );
-                        indices.push_back( static_cast<std::uint16_t>(v2) );
-                        indices.push_back( static_cast<std::uint16_t>(v1) );
+                    // if constexpr (kTriangleFrontFace == VK_FRONT_FACE_COUNTER_CLOCKWISE)
+                    indices.push_back( static_cast<std::uint16_t>(v1) );
+                    indices.push_back( static_cast<std::uint16_t>(v2) );
+                    indices.push_back( static_cast<std::uint16_t>(v3) );
 
-                        indices.push_back( static_cast<std::uint16_t>(v0) );
-                        indices.push_back( static_cast<std::uint16_t>(v3) );
-                        indices.push_back( static_cast<std::uint16_t>(v2) );
-                    }
-                    else
-                    {
-                        indices.push_back( static_cast<std::uint16_t>(v0) );
-                        indices.push_back( static_cast<std::uint16_t>(v1) );
-                        indices.push_back( static_cast<std::uint16_t>(v2) );
-
-                        indices.push_back( static_cast<std::uint16_t>(v0) );
-                        indices.push_back( static_cast<std::uint16_t>(v2) );
-                        indices.push_back( static_cast<std::uint16_t>(v3) );
-                    }
+                    indices.push_back( static_cast<std::uint16_t>(v3) );
+                    indices.push_back( static_cast<std::uint16_t>(v4) );
+                    indices.push_back( static_cast<std::uint16_t>(v1) );
                 }
             }
         }
@@ -846,7 +863,7 @@ void PassScene::upload_mesh_from_path(blk::Buffer& staging_buffer, const fs::pat
                 &mapped
             ));
 
-            std::memcpy(mapped, mParsedOBJ.vertices.data(), indices_bytes_size);
+            std::memcpy(mapped, indices.data(), indices_bytes_size);
 
             vkUnmapMemory(mDevice, *staging_buffer.mMemory);
             mStagingBuffer.mOccupied = indices_bytes_size;
@@ -907,6 +924,44 @@ void PassScene::record_pass(VkCommandBuffer commandbuffer)
     if (mSharedData.mVisualizeMesh)
     {
         vkCmdBindPipeline(commandbuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelineOBJ);
+
+        mat4 view = look_at(
+            vec3{  0.0,  0.0, -5.0 },
+            vec3{  0.0,  0.0,  0.0 },
+            vec3{  0.0,  1.0,  0.0 }
+        );
+
+
+        mat4 projection = perspective(
+            (22.5) * M_PI / 180.0,
+            mResolution.width / (float)mResolution.height,
+            0.01,
+            10
+        );
+
+        // column-major
+        UniformObjectTransformation transformation{
+            .model = {
+                1.0, 0.0, 0.0, 0.0,
+                0.0, 1.0, 0.0, 0.0,
+                0.0, 0.0, 1.0, 0.0,
+                0.0, 0.0, 0.0, 1.0,
+            },
+            // TODO LookAt : https://www.3dgep.com/understanding-the-view-matrix/
+            .view = {
+                view.m00, view.m01, view.m02, view.m03,
+                view.m10, view.m11, view.m12, view.m13,
+                view.m20, view.m21, view.m22, view.m23,
+                view.m30, view.m31, view.m32, view.m33,
+            },
+            .projection = {
+                projection.m00, projection.m01, projection.m02, projection.m03,
+                projection.m10, projection.m11, projection.m12, projection.m13,
+                projection.m20, projection.m21, projection.m22, projection.m23,
+                projection.m30, projection.m31, projection.m32, projection.m33,
+            },
+        };
+        vkCmdPushConstants(commandbuffer, mPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(UniformObjectTransformation), &transformation);
 
         constexpr VkDeviceSize offset = 0;
         vkCmdBindVertexBuffers(commandbuffer, kVertexInputBindingPositionOBJ, 1, &mVertexBuffer.mBuffer, &offset);

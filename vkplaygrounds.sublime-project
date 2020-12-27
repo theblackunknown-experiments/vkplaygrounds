@@ -335,11 +335,45 @@
 		},
 		{
 			"name": "vkplaygrounds (MSVC) (build)",
-			"path": "C:/builds/vkplaygrounds"
+			"path": "C:/builds/vkplaygrounds",
+
+            "file_exclude_patterns":
+            [
+            ],
+            "folder_exclude_patterns":
+            [
+            ],
+            "binary_file_patterns":
+            [
+                "*.spv"
+            ],
+            "index_include_patterns":
+            [
+            ],
+            "index_exclude_patterns":
+            [
+            ]
 		},
         {
             "name": "vkplaygrounds (Clang) (build)",
-            "path": "C:/builds/vkplaygrounds-windows-clang-x86-64"
+            "path": "C:/builds/vkplaygrounds-windows-clang-x86-64",
+
+            "file_exclude_patterns":
+            [
+            ],
+            "folder_exclude_patterns":
+            [
+            ],
+            "binary_file_patterns":
+            [
+                "*.spv"
+            ],
+            "index_include_patterns":
+            [
+            ],
+            "index_exclude_patterns":
+            [
+            ]
         },
 		{
 			"path": "C:/devel/vcpkg/installed/x64-windows"
@@ -402,21 +436,5 @@
 		}
 	],
     "settings": {
-
-        "file_exclude_patterns":
-        [
-        ],
-        "folder_exclude_patterns":
-        [
-        ],
-        "binary_file_patterns":
-        [
-        ],
-        "index_include_patterns":
-        [
-        ],
-        "index_exclude_patterns":
-        [
-        ]
     }
 }
