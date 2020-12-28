@@ -28,7 +28,9 @@ include(CMakePackageConfigHelpers)
 ##############################
 
 find_package(Vulkan REQUIRED)
-find_package(range-v3 REQUIRED)
+find_package(range-v3 CONFIG REQUIRED)
+find_package(glm CONFIG REQUIRED)
+find_package(tinyobjloader CONFIG REQUIRED)
 
 ##############################
 ##     Imported Targets     ##
@@ -88,6 +90,7 @@ add_subdirectory(data/fonts)
 add_subdirectory(data/shaders)
 
 add_subdirectory(applications/meshviewer)
+add_subdirectory(applications/00-sample)
 
 ##############################
 ##          Config          ##

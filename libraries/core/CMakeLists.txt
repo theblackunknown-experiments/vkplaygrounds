@@ -26,7 +26,7 @@ target_sources(core
         vkdevice.cpp
 
         vkmesh.hpp
-        # vkmesh.cpp
+        vkmesh.cpp
 
         $<$<PLATFORM_ID:Windows>:win32_vkdebug.cpp>
 )
@@ -51,6 +51,7 @@ target_compile_definitions(core
 target_link_libraries(core
     PUBLIC
         Vulkan::Vulkan
+        glm
     PRIVATE
         range-v3::range-v3
 )

@@ -15,23 +15,22 @@
 
 namespace blk
 {
-    struct QueueFamily;
+struct QueueFamily;
 
-    struct PhysicalDevice
-    {
-        VkPhysicalDevice                     mPhysicalDevice;
-        VkPhysicalDeviceFeatures             mFeatures;
-        VkPhysicalDeviceProperties           mProperties;
-        VkPhysicalDeviceMemoryProperties     mMemoryProperties;
-        std::vector<blk::QueueFamily>        mQueueFamilies;
-        std::vector<VkExtensionProperties>   mExtensions;
-        blk::PhysicalDeviceMemories          mMemories;
+struct PhysicalDevice
+{
+	VkPhysicalDevice mPhysicalDevice;
+	VkPhysicalDeviceFeatures mFeatures;
+	VkPhysicalDeviceProperties mProperties;
+	VkPhysicalDeviceMemoryProperties mMemoryProperties;
+	std::vector<blk::QueueFamily> mQueueFamilies;
+	std::vector<VkExtensionProperties> mExtensions;
+	blk::PhysicalDeviceMemories mMemories;
 
-        CORE_EXPORT explicit PhysicalDevice(VkPhysicalDevice vkphysicaldevice);
+	CORE_EXPORT explicit PhysicalDevice(VkPhysicalDevice vkphysicaldevice);
 
-        operator VkPhysicalDevice() const
-        {
-            return mPhysicalDevice;
-        }
-    };
-}
+	operator VkPhysicalDevice() const { return mPhysicalDevice; }
+};
+
+[[nodiscard]] CORE_EXPORT std::vector<blk::PhysicalDevice> physicaldevices(VkInstance instance);
+} // namespace blk

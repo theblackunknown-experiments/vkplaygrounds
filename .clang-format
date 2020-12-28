@@ -1,0 +1,134 @@
+---
+BasedOnStyle: LLVM
+
+Language: Cpp
+
+DisableFormat: 'false'
+
+ColumnLimit: 120
+
+UseTab: ForContinuationAndIndentation
+TabWidth: 4
+
+IndentWidth: 4
+ContinuationIndentWidth: 4
+
+SortIncludes: false
+IncludeBlocks: Preserve
+IncludeCategories:
+
+    - Regex:           '^"(.*)'
+      Priority:        2
+
+    - Regex:           '^<(.*)\.h>$'
+      Priority:        10
+
+    - Regex:           '^<(.*)\.hpp>$'
+      Priority:        15
+
+    - Regex:           '^<Q(.*)>$'
+      Priority:        100
+
+    - Regex:           '^<vulkan/(.*)'
+      Priority:        200
+
+    - Regex:           '^<c(.*)>$'
+      Priority:        350
+
+    - Regex:           '^<(.*)>$'
+      Priority:        500
+
+    - Regex:           '.*'
+      Priority:        700
+
+KeepEmptyLinesAtTheStartOfBlocks: 'true'
+MaxEmptyLinesToKeep: '1'
+
+CompactNamespaces: false
+FixNamespaceComments: 'true'
+NamespaceIndentation: None
+SortUsingDeclarations: true
+
+AccessModifierOffset: '-4'
+
+AlignAfterOpenBracket: AlwaysBreak
+AlignConsecutiveAssignments: 'false'
+AlignConsecutiveDeclarations: 'false'
+AlignEscapedNewlinesLeft: 'true'
+AlignOperands: 'true'
+AlignTrailingComments: 'true'
+
+AllowAllParametersOfDeclarationOnNextLine: 'false'
+AllowShortBlocksOnASingleLine: 'true'
+AllowShortCaseLabelsOnASingleLine: 'true'
+AllowShortFunctionsOnASingleLine: InlineOnly
+AllowShortIfStatementsOnASingleLine: 'false'
+AllowShortLoopsOnASingleLine: 'false'
+
+AlwaysBreakTemplateDeclarations: Yes
+AlwaysBreakAfterDefinitionReturnType: None
+AlwaysBreakAfterReturnType: None
+
+BinPackArguments: 'false'
+BinPackParameters: 'false'
+
+PenaltyBreakBeforeFirstCallParameter: 150
+
+BreakBeforeBraces: Custom
+BraceWrapping:
+    AfterClass: true
+    AfterControlStatement: true
+    AfterEnum: true
+    AfterFunction: true
+    AfterNamespace: true
+    AfterStruct: true
+    AfterUnion: true
+    AfterExternBlock: false
+    BeforeCatch: true
+    BeforeElse: true
+    IndentBraces: false
+
+BreakStringLiterals: false
+BreakInheritanceList: BeforeComma
+BreakConstructorInitializers: BeforeComma
+
+BreakBeforeBinaryOperators: None
+BreakBeforeTernaryOperators: true
+
+ConstructorInitializerAllOnOneLineOrOnePerLine: 'true'
+ConstructorInitializerIndentWidth: '4'
+
+Cpp11BracedListStyle: 'true'
+
+IndentPPDirectives: 'AfterHash'
+ForEachMacros: ['BOOST_FOREACH', 'Q_FOREACH']
+StatementMacros: ['ALG_UNUSED', 'ALG_ASSERT', 'Q_UNUSED']
+
+ReflowComments: 'false'
+
+PointerAlignment: Left
+DerivePointerAlignment: 'false'
+
+IndentCaseLabels: 'false'
+IndentWrappedFunctionNames: 'false'
+
+SpaceBeforeCpp11BracedList: false
+SpaceBeforeAssignmentOperators: 'true'
+SpaceBeforeParens: ControlStatements
+SpaceBeforeInheritanceColon: 'true'
+SpaceBeforeRangeBasedForLoopColon: 'true'
+SpacesBeforeTrailingComments: '1'
+
+SpacesInAngles: 'false'
+SpacesInCStyleCastParentheses: 'false'
+SpacesInContainerLiterals: 'false'
+SpaceInEmptyParentheses: 'false'
+SpacesInParentheses: 'false'
+SpacesInSquareBrackets: 'false'
+
+SpaceAfterCStyleCast: 'false'
+SpaceAfterTemplateKeyword: 'false'
+SpaceBeforeCtorInitializerColon: 'false'
+
+MacroBlockBegin: "BEGIN_DECLARE_API_CLASS_IMP"
+MacroBlockEnd: "END_DECLARE_API_CLASS_IMP"

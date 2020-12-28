@@ -61,23 +61,12 @@
 					"cmd":
 					[
 						"ninja",
-						"-k",
-						"20",
-						"$file^"
-					],
-					"name": "Single File",
-					"selector": "source.c++"
-				},
-				{
-					"cmd":
-					[
-						"ninja",
 						"-v",
 						"-k",
 						"20",
 						"$file^"
 					],
-					"name": "Single File [verbose]",
+					"name": "Single File",
 					"selector": "source.c++"
 				},
                 {
@@ -151,6 +140,15 @@
                         "meshviewer"
                     ],
                     "name": "meshviewer"
+                },
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-v",
+                        "00-sample"
+                    ],
+                    "name": "00-sample"
                 }
 			],
 			"working_dir": "C:/builds/vkplaygrounds"
@@ -226,6 +224,7 @@
 					"cmd":
 					[
 						"ninja",
+						"-v",
 						"-k",
 						"20",
 						"$file^"
@@ -233,18 +232,15 @@
 					"name": "Single File",
 					"selector": "source.c++"
 				},
-				{
-					"cmd":
-					[
-						"ninja",
-						"-v",
-						"-k",
-						"20",
-						"$file^"
-					],
-					"name": "Single File [verbose]",
-					"selector": "source.c++"
-				},
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-v",
+                        "core"
+                    ],
+                    "name": "core"
+                },
 				{
 					"cmd":
 					[
@@ -307,6 +303,15 @@
                         "meshviewer"
                     ],
                     "name": "meshviewer"
+                },
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-v",
+                        "00-sample"
+                    ],
+                    "name": "00-sample"
                 }
 			],
 			"working_dir": "C:/builds/vkplaygrounds-windows-clang-x86-64"
@@ -435,6 +440,11 @@
 			"path": "C:/devel/Vulkan-Samples"
 		}
 	],
-    "settings": {
+    "settings":
+    {
+        "ClangFormat":
+        {
+            "format_on_save": true
+        }
     }
 }
