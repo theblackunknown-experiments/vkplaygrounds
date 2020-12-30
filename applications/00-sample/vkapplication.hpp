@@ -12,8 +12,13 @@
 #include <memory>
 
 #include <array>
+#include <string>
+#include <vector>
+#include <unordered_map>
 
 #include <filesystem>
+
+#include <glm/glm.hpp>
 
 namespace fs = std::filesystem;
 
@@ -29,6 +34,19 @@ struct Queue;
 
 namespace blk::sample00
 {
+struct Material
+{
+	VkPipeline pipeline;
+	VkPipelineLayout pipeline_layout;
+};
+
+struct RenderObject
+{
+	blk::Mesh* mesh;
+	Material* material;
+	glm::mat4 transform;
+};
+
 struct Application
 {
 	// using multipass_type = MultiPass<PassTrait<PassUIOverlay, PassUIOverlay::Arguments>, PassTrait<PassScene, PassScene ::Arguments>>;
@@ -77,6 +95,13 @@ struct Application
 	std::unique_ptr<blk::Memory> mGeometryMemory;
 	blk::Mesh mTriangleMesh;
 
+	std::unique_ptr<blk::Memory> mUserMemory;
+	blk::Mesh mUserMesh;
+
+	std::vector<RenderObject> mRenderables;
+	std::unordered_map<std::string, Material> mMaterials;
+	std::unordered_map<std::string, Mesh> mMeshes;
+
 	Application(blk::Engine& vkengine, blk::Presentation& vkpresentation);
 	~Application();
 
@@ -85,5 +110,9 @@ struct Application
 	void upload_mesh(blk::Mesh& mesh);
 
 	void draw();
+
+	Material* create_material(VkPipeline pipeline, VkPipelineLayout layout, const std::string& name);
+
+	void record_renderables(VkCommandBuffer commandBuffer, RenderObject* first, std::size_t count);
 };
 } // namespace blk::sample00

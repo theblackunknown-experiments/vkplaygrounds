@@ -145,7 +145,7 @@
                     "cmd":
                     [
                         "ninja",
-                        "-v",
+                        // "-v",
                         "00-sample"
                     ],
                     "name": "00-sample"
@@ -308,7 +308,7 @@
                     "cmd":
                     [
                         "ninja",
-                        "-v",
+                        // "-v",
                         "00-sample"
                     ],
                     "name": "00-sample"

@@ -54,6 +54,7 @@ target_link_libraries(core
         glm
     PRIVATE
         range-v3::range-v3
+        tinyobjloader::tinyobjloader
 )
 
 generate_export_header(core)

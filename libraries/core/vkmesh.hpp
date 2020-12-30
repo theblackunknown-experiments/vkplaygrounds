@@ -96,5 +96,7 @@ struct Mesh
 {
 	std::vector<Vertex> mVertices;
 	blk::Buffer mVertexBuffer;
+
+	CORE_EXPORT bool load_obj(const char* filename);
 };
 } // namespace blk

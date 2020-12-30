@@ -258,7 +258,7 @@ LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
 	case WM_KEYDOWN:
 		switch (wParam)
 		{
-		case VK_SPACE: application.mSelectedShader = (application.mSelectedShader + 1) % 3; break;
+		case VK_SPACE: application.mSelectedShader = (application.mSelectedShader + 1) % 4; break;
 		}
 		break;
 	case WM_SIZE:
