@@ -8,14 +8,12 @@
 #include <set>
 #include <string>
 
-#include <utilities.hpp>
+#include <vkdebug.hpp>
+#include <vkutilities.hpp>
 
-#include "./vkdebug.hpp"
-#include "./vkutilities.hpp"
+#include <vkqueue.hpp>
 
-#include "./vkqueue.hpp"
-
-#include "./vkpass.hpp"
+#include <vkpass.hpp>
 
 ///////////////////////////////////////////////////
 
@@ -58,6 +56,7 @@ struct WindowUserData
 	blk::sample00::Application& application;
 	bool& shutting_down;
 	bool& resizing;
+	bool default_mesh = true;
 };
 } // namespace
 
@@ -258,7 +257,18 @@ LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
 	case WM_KEYDOWN:
 		switch (wParam)
 		{
-		case VK_SPACE: application.mSelectedShader = (application.mSelectedShader + 1) % 4; break;
+		case VK_SPACE: {
+			application.mSelectedShader = (application.mSelectedShader + 1) % 4;
+			if (userdata->default_mesh)
+				application.safe_call([&application] {
+					application.load_obj_mesh(
+						fs::path("C:\\devel\\vkplaygrounds\\data\\models\\vulkan-guide\\monkey_smooth.obj"));
+				});
+			else
+				application.safe_call([&application] { application.load_default_mesh(); });
+			userdata->default_mesh = !userdata->default_mesh;
+		}
+		break;
 		}
 		break;
 	case WM_SIZE:

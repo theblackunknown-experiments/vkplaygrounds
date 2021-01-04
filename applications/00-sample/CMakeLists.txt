@@ -75,7 +75,6 @@ target_link_libraries(00-sample
         libobj2mesh
 
         dearimgui
-        utilities
         Vulkan::Vulkan
         range-v3::range-v3
         glm
@@ -92,6 +91,7 @@ if(WIN32)
     add_custom_command(TARGET 00-sample
         POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:core> $<TARGET_FILE_DIR:00-sample>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:scene> $<TARGET_FILE_DIR:00-sample>
         COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:libobj2mesh> $<TARGET_FILE_DIR:00-sample>
         COMMENT "Fetching runtime dependencies next to executable..."
     )

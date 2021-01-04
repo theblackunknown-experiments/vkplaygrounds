@@ -8,6 +8,9 @@
 #include "./vkimage.hpp"
 #include "./vkmesh.hpp"
 
+#include <vkcpumesh.hpp>
+#include <vkgpumesh.hpp>
+
 #include <span>
 #include <memory>
 
@@ -15,6 +18,8 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+
+#include <functional>
 
 #include <filesystem>
 
@@ -34,6 +39,7 @@ struct Queue;
 
 namespace blk::sample00
 {
+#if 0
 struct Material
 {
 	VkPipeline pipeline;
@@ -46,11 +52,16 @@ struct RenderObject
 	Material* material;
 	glm::mat4 transform;
 };
+#endif
+
+struct MeshStorage
+{
+	std::unique_ptr<blk::Memory> mGeometryMemory;
+	std::unique_ptr<blk::GPUMesh> mGPUMesh;
+};
 
 struct Application
 {
-	// using multipass_type = MultiPass<PassTrait<PassUIOverlay, PassUIOverlay::Arguments>, PassTrait<PassScene, PassScene ::Arguments>>;
-
 	struct RenderPass : ::blk::RenderPass
 	{
 		RenderPass(Engine& vkengine, VkFormat formatColor, VkFormat formatDepth);
@@ -92,7 +103,7 @@ struct Application
 	VkPipelineLayout mPipelineLayoutMesh = VK_NULL_HANDLE;
 	std::array<VkPipeline, 3> mPipelines{VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE};
 
-	std::unique_ptr<blk::Memory> mGeometryMemory;
+#if 0
 	blk::Mesh mTriangleMesh;
 
 	std::unique_ptr<blk::Memory> mUserMemory;
@@ -101,18 +112,30 @@ struct Application
 	std::vector<RenderObject> mRenderables;
 	std::unordered_map<std::string, Material> mMaterials;
 	std::unordered_map<std::string, Mesh> mMeshes;
+#else
+	MeshStorage mStorageMesh;
+
+	std::vector<std::function<void()>> mPendingRequests;
+#endif
 
 	Application(blk::Engine& vkengine, blk::Presentation& vkpresentation);
 	~Application();
 
+#if 0
 	void load_meshes();
-
 	void upload_mesh(blk::Mesh& mesh);
 
-	void draw();
-
 	Material* create_material(VkPipeline pipeline, VkPipelineLayout layout, const std::string& name);
-
 	void record_renderables(VkCommandBuffer commandBuffer, RenderObject* first, std::size_t count);
+#else
+
+	void load_default_mesh();
+	void load_obj_mesh(const fs::path& path);
+	void load_mesh(const CPUMesh& mesh);
+
+	void safe_call(const std::function<void()>& call) { mPendingRequests.push_back(call); }
+#endif
+
+	void draw();
 };
 } // namespace blk::sample00

@@ -1,17 +1,14 @@
 #pragma once
 
-#include <vulkan/vulkan_core.h>
-
 #include <scene_export.h>
 
 namespace blk
 {
-struct Memory;
 struct Device;
+struct Buffer;
 
 struct CPUMesh;
-struct GPUMesh;
 
-SCENE_EXPORT GPUMesh upload_host_visible(const blk::Device& vkdevice, const CPUMesh& mesh, blk::Memory& memory);
+SCENE_EXPORT void upload_host_visible(const blk::Device& vkdevice, const CPUMesh& cpumesh, blk::Buffer& vertex_buffer);
 
 } // namespace blk

@@ -45,7 +45,7 @@ struct MemoryType
 
 struct Memory
 {
-	const MemoryType& mType;
+	const MemoryType* mType;
 	VkMemoryAllocateInfo mInfo;
 	VkDeviceMemory mMemory = VK_NULL_HANDLE;
 	VkDevice mDevice = VK_NULL_HANDLE;
@@ -65,19 +65,19 @@ struct Memory
 	{
 	}
 
-	constexpr explicit Memory(const MemoryType& type, VkDeviceSize size)
+	constexpr explicit Memory(const MemoryType* type, VkDeviceSize size)
 		: Memory(
 			  type,
 			  VkMemoryAllocateInfo{
 				  .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
 				  .pNext = nullptr,
 				  .allocationSize = size,
-				  .memoryTypeIndex = type.mIndex,
+				  .memoryTypeIndex = type->mIndex,
 			  })
 	{
 	}
 
-	constexpr explicit Memory(const MemoryType& type, const VkMemoryAllocateInfo& info): mType(type), mInfo(info) {}
+	constexpr explicit Memory(const MemoryType* type, const VkMemoryAllocateInfo& info): mType(type), mInfo(info) {}
 
 	~Memory() { destroy(); }
 
@@ -85,7 +85,7 @@ struct Memory
 
 	Memory& operator=(Memory&& rhs)
 	{
-		assert(std::addressof(mType) == std::addressof(rhs.mType));
+		mType = rhs.mType;
 		mInfo = std::exchange(rhs.mInfo, mInfo);
 		mMemory = std::exchange(rhs.mMemory, mMemory);
 		mDevice = std::exchange(rhs.mDevice, mDevice);

@@ -1,16 +1,20 @@
 #include "./vkapplication.hpp"
 
-#include "./vkengine.hpp"
-#include "./vkdevice.hpp"
-#include "./vkphysicaldevice.hpp"
+#include <vksize.hpp>
 
-#include "./vkmemory.hpp"
+#include <vkphysicaldevice.hpp>
+#include <vkdevice.hpp>
 
+#include <vkmemory.hpp>
+
+#include <vkengine.hpp>
 #include <vkpresentation.hpp>
 
 #include <triangle-shader.hpp>
 #include <default-triangle-shader.hpp>
 #include <mesh-shader.hpp>
+
+#include <obj2mesh.hpp>
 
 #include <vulkan/vulkan_core.h>
 
@@ -235,7 +239,8 @@ struct GraphicPipelineBuilderMesh
 	VkViewport mArea;
 	VkRect2D mScissors;
 	std::array<VkPipelineColorBlendAttachmentState, 1> mBlendingAttachments;
-	blk::VertexInputDescription mVertexInputDescription = blk::Vertex::get_description();
+	std::array<VkVertexInputBindingDescription, 1> mVertexBindings;
+	std::array<VkVertexInputAttributeDescription, 3> mVertexAttributes;
 
 	VkPipelineVertexInputStateCreateInfo mVertexInput;
 	VkPipelineInputAssemblyStateCreateInfo mAssembly;
@@ -289,15 +294,42 @@ struct GraphicPipelineBuilderMesh
                     VK_COLOR_COMPONENT_A_BIT,
             }
         }
+        , mVertexBindings{
+            VkVertexInputBindingDescription{
+                .binding = 0,
+                .stride = sizeof(blk::Vertex),
+                .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+            },
+        }
+        , mVertexAttributes{
+            VkVertexInputAttributeDescription{
+                .location = 0,
+                .binding = 0,
+                .format = VK_FORMAT_R32G32B32_SFLOAT,
+                .offset = offsetof(blk::Vertex, position),
+            },
+            VkVertexInputAttributeDescription{
+                .location = 1,
+                .binding = 0,
+                .format = VK_FORMAT_R32G32B32_SFLOAT,
+                .offset = offsetof(blk::Vertex, normal),
+            },
+            VkVertexInputAttributeDescription{
+                .location = 2,
+                .binding = 0,
+                .format = VK_FORMAT_R32G32B32_SFLOAT,
+                .offset = offsetof(blk::Vertex, color),
+            },
+        }
 
         , mVertexInput{
             .sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
             .pNext                           = nullptr,
             .flags                           = 0,
-            .vertexBindingDescriptionCount   = static_cast<std::uint32_t>(mVertexInputDescription.bindings.size()),
-            .pVertexBindingDescriptions      = mVertexInputDescription.bindings.data(),
-            .vertexAttributeDescriptionCount = static_cast<std::uint32_t>(mVertexInputDescription.attributes.size()),
-            .pVertexAttributeDescriptions    = mVertexInputDescription.attributes.data(),
+            .vertexBindingDescriptionCount   = static_cast<std::uint32_t>(mVertexBindings.size()),
+            .pVertexBindingDescriptions      = mVertexBindings.data(),
+            .vertexAttributeDescriptionCount = static_cast<std::uint32_t>(mVertexAttributes.size()),
+            .pVertexAttributeDescriptions    = mVertexAttributes.data(),
         }
         , mAssembly{
             .sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
@@ -541,6 +573,7 @@ Application::Application(blk::Engine& vkengine, blk::Presentation& vkpresentatio
 
 	, mQueue(vkengine.mGraphicsQueues.at(0))
 
+#if 0
 	// clang-format off
 	, mTriangleMesh{
         .mVertices{
@@ -551,28 +584,35 @@ Application::Application(blk::Engine& vkengine, blk::Presentation& vkpresentatio
         .mVertexBuffer = blk::Buffer(sizeof(Vertex) * 3, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)
     }
 // clang-format on
+#endif
 {
 	{ // Resources
 		mDepthImage.create(mDevice);
+#if 0
 		mTriangleMesh.mVertexBuffer.create(mDevice);
+#endif
 	}
 	{ // Memories
 		auto vkphysicaldevice = *(mDevice.mPhysicalDevice);
 		// NOTE(andrea.machizaud) not present on Windows laptop with my NVIDIA card...
 		auto memory_type_depth =
 			vkphysicaldevice.mMemories.find_compatible(mDepthImage, 0 /*VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT*/);
+		assert(memory_type_depth);
+#if 0
 		auto memory_type_geometry = vkphysicaldevice.mMemories.find_compatible(
 			mTriangleMesh.mVertexBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-		assert(memory_type_depth);
 		assert(memory_type_geometry);
-		mDepthMemory = std::make_unique<blk::Memory>(*memory_type_depth, mDepthImage.mRequirements.size);
+#endif
+		mDepthMemory = std::make_unique<blk::Memory>(memory_type_depth, mDepthImage.mRequirements.size);
 		mDepthMemory->allocate(mDevice);
 		mDepthMemory->bind(mDepthImage);
 
+#if 0
 		mGeometryMemory =
 			std::make_unique<blk::Memory>(*memory_type_geometry, mTriangleMesh.mVertexBuffer.mRequirements.size);
 		mGeometryMemory->allocate(mDevice);
 		mGeometryMemory->bind(mTriangleMesh.mVertexBuffer);
+#endif
 	}
 	{ // Image Views
 		mDepthImageView = blk::ImageView(mDepthImage, VK_IMAGE_VIEW_TYPE_2D, mDepthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
@@ -702,6 +742,7 @@ Application::Application(blk::Engine& vkengine, blk::Presentation& vkpresentatio
 		};
 		CHECK(vkCreatePipelineLayout(mDevice, &info, nullptr, &mPipelineLayoutMesh));
 	}
+#if 0
 	{ // Pipeline
 		VkGraphicsPipelineCreateInfo infos[3];
 		GraphicPipelineBuilder builder0(
@@ -771,15 +812,36 @@ Application::Application(blk::Engine& vkengine, blk::Presentation& vkpresentatio
 			}
 		}
 	}
+#else
+	{ // Pipeline
+		VkGraphicsPipelineCreateInfo infos[1];
+
+		GraphicPipelineBuilderMesh builder2(
+			mDevice,
+			mResolution,
+			mPipelineLayoutMesh,
+			mRenderPass,
+			0,
+			infos[0],
+			std::vector<std::uint32_t>(std::begin(kShaderMesh), std::end(kShaderMesh)),
+			"mesh_main");
+		CHECK(vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, infos, nullptr, mPipelines.data()));
+	}
+	{ // Scene
+		load_default_mesh();
+	}
+#endif
 }
 
 Application::~Application()
 {
+#if 0
 	mUserMesh.mVertexBuffer.destroy();
 	mUserMemory->destroy();
 
 	mTriangleMesh.mVertexBuffer.destroy();
 	mGeometryMemory->destroy();
+#endif
 
 	for (auto&& pipeline : mPipelines)
 		vkDestroyPipeline(mDevice, pipeline, nullptr);
@@ -803,6 +865,57 @@ Application::~Application()
 		vkDestroyImageView(mDevice, view, nullptr);
 }
 
+void Application::load_mesh(const CPUMesh& cpumesh)
+{
+	if (mStorageMesh.mGPUMesh)
+	{
+		mStorageMesh.mGPUMesh->mVertexBuffer.destroy();
+		mStorageMesh.mGPUMesh.release();
+	}
+
+	VkDeviceSize vertex_size = cpumesh.mVertices.size() * sizeof(Vertex);
+	mStorageMesh.mGPUMesh.reset(new blk::GPUMesh{
+		.mVertexCount = cpumesh.mVertices.size(),
+		.mVertexBuffer = blk::Buffer(vertex_size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)
+
+	});
+
+	auto& vertex_buffer = mStorageMesh.mGPUMesh->mVertexBuffer;
+	vertex_buffer.create(mDevice);
+
+	if (!mStorageMesh.mGeometryMemory)
+	{
+		const PhysicalDevice& vkphysicaldevice = *(mDevice.mPhysicalDevice);
+		const MemoryType* memory_type_geometry = vkphysicaldevice.mMemories.find_compatible(
+			vertex_buffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		assert(memory_type_geometry);
+
+		using namespace blk;
+
+		mStorageMesh.mGeometryMemory = std::make_unique<blk::Memory>(memory_type_geometry, 1_MB);
+		mStorageMesh.mGeometryMemory->allocate(mDevice);
+	}
+
+	mStorageMesh.mGeometryMemory->bind(vertex_buffer);
+
+	upload_host_visible(mDevice, cpumesh, vertex_buffer);
+}
+
+void Application::load_default_mesh()
+{
+	load_mesh(CPUMesh{.mVertices{
+		Vertex{.position = {+1.0, +1.0, +0.0}, .color = {0.0, 1.0, 0.0}},
+		Vertex{.position = {-1.0, +1.0, +0.0}, .color = {0.0, 1.0, 0.0}},
+		Vertex{.position = {+0.0, -1.0, +0.0}, .color = {0.0, 1.0, 0.0}},
+	}});
+}
+
+void Application::load_obj_mesh(const fs::path& path)
+{
+	load_mesh(blk::meshes::obj::load(path));
+}
+
+#if 0
 void Application::load_meshes()
 {
 	mUserMesh.load_obj("C:\\devel\\vkplaygrounds\\data\\models\\vulkan-guide\\monkey_smooth.obj");
@@ -833,11 +946,18 @@ void Application::upload_mesh(blk::Mesh& mesh)
 		mesh.mVertexBuffer.mMemory->unmap(mesh.mVertexBuffer);
 	}
 }
+#endif
 
 void Application::draw()
 {
 	CHECK(vkWaitForFences(mDevice, 1, &mFenceRender, VK_TRUE, UINT64_MAX));
 	CHECK(vkResetFences(mDevice, 1, &mFenceRender));
+
+	for (auto&& call : mPendingRequests)
+	{
+		call();
+	}
+	mPendingRequests.clear();
 
 	std::uint32_t index;
 	CHECK(vkAcquireNextImageKHR(
@@ -885,7 +1005,38 @@ void Application::draw()
 		vkCmdBeginRenderPass(mCommandBuffer, &info, VK_SUBPASS_CONTENTS_INLINE);
 	}
 
+#if 0
 	record_renderables(mCommandBuffer, mRenderables.data(), mRenderables.size());
+#else
+	vkCmdBindPipeline(mCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelines[0]);
+
+	{
+		glm::vec3 eye{0.0, 0.0, -2.0};
+		glm::mat4 view = glm::translate(eye);
+
+		glm::mat4 projection = glm::perspective(glm::radians(70.0), 1700.0 / 900.0, 0.1, 200.0);
+		// projection[1][1] *= -1.0;
+
+		glm::mat4 model = glm::rotate(glm::radians(mFrameNumber / 0.4f), glm::vec3(0.0, 1.0, 0.0));
+
+		MeshPushConstants constants{.render_matrix = projection * view * model};
+		vkCmdPushConstants(
+			mCommandBuffer,
+			mPipelineLayoutMesh,
+			VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+			0,
+			sizeof(MeshPushConstants),
+			&constants);
+	}
+
+	if (mStorageMesh.mGPUMesh)
+	{
+		VkDeviceSize offset = 0;
+		VkBuffer vertex_buffer = mStorageMesh.mGPUMesh->mVertexBuffer;
+		vkCmdBindVertexBuffers(mCommandBuffer, 0, 1, &vertex_buffer, &offset);
+		vkCmdDraw(mCommandBuffer, mStorageMesh.mGPUMesh->mVertexCount, 1, 0, 0);
+	}
+#endif
 
 	// switch (mSelectedShader)
 	// {
@@ -1004,6 +1155,7 @@ void Application::draw()
 	++mFrameNumber;
 }
 
+#if 0
 Material* Application::create_material(VkPipeline pipeline, VkPipelineLayout layout, const std::string& name)
 {
 	auto [iterator, _] = mMaterials.emplace(name, Material{.pipeline = pipeline, .pipeline_layout = layout});
@@ -1052,5 +1204,6 @@ void Application::record_renderables(VkCommandBuffer commandbuffer, RenderObject
 		vkCmdDraw(commandbuffer, renderable.mesh->mVertices.size(), 1, 0, 0);
 	}
 }
+#endif
 
 } // namespace blk::sample00

@@ -10,6 +10,7 @@ target_sources(libobj2mesh
         obj2mesh.hpp
     PRIVATE
         obj2mesh.cpp
+        obj2mesh_v0.cpp
 )
 
 target_include_directories(libobj2mesh
@@ -21,6 +22,9 @@ target_include_directories(libobj2mesh
 target_link_libraries(libobj2mesh
     PUBLIC
         core
+        scene
+    PRIVATE
+        tinyobjloader::tinyobjloader
 )
 
 generate_export_header(libobj2mesh

@@ -34,9 +34,10 @@ target_link_libraries(scene
     #     Vulkan::Vulkan
     #     glm
     PRIVATE
+        glm
+
         core
         # range-v3::range-v3
-        # tinyobjloader::tinyobjloader
 )
 
 generate_export_header(scene)

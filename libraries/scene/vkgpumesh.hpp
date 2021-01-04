@@ -2,7 +2,7 @@
 
 #include <cstddef>
 
-#include <vulkan/vulkan_core.h>
+#include <vkbuffer.hpp>
 
 #include <scene_export.h>
 
@@ -11,6 +11,6 @@ namespace blk
 struct GPUMesh
 {
 	std::size_t mVertexCount;
-	VkBuffer mVertexBuffer;
+	blk::Buffer mVertexBuffer;
 };
 } // namespace blk

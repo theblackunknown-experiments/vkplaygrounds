@@ -35,62 +35,59 @@ namespace fs = std::filesystem;
 
 namespace
 {
-    constexpr std::uint32_t kStencilMask      = 0xFF;
-    constexpr std::uint32_t kStencilReference = 0x01;
+constexpr std::uint32_t kStencilMask = 0xFF;
+constexpr std::uint32_t kStencilReference = 0x01;
 
-    using namespace blk;
+using namespace blk;
 
-    // TODO(andrea.machizaud) pre-allocate a reasonable amount for buffers
-    constexpr std::size_t kInitialVertexBufferSize   = 1_MB;
-    constexpr std::size_t kInitialIndexBufferSize    = 1_MB;
-    constexpr std::size_t kInitialStagingBufferSize  = 1_MB;
+// TODO(andrea.machizaud) pre-allocate a reasonable amount for buffers
+constexpr std::size_t kInitialVertexBufferSize = 1_MB;
+constexpr std::size_t kInitialIndexBufferSize = 1_MB;
+constexpr std::size_t kInitialStagingBufferSize = 1_MB;
 
-    constexpr VkFrontFace kTriangleFrontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+constexpr VkFrontFace kTriangleFrontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 
-    struct alignas(4) UniformObjectTransformation
-    {
-        float model     [16];
-        float view      [16];
-        float projection[16];
-    };
+struct alignas(4) UniformObjectTransformation
+{
+	float model[16];
+	float view[16];
+	float projection[16];
+};
 
-    struct GraphicPipelineBuilderTriangle
-    {
-        VkDevice                                           mDevice;
-        VkGraphicsPipelineCreateInfo&                      mInfo;
+struct GraphicPipelineBuilderTriangle
+{
+	VkDevice mDevice;
+	VkGraphicsPipelineCreateInfo& mInfo;
 
-        VkViewport                                         mArea;
-        VkRect2D                                           mScissors;
-        std::array<VkPipelineColorBlendAttachmentState, 1> mBlendingAttachments;
+	VkViewport mArea;
+	VkRect2D mScissors;
+	std::array<VkPipelineColorBlendAttachmentState, 1> mBlendingAttachments;
 
-        VkPipelineVertexInputStateCreateInfo               mVertexInput;
-        VkPipelineInputAssemblyStateCreateInfo             mAssembly;
-        VkPipelineViewportStateCreateInfo                  mViewport;
-        VkPipelineRasterizationStateCreateInfo             mRasterization;
-        VkPipelineMultisampleStateCreateInfo               mMultisample;
-        VkPipelineDepthStencilStateCreateInfo              mDepthStencil;
-        VkPipelineColorBlendStateCreateInfo                mBlending;
-        VkPipelineDynamicStateCreateInfo                   mDynamics;
+	VkPipelineVertexInputStateCreateInfo mVertexInput;
+	VkPipelineInputAssemblyStateCreateInfo mAssembly;
+	VkPipelineViewportStateCreateInfo mViewport;
+	VkPipelineRasterizationStateCreateInfo mRasterization;
+	VkPipelineMultisampleStateCreateInfo mMultisample;
+	VkPipelineDepthStencilStateCreateInfo mDepthStencil;
+	VkPipelineColorBlendStateCreateInfo mBlending;
+	VkPipelineDynamicStateCreateInfo mDynamics;
 
-        VkShaderModule                                     mShader = VK_NULL_HANDLE;
-        std::array<VkPipelineShaderStageCreateInfo, 2>     mStages;
+	VkShaderModule mShader = VK_NULL_HANDLE;
+	std::array<VkPipelineShaderStageCreateInfo, 2> mStages;
 
-        explicit GraphicPipelineBuilderTriangle(
-            VkDevice                      vkdevice,
-            VkExtent2D                    resolution,
-            VkPipelineLayout              layout,
-            VkRenderPass                  renderpass,
-            std::uint32_t                 subpass,
-            VkGraphicsPipelineCreateInfo& info,
-            VkPipeline                    base_handle = VK_NULL_HANDLE,
-            std::int32_t                  base_index = -1);
-        ~GraphicPipelineBuilderTriangle()
-        {
-            vkDestroyShaderModule(mDevice, mShader, nullptr);
-        }
-    };
+	explicit GraphicPipelineBuilderTriangle(
+		VkDevice vkdevice,
+		VkExtent2D resolution,
+		VkPipelineLayout layout,
+		VkRenderPass renderpass,
+		std::uint32_t subpass,
+		VkGraphicsPipelineCreateInfo& info,
+		VkPipeline base_handle = VK_NULL_HANDLE,
+		std::int32_t base_index = -1);
+	~GraphicPipelineBuilderTriangle() { vkDestroyShaderModule(mDevice, mShader, nullptr); }
+};
 
-    GraphicPipelineBuilderTriangle::GraphicPipelineBuilderTriangle(
+GraphicPipelineBuilderTriangle::GraphicPipelineBuilderTriangle(
         VkDevice                      vkdevice,
         VkExtent2D                    resolution,
         VkPipelineLayout              layout,
@@ -229,100 +226,97 @@ namespace
             .flags                   = 0,
             .dynamicStateCount       = 0,
         }
-    {
-        {// Shader
-            constexpr VkShaderModuleCreateInfo info{
-                .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-                .pNext    = nullptr,
-                .flags    = 0,
-                .codeSize = kShaderTriangle.size() * sizeof(std::uint32_t),
-                .pCode    = kShaderTriangle.data(),
-            };
-            CHECK(vkCreateShaderModule(mDevice, &info, nullptr, &mShader));
-        }
+{
+	{ // Shader
+		constexpr VkShaderModuleCreateInfo info{
+			.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = 0,
+			.codeSize = kShaderTriangle.size() * sizeof(std::uint32_t),
+			.pCode = kShaderTriangle.data(),
+		};
+		CHECK(vkCreateShaderModule(mDevice, &info, nullptr, &mShader));
+	}
 
-        VkPipelineShaderStageCreateInfo& stage_vertex = mStages.at(0);
-        stage_vertex.sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        stage_vertex.pNext               = nullptr;
-        stage_vertex.flags               = 0;
-        stage_vertex.stage               = VK_SHADER_STAGE_VERTEX_BIT;
-        stage_vertex.module              = mShader;
-        stage_vertex.pName               = "triangle_main";
-        stage_vertex.pSpecializationInfo = nullptr;
+	VkPipelineShaderStageCreateInfo& stage_vertex = mStages.at(0);
+	stage_vertex.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	stage_vertex.pNext = nullptr;
+	stage_vertex.flags = 0;
+	stage_vertex.stage = VK_SHADER_STAGE_VERTEX_BIT;
+	stage_vertex.module = mShader;
+	stage_vertex.pName = "triangle_main";
+	stage_vertex.pSpecializationInfo = nullptr;
 
-        VkPipelineShaderStageCreateInfo& stage_fragment = mStages.at(1);
-        stage_fragment.sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        stage_fragment.pNext               = nullptr;
-        stage_fragment.flags               = 0;
-        stage_fragment.stage               = VK_SHADER_STAGE_FRAGMENT_BIT;
-        stage_fragment.module              = mShader;
-        stage_fragment.pName               = "triangle_main";
-        stage_fragment.pSpecializationInfo = nullptr;
+	VkPipelineShaderStageCreateInfo& stage_fragment = mStages.at(1);
+	stage_fragment.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	stage_fragment.pNext = nullptr;
+	stage_fragment.flags = 0;
+	stage_fragment.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+	stage_fragment.module = mShader;
+	stage_fragment.pName = "triangle_main";
+	stage_fragment.pSpecializationInfo = nullptr;
 
-        mInfo.sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-        mInfo.pNext               = nullptr;
-        mInfo.flags               = 0;
-        mInfo.stageCount          = mStages.size();
-        mInfo.pStages             = mStages.data();
-        mInfo.pVertexInputState   = &mVertexInput;
-        mInfo.pInputAssemblyState = &mAssembly;
-        mInfo.pTessellationState  = nullptr;
-        mInfo.pViewportState      = &mViewport;
-        mInfo.pRasterizationState = &mRasterization;
-        mInfo.pMultisampleState   = &mMultisample;
-        mInfo.pDepthStencilState  = &mDepthStencil;
-        mInfo.pColorBlendState    = &mBlending;
-        mInfo.pDynamicState       = &mDynamics;
-        mInfo.layout              = layout;
-        mInfo.renderPass          = renderpass;
-        mInfo.subpass             = subpass;
-        mInfo.basePipelineHandle  = base_handle;
-        mInfo.basePipelineIndex   = base_index;
-    }
+	mInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	mInfo.pNext = nullptr;
+	mInfo.flags = 0;
+	mInfo.stageCount = mStages.size();
+	mInfo.pStages = mStages.data();
+	mInfo.pVertexInputState = &mVertexInput;
+	mInfo.pInputAssemblyState = &mAssembly;
+	mInfo.pTessellationState = nullptr;
+	mInfo.pViewportState = &mViewport;
+	mInfo.pRasterizationState = &mRasterization;
+	mInfo.pMultisampleState = &mMultisample;
+	mInfo.pDepthStencilState = &mDepthStencil;
+	mInfo.pColorBlendState = &mBlending;
+	mInfo.pDynamicState = &mDynamics;
+	mInfo.layout = layout;
+	mInfo.renderPass = renderpass;
+	mInfo.subpass = subpass;
+	mInfo.basePipelineHandle = base_handle;
+	mInfo.basePipelineIndex = base_index;
+}
 
-    struct GraphicPipelineBuilderOBJ
-    {
-        VkDevice                                           mDevice;
-        VkGraphicsPipelineCreateInfo&                      mInfo;
+struct GraphicPipelineBuilderOBJ
+{
+	VkDevice mDevice;
+	VkGraphicsPipelineCreateInfo& mInfo;
 
-        std::array<VkVertexInputBindingDescription, 1>     mVertexBindings;
-        std::array<VkVertexInputAttributeDescription, 1>   mVertexAttributes;
-        VkViewport                                         mArea;
-        VkRect2D                                           mScissors;
-        std::array<VkPipelineColorBlendAttachmentState, 1> mBlendingAttachments;
+	std::array<VkVertexInputBindingDescription, 1> mVertexBindings;
+	std::array<VkVertexInputAttributeDescription, 1> mVertexAttributes;
+	VkViewport mArea;
+	VkRect2D mScissors;
+	std::array<VkPipelineColorBlendAttachmentState, 1> mBlendingAttachments;
 
-        VkPipelineVertexInputStateCreateInfo               mVertexInput;
-        VkPipelineInputAssemblyStateCreateInfo             mAssembly;
-        VkPipelineViewportStateCreateInfo                  mViewport;
-        VkPipelineRasterizationStateCreateInfo             mRasterization;
-        VkPipelineMultisampleStateCreateInfo               mMultisample;
-        VkPipelineDepthStencilStateCreateInfo              mDepthStencil;
-        VkPipelineColorBlendStateCreateInfo                mBlending;
-        VkPipelineDynamicStateCreateInfo                   mDynamics;
+	VkPipelineVertexInputStateCreateInfo mVertexInput;
+	VkPipelineInputAssemblyStateCreateInfo mAssembly;
+	VkPipelineViewportStateCreateInfo mViewport;
+	VkPipelineRasterizationStateCreateInfo mRasterization;
+	VkPipelineMultisampleStateCreateInfo mMultisample;
+	VkPipelineDepthStencilStateCreateInfo mDepthStencil;
+	VkPipelineColorBlendStateCreateInfo mBlending;
+	VkPipelineDynamicStateCreateInfo mDynamics;
 
-        VkShaderModule                                     mShader = VK_NULL_HANDLE;
-        std::array<VkPipelineShaderStageCreateInfo, 2>     mStages;
+	VkShaderModule mShader = VK_NULL_HANDLE;
+	std::array<VkPipelineShaderStageCreateInfo, 2> mStages;
 
-        explicit GraphicPipelineBuilderOBJ(
-            VkDevice                      vkdevice,
-            VkExtent2D                    resolution,
-            VkPipelineLayout              layout,
-            VkRenderPass                  renderpass,
-            std::uint32_t                 subpass,
-            VkGraphicsPipelineCreateInfo& info,
-            VkPipeline                    base_handle = VK_NULL_HANDLE,
-            std::int32_t                  base_index = -1);
-        ~GraphicPipelineBuilderOBJ()
-        {
-            vkDestroyShaderModule(mDevice, mShader, nullptr);
-        }
-    };
+	explicit GraphicPipelineBuilderOBJ(
+		VkDevice vkdevice,
+		VkExtent2D resolution,
+		VkPipelineLayout layout,
+		VkRenderPass renderpass,
+		std::uint32_t subpass,
+		VkGraphicsPipelineCreateInfo& info,
+		VkPipeline base_handle = VK_NULL_HANDLE,
+		std::int32_t base_index = -1);
+	~GraphicPipelineBuilderOBJ() { vkDestroyShaderModule(mDevice, mShader, nullptr); }
+};
 
-    constexpr std::uint32_t kVertexInputBindingPositionOBJ = 0;
+constexpr std::uint32_t kVertexInputBindingPositionOBJ = 0;
 
-    constexpr std::uint32_t kVertexAttributeLocationPositionOBJ = 0;
+constexpr std::uint32_t kVertexAttributeLocationPositionOBJ = 0;
 
-    GraphicPipelineBuilderOBJ::GraphicPipelineBuilderOBJ(
+GraphicPipelineBuilderOBJ::GraphicPipelineBuilderOBJ(
         VkDevice                      vkdevice,
         VkExtent2D                    resolution,
         VkPipelineLayout              layout,
@@ -476,362 +470,358 @@ namespace
             .flags                   = 0,
             .dynamicStateCount       = 0,
         }
-    {
-        {// Shader
-            constexpr VkShaderModuleCreateInfo info{
-                .sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-                .pNext    = nullptr,
-                .flags    = 0,
-                .codeSize = kShaderOBJ.size() * sizeof(std::uint32_t),
-                .pCode    = kShaderOBJ.data(),
-            };
-            CHECK(vkCreateShaderModule(mDevice, &info, nullptr, &mShader));
-        }
+{
+	{ // Shader
+		constexpr VkShaderModuleCreateInfo info{
+			.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = 0,
+			.codeSize = kShaderOBJ.size() * sizeof(std::uint32_t),
+			.pCode = kShaderOBJ.data(),
+		};
+		CHECK(vkCreateShaderModule(mDevice, &info, nullptr, &mShader));
+	}
 
-        VkPipelineShaderStageCreateInfo& stage_vertex = mStages.at(0);
-        stage_vertex.sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        stage_vertex.pNext               = nullptr;
-        stage_vertex.flags               = 0;
-        stage_vertex.stage               = VK_SHADER_STAGE_VERTEX_BIT;
-        stage_vertex.module              = mShader;
-        stage_vertex.pName               = "obj_main";
-        stage_vertex.pSpecializationInfo = nullptr;
+	VkPipelineShaderStageCreateInfo& stage_vertex = mStages.at(0);
+	stage_vertex.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	stage_vertex.pNext = nullptr;
+	stage_vertex.flags = 0;
+	stage_vertex.stage = VK_SHADER_STAGE_VERTEX_BIT;
+	stage_vertex.module = mShader;
+	stage_vertex.pName = "obj_main";
+	stage_vertex.pSpecializationInfo = nullptr;
 
-        VkPipelineShaderStageCreateInfo& stage_fragment = mStages.at(1);
-        stage_fragment.sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        stage_fragment.pNext               = nullptr;
-        stage_fragment.flags               = 0;
-        stage_fragment.stage               = VK_SHADER_STAGE_FRAGMENT_BIT;
-        stage_fragment.module              = mShader;
-        stage_fragment.pName               = "obj_main";
-        stage_fragment.pSpecializationInfo = nullptr;
+	VkPipelineShaderStageCreateInfo& stage_fragment = mStages.at(1);
+	stage_fragment.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	stage_fragment.pNext = nullptr;
+	stage_fragment.flags = 0;
+	stage_fragment.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+	stage_fragment.module = mShader;
+	stage_fragment.pName = "obj_main";
+	stage_fragment.pSpecializationInfo = nullptr;
 
-        mInfo.sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-        mInfo.pNext               = nullptr;
-        mInfo.flags               = 0;
-        mInfo.stageCount          = mStages.size();
-        mInfo.pStages             = mStages.data();
-        mInfo.pVertexInputState   = &mVertexInput;
-        mInfo.pInputAssemblyState = &mAssembly;
-        mInfo.pTessellationState  = nullptr;
-        mInfo.pViewportState      = &mViewport;
-        mInfo.pRasterizationState = &mRasterization;
-        mInfo.pMultisampleState   = &mMultisample;
-        mInfo.pDepthStencilState  = &mDepthStencil;
-        mInfo.pColorBlendState    = &mBlending;
-        mInfo.pDynamicState       = &mDynamics;
-        mInfo.layout              = layout;
-        mInfo.renderPass          = renderpass;
-        mInfo.subpass             = subpass;
-        mInfo.basePipelineHandle  = base_handle;
-        mInfo.basePipelineIndex   = base_index;
-    }
+	mInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	mInfo.pNext = nullptr;
+	mInfo.flags = 0;
+	mInfo.stageCount = mStages.size();
+	mInfo.pStages = mStages.data();
+	mInfo.pVertexInputState = &mVertexInput;
+	mInfo.pInputAssemblyState = &mAssembly;
+	mInfo.pTessellationState = nullptr;
+	mInfo.pViewportState = &mViewport;
+	mInfo.pRasterizationState = &mRasterization;
+	mInfo.pMultisampleState = &mMultisample;
+	mInfo.pDepthStencilState = &mDepthStencil;
+	mInfo.pColorBlendState = &mBlending;
+	mInfo.pDynamicState = &mDynamics;
+	mInfo.layout = layout;
+	mInfo.renderPass = renderpass;
+	mInfo.subpass = subpass;
+	mInfo.basePipelineHandle = base_handle;
+	mInfo.basePipelineIndex = base_index;
 }
+} // namespace
 
 namespace blk::meshviewer
 {
 
 PassScene::PassScene(const blk::RenderPass& renderpass, std::uint32_t subpass, Arguments args)
-    : Pass(renderpass, subpass)
-    , mEngine(args.engine)
-    , mDevice(renderpass.mDevice)
-    , mResolution(args.resolution)
+	: Pass(renderpass, subpass)
+	, mEngine(args.engine)
+	, mDevice(renderpass.mDevice)
+	, mResolution(args.resolution)
 
-    , previous_selected_mesh_index(args.shared_data.mSelectedMeshIndex)
-    , mSharedData(args.shared_data)
+	, previous_selected_mesh_index(args.shared_data.mSelectedMeshIndex)
+	, mSharedData(args.shared_data)
 
-    , mVertexBuffer(kInitialVertexBufferSize  , VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT)
-    , mIndexBuffer(kInitialIndexBufferSize    , VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT)
+	, mVertexBuffer(kInitialVertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT)
+	, mIndexBuffer(kInitialIndexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT)
 
-    , mStagingBuffer(kInitialStagingBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT)
+	, mStagingBuffer(kInitialStagingBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT)
 {
-    {// Pipeline Layouts
-        constexpr std::size_t kAlignOf    = alignof(UniformObjectTransformation);
-        constexpr std::size_t kMaxAlignOf = alignof(std::max_align_t);
-        constexpr std::size_t kSizeOf     = sizeof(UniformObjectTransformation);
+	{ // Pipeline Layouts
+		constexpr std::size_t kAlignOf = alignof(UniformObjectTransformation);
+		constexpr std::size_t kMaxAlignOf = alignof(std::max_align_t);
+		constexpr std::size_t kSizeOf = sizeof(UniformObjectTransformation);
 
-        constexpr std::array kConstantRanges{
-            VkPushConstantRange{
-                // .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
-                // FIXME: UNASSIGNED-CoreValidation-Shader-PushConstantOutOfRange
-                //  Because OBJ shader module contains both vertex & fragment
-                .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-                .offset     = 0,
-                .size       = sizeof(UniformObjectTransformation),
-            },
-        };
-        const VkPipelineLayoutCreateInfo info{
-            .sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            .pNext                  = nullptr,
-            .flags                  = 0,
-            .setLayoutCount         = 0,
-            .pushConstantRangeCount = kConstantRanges.size(),
-            .pPushConstantRanges    = kConstantRanges.data(),
-        };
-        CHECK(vkCreatePipelineLayout(mDevice, &info, nullptr, &mPipelineLayout));
-    }
-    {// Buffers
-        mVertexBuffer.create(mDevice);
-        mIndexBuffer.create(mDevice);
-        mStagingBuffer.create(mDevice);
-    }
-    {// Memories
-        auto vkphysicaldevice = *(mDevice.mPhysicalDevice);
+		constexpr std::array kConstantRanges{
+			VkPushConstantRange{
+				// .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+				// FIXME: UNASSIGNED-CoreValidation-Shader-PushConstantOutOfRange
+				//  Because OBJ shader module contains both vertex & fragment
+				.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+				.offset = 0,
+				.size = sizeof(UniformObjectTransformation),
+			},
+		};
+		const VkPipelineLayoutCreateInfo info{
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = 0,
+			.setLayoutCount = 0,
+			.pushConstantRangeCount = kConstantRanges.size(),
+			.pPushConstantRanges = kConstantRanges.data(),
+		};
+		CHECK(vkCreatePipelineLayout(mDevice, &info, nullptr, &mPipelineLayout));
+	}
+	{ // Buffers
+		mVertexBuffer.create(mDevice);
+		mIndexBuffer.create(mDevice);
+		mStagingBuffer.create(mDevice);
+	}
+	{ // Memories
+		auto vkphysicaldevice = *(mDevice.mPhysicalDevice);
 
-        auto memory_type_vertex  = vkphysicaldevice.mMemories.find_compatible(mVertexBuffer, 0);
-        auto memory_type_index   = vkphysicaldevice.mMemories.find_compatible(mIndexBuffer, 0);
-        auto memory_type_staging = vkphysicaldevice.mMemories.find_compatible(mStagingBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+		auto memory_type_vertex = vkphysicaldevice.mMemories.find_compatible(mVertexBuffer, 0);
+		auto memory_type_index = vkphysicaldevice.mMemories.find_compatible(mIndexBuffer, 0);
+		auto memory_type_staging = vkphysicaldevice.mMemories.find_compatible(
+			mStagingBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-        assert(memory_type_vertex);
-        assert(memory_type_index);
-        assert(memory_type_staging);
+		assert(memory_type_vertex);
+		assert(memory_type_index);
+		assert(memory_type_staging);
 
-        assert(memory_type_index == memory_type_vertex);
+		assert(memory_type_index == memory_type_vertex);
 
-        mGeometryMemory = std::make_unique<blk::Memory>(*memory_type_index, mVertexBuffer.mRequirements.size + mIndexBuffer.mRequirements.size);
-        mGeometryMemory->allocate(mDevice);
-        mGeometryMemory->bind({ &mVertexBuffer, &mIndexBuffer });
+		mGeometryMemory = std::make_unique<blk::Memory>(
+			*memory_type_index, mVertexBuffer.mRequirements.size + mIndexBuffer.mRequirements.size);
+		mGeometryMemory->allocate(mDevice);
+		mGeometryMemory->bind({&mVertexBuffer, &mIndexBuffer});
 
-        mStagingMemory = std::make_unique<blk::Memory>(*memory_type_staging, mStagingBuffer.mRequirements.size);
-        mStagingMemory->allocate(mDevice);
-        mStagingMemory->bind(mStagingBuffer);
-    }
-    {// Pipeline Cache
-        constexpr VkPipelineCacheCreateInfo info{
-            .sType           = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,
-            .pNext           = nullptr,
-            .flags           = 0u,
-            // TODO
-            .initialDataSize = 0u,
-            .pInitialData    = nullptr,
-        };
-        CHECK(vkCreatePipelineCache(mDevice, &info, nullptr, &mPipelineCache));
-    }
-    {// Queues / Command Pool
-        assert(!mEngine.mGraphicsQueues.empty());
+		mStagingMemory = std::make_unique<blk::Memory>(*memory_type_staging, mStagingBuffer.mRequirements.size);
+		mStagingMemory->allocate(mDevice);
+		mStagingMemory->bind(mStagingBuffer);
+	}
+	{ // Pipeline Cache
+		constexpr VkPipelineCacheCreateInfo info{
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = 0u,
+			// TODO
+			.initialDataSize = 0u,
+			.pInitialData = nullptr,
+		};
+		CHECK(vkCreatePipelineCache(mDevice, &info, nullptr, &mPipelineCache));
+	}
+	{ // Queues / Command Pool
+		assert(!mEngine.mGraphicsQueues.empty());
 
-        mGraphicsQueue = mEngine.mGraphicsQueues.at(0);
+		mGraphicsQueue = mEngine.mGraphicsQueues.at(0);
 
-        {// Command Pools - One Off
-            const VkCommandPoolCreateInfo info{
-                .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-                .pNext            = nullptr,
-                .flags            = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
-                .queueFamilyIndex = mGraphicsQueue->mFamily.mIndex,
-            };
-            CHECK(vkCreateCommandPool(mDevice, &info, nullptr, &mGraphicsCommandPoolTransient));
-        }
-    }
-    {// Command Buffers
-        const VkCommandBufferAllocateInfo info{
-            .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-            .pNext              = nullptr,
-            .commandPool        = mGraphicsCommandPoolTransient,
-            .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-            .commandBufferCount = 1,
-        };
-        CHECK(vkAllocateCommandBuffers(mDevice, &info, &mStagingCommandBuffer));
-    }
-    {// Fences
-        const VkFenceCreateInfo info{
-            .sType              = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-            .pNext              = nullptr,
-            .flags              = 0,
-        };
-        CHECK(vkCreateFence(mDevice, &info, nullptr, &mStagingFence));
-    }
-    {// Semaphore
-        const VkSemaphoreTypeCreateInfo info_type{
-            .sType         = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
-            .pNext         = nullptr,
-            .semaphoreType = VK_SEMAPHORE_TYPE_BINARY,
-            .initialValue  = 0,
-        };
-        const VkSemaphoreCreateInfo info_semaphore{
-            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-            .pNext = &info_type,
-            .flags = 0,
-        };
-        CHECK(vkCreateSemaphore(mDevice, &info_semaphore, nullptr, &mStagingSemaphore));
-    }
-    initialize_graphic_pipelines();
-    {// Mesh
-        upload_mesh_from_path(mStagingBuffer, mSharedData.mMeshPaths[mSharedData.mSelectedMeshIndex]);
-    }
+		{ // Command Pools - One Off
+			const VkCommandPoolCreateInfo info{
+				.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+				.pNext = nullptr,
+				.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
+				.queueFamilyIndex = mGraphicsQueue->mFamily.mIndex,
+			};
+			CHECK(vkCreateCommandPool(mDevice, &info, nullptr, &mGraphicsCommandPoolTransient));
+		}
+	}
+	{ // Command Buffers
+		const VkCommandBufferAllocateInfo info{
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+			.pNext = nullptr,
+			.commandPool = mGraphicsCommandPoolTransient,
+			.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+			.commandBufferCount = 1,
+		};
+		CHECK(vkAllocateCommandBuffers(mDevice, &info, &mStagingCommandBuffer));
+	}
+	{ // Fences
+		const VkFenceCreateInfo info{
+			.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = 0,
+		};
+		CHECK(vkCreateFence(mDevice, &info, nullptr, &mStagingFence));
+	}
+	{ // Semaphore
+		const VkSemaphoreTypeCreateInfo info_type{
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
+			.pNext = nullptr,
+			.semaphoreType = VK_SEMAPHORE_TYPE_BINARY,
+			.initialValue = 0,
+		};
+		const VkSemaphoreCreateInfo info_semaphore{
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+			.pNext = &info_type,
+			.flags = 0,
+		};
+		CHECK(vkCreateSemaphore(mDevice, &info_semaphore, nullptr, &mStagingSemaphore));
+	}
+	initialize_graphic_pipelines();
+	{ // Mesh
+		upload_mesh_from_path(mStagingBuffer, mSharedData.mMeshPaths[mSharedData.mSelectedMeshIndex]);
+	}
 }
 
 PassScene::~PassScene()
 {
-    vkDestroySemaphore(mDevice, mStagingSemaphore, nullptr);
-    vkDestroyFence(mDevice, mStagingFence, nullptr);
+	vkDestroySemaphore(mDevice, mStagingSemaphore, nullptr);
+	vkDestroyFence(mDevice, mStagingFence, nullptr);
 
-    vkDestroyCommandPool(mDevice, mGraphicsCommandPoolTransient, nullptr);
+	vkDestroyCommandPool(mDevice, mGraphicsCommandPoolTransient, nullptr);
 
-    vkDestroyPipeline(mDevice, mPipelineDefault, nullptr);
-    vkDestroyPipeline(mDevice, mPipelineOBJ, nullptr);
-    vkDestroyPipelineCache(mDevice, mPipelineCache, nullptr);
-    vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
+	vkDestroyPipeline(mDevice, mPipelineDefault, nullptr);
+	vkDestroyPipeline(mDevice, mPipelineOBJ, nullptr);
+	vkDestroyPipelineCache(mDevice, mPipelineCache, nullptr);
+	vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
 }
 
 void PassScene::initialize_graphic_pipelines()
 {
-    assert(mPipelineDefault == VK_NULL_HANDLE);
-    assert(mPipelineOBJ == VK_NULL_HANDLE);
+	assert(mPipelineDefault == VK_NULL_HANDLE);
+	assert(mPipelineOBJ == VK_NULL_HANDLE);
 
-    VkPipeline pipelines[2];
+	VkPipeline pipelines[2];
 
-    {
-        std::array<VkGraphicsPipelineCreateInfo, 2> infos;
-        GraphicPipelineBuilderTriangle triangle_builder(mDevice, mResolution, mPipelineLayout, mRenderPass, mSubpass, infos[0]);
-        GraphicPipelineBuilderOBJ      obj_builder(mDevice, mResolution, mPipelineLayout, mRenderPass, mSubpass, infos[1]);
-        CHECK(vkCreateGraphicsPipelines(mDevice, mPipelineCache, infos.size(), infos.data(), nullptr, pipelines));
-    }
+	{
+		std::array<VkGraphicsPipelineCreateInfo, 2> infos;
+		GraphicPipelineBuilderTriangle triangle_builder(
+			mDevice, mResolution, mPipelineLayout, mRenderPass, mSubpass, infos[0]);
+		GraphicPipelineBuilderOBJ obj_builder(mDevice, mResolution, mPipelineLayout, mRenderPass, mSubpass, infos[1]);
+		CHECK(vkCreateGraphicsPipelines(mDevice, mPipelineCache, infos.size(), infos.data(), nullptr, pipelines));
+	}
 
-    mPipelineDefault = pipelines[0];
-    mPipelineOBJ = pipelines[1];
+	mPipelineDefault = pipelines[0];
+	mPipelineOBJ = pipelines[1];
 }
 
 void PassScene::upload_mesh_from_path(blk::Buffer& staging_buffer, const fs::path& mesh_path)
 {
-    assert(mesh_path.has_extension());
-    assert(mesh_path.extension().string() == ".obj");
-    assert(fs::exists(mesh_path));
+	assert(mesh_path.has_extension());
+	assert(mesh_path.extension().string() == ".obj");
+	assert(fs::exists(mesh_path));
 
-    std::ifstream stream(mesh_path, std::ios::in);
-    assert(stream.is_open());
+	std::ifstream stream(mesh_path, std::ios::in);
+	assert(stream.is_open());
 
-    std::istreambuf_iterator<char> streambegin(stream), streamend;
-    mParsedOBJ = blk::meshes::obj::parse_obj_stream(mesh_path.parent_path(), streambegin, streamend);
+	std::istreambuf_iterator<char> streambegin(stream), streamend;
+	mParsedOBJ = blk::meshes::obj::parse_obj_stream(mesh_path.parent_path(), streambegin, streamend);
 
-    stream.close();
+	stream.close();
 
-    mMeshOBJ = blk::meshes::obj::wrap_as_buffers(mParsedOBJ);
+	mMeshOBJ = blk::meshes::obj::wrap_as_buffers(mParsedOBJ);
 
-    assert(mStagingBuffer.mMemory != nullptr);
+	assert(mStagingBuffer.mMemory != nullptr);
 
-    {// Command Buffer - Allocate
-        const VkCommandBufferAllocateInfo info{
-            .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-            .pNext              = nullptr,
-            .commandPool        = mGraphicsCommandPoolTransient,
-            .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-            .commandBufferCount = 1,
-        };
-        CHECK(vkAllocateCommandBuffers(mDevice, &info, &mStagingCommandBuffer));
-    }
+	{ // Command Buffer - Allocate
+		const VkCommandBufferAllocateInfo info{
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+			.pNext = nullptr,
+			.commandPool = mGraphicsCommandPoolTransient,
+			.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+			.commandBufferCount = 1,
+		};
+		CHECK(vkAllocateCommandBuffers(mDevice, &info, &mStagingCommandBuffer));
+	}
 
-    {// Vertices
-        const std::size_t vertices_bytes_size = sizeof(blk::meshes::obj::vertex_t) * mParsedOBJ.vertices.size();
+	{ // Vertices
+		const std::size_t vertices_bytes_size = sizeof(blk::meshes::obj::vertex_t) * mParsedOBJ.vertices.size();
 
-        assert(vertices_bytes_size <= mStagingBuffer.mMemory->mInfo.allocationSize);
-        {// Upload vertices -> Staging
-            void* mapped = nullptr;
-            CHECK(vkMapMemory(
-                mDevice,
-                *(mStagingBuffer.mMemory),
-                mStagingBuffer.mOffset,
-                mStagingBuffer.mRequirements.size,
-                0,
-                &mapped
-            ));
+		assert(vertices_bytes_size <= mStagingBuffer.mMemory->mInfo.allocationSize);
+		{ // Upload vertices -> Staging
+			void* mapped = nullptr;
+			CHECK(vkMapMemory(
+				mDevice,
+				*(mStagingBuffer.mMemory),
+				mStagingBuffer.mOffset,
+				mStagingBuffer.mRequirements.size,
+				0,
+				&mapped));
 
-            std::memcpy(mapped, mParsedOBJ.vertices.data(), vertices_bytes_size);
+			std::memcpy(mapped, mParsedOBJ.vertices.data(), vertices_bytes_size);
 
-            vkUnmapMemory(mDevice, *staging_buffer.mMemory);
-            mStagingBuffer.mOccupied = vertices_bytes_size;
-        }
+			vkUnmapMemory(mDevice, *staging_buffer.mMemory);
+			mStagingBuffer.mOccupied = vertices_bytes_size;
+		}
 
-        {// Command Buffer - Recording
-            constexpr VkCommandBufferBeginInfo info{
-                .sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-                .pNext            = nullptr,
-                .flags            = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-                .pInheritanceInfo = nullptr,
-            };
-            CHECK(vkBeginCommandBuffer(mStagingCommandBuffer, &info));
+		{ // Command Buffer - Recording
+			constexpr VkCommandBufferBeginInfo info{
+				.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+				.pNext = nullptr,
+				.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+				.pInheritanceInfo = nullptr,
+			};
+			CHECK(vkBeginCommandBuffer(mStagingCommandBuffer, &info));
 
-            {// Copy Staging Buffer -> Vertex Buffer
-                const VkBufferCopy region{
-                    .srcOffset = 0,
-                    .dstOffset = 0,
-                    .size      = vertices_bytes_size,
-                };
-                vkCmdCopyBuffer(
-                    mStagingCommandBuffer,
-                    mStagingBuffer, mVertexBuffer,
-                    1, &region
-                );
-            }
-            CHECK(vkEndCommandBuffer(mStagingCommandBuffer));
-        }
-        {// Submit
-            const std::array infos{
-                VkSubmitInfo{
-                    .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-                    .pNext                = nullptr,
-                    .waitSemaphoreCount   = 0,
-                    .pWaitSemaphores      = nullptr,
-                    .pWaitDstStageMask    = 0,
-                    .commandBufferCount   = 1,
-                    .pCommandBuffers      = &mStagingCommandBuffer,
-                    .signalSemaphoreCount = 0,
-                    .pSignalSemaphores    = nullptr,
-                }
-            };
-            CHECK(vkQueueSubmit(*mGraphicsQueue, infos.size(), infos.data(), mStagingFence));
-            CHECK(vkWaitForFences(mDevice, 1, &mStagingFence, VK_TRUE, UINT64_MAX));
-        }
-        mVertexBuffer.mOccupied = vertices_bytes_size;
-    }
-    {// Reset
-        CHECK(vkResetFences(mDevice, 1, &mStagingFence));
-        CHECK(vkResetCommandPool(mDevice, mGraphicsCommandPoolTransient, 0));
-    }
-    {// Indices
-        std::size_t indices_count = 0;
-        for (auto&& group : mParsedOBJ.groups)
-        {
-            // Each face yields 2 triangles
-            indices_count += group.faces.size() * 2 * 3;
-        }
-        std::vector<std::uint16_t> indices;
-        indices.reserve(indices_count);
+			{ // Copy Staging Buffer -> Vertex Buffer
+				const VkBufferCopy region{
+					.srcOffset = 0,
+					.dstOffset = 0,
+					.size = vertices_bytes_size,
+				};
+				vkCmdCopyBuffer(mStagingCommandBuffer, mStagingBuffer, mVertexBuffer, 1, &region);
+			}
+			CHECK(vkEndCommandBuffer(mStagingCommandBuffer));
+		}
+		{ // Submit
+			const std::array infos{VkSubmitInfo{
+				.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+				.pNext = nullptr,
+				.waitSemaphoreCount = 0,
+				.pWaitSemaphores = nullptr,
+				.pWaitDstStageMask = 0,
+				.commandBufferCount = 1,
+				.pCommandBuffers = &mStagingCommandBuffer,
+				.signalSemaphoreCount = 0,
+				.pSignalSemaphores = nullptr,
+			}};
+			CHECK(vkQueueSubmit(*mGraphicsQueue, infos.size(), infos.data(), mStagingFence));
+			CHECK(vkWaitForFences(mDevice, 1, &mStagingFence, VK_TRUE, UINT64_MAX));
+		}
+		mVertexBuffer.mOccupied = vertices_bytes_size;
+	}
+	{ // Reset
+		CHECK(vkResetFences(mDevice, 1, &mStagingFence));
+		CHECK(vkResetCommandPool(mDevice, mGraphicsCommandPoolTransient, 0));
+	}
+	{ // Indices
+		std::size_t indices_count = 0;
+		for (auto&& group : mParsedOBJ.groups)
+		{
+			// Each face yields 2 triangles
+			indices_count += group.faces.size() * 2 * 3;
+		}
+		std::vector<std::uint16_t> indices;
+		indices.reserve(indices_count);
 
-        const std::size_t indices_bytes_size = indices_count * sizeof(std::uint16_t);
-        assert(indices_bytes_size <= mStagingBuffer.mMemory->mInfo.allocationSize);
+		const std::size_t indices_bytes_size = indices_count * sizeof(std::uint16_t);
+		assert(indices_bytes_size <= mStagingBuffer.mMemory->mInfo.allocationSize);
 
-        {// Compute Index Buffer : Triangulate incoming faces
-            for (auto&& group : mParsedOBJ.groups)
-            {
-                for (auto&& face : group.faces)
-                {
-                    auto is_quad = face.points[0] != static_cast<std::size_t>(~0)
-                        && face.points[1] != static_cast<std::size_t>(~0)
-                        && face.points[2] != static_cast<std::size_t>(~0)
-                        && face.points[3] != static_cast<std::size_t>(~0);
-                    auto is_triangle = face.points[0] != static_cast<std::size_t>(~0)
-                        && face.points[1] != static_cast<std::size_t>(~0)
-                        && face.points[2] != static_cast<std::size_t>(~0)
-                        && face.points[3] == static_cast<std::size_t>(~0);
+		{ // Compute Index Buffer : Triangulate incoming faces
+			for (auto&& group : mParsedOBJ.groups)
+			{
+				for (auto&& face : group.faces)
+				{
+					auto is_quad = face.points[0] != static_cast<std::size_t>(~0) &&
+								   face.points[1] != static_cast<std::size_t>(~0) &&
+								   face.points[2] != static_cast<std::size_t>(~0) &&
+								   face.points[3] != static_cast<std::size_t>(~0);
+					auto is_triangle = face.points[0] != static_cast<std::size_t>(~0) &&
+									   face.points[1] != static_cast<std::size_t>(~0) &&
+									   face.points[2] != static_cast<std::size_t>(~0) &&
+									   face.points[3] == static_cast<std::size_t>(~0);
 
-                    assert(is_quad);
+					assert(is_quad);
 
-                    auto& p1 = mParsedOBJ.points.at(face.points[0]);
-                    auto& p2 = mParsedOBJ.points.at(face.points[1]);
-                    auto& p3 = mParsedOBJ.points.at(face.points[2]);
-                    auto& p4 = mParsedOBJ.points.at(face.points[3]);
+					auto& p1 = mParsedOBJ.points.at(face.points[0]);
+					auto& p2 = mParsedOBJ.points.at(face.points[1]);
+					auto& p3 = mParsedOBJ.points.at(face.points[2]);
+					auto& p4 = mParsedOBJ.points.at(face.points[3]);
 
-                    auto v1 = p1.vertex;
-                    auto v2 = p2.vertex;
-                    auto v3 = p3.vertex;
-                    auto v4 = p4.vertex;
+					auto v1 = p1.vertex;
+					auto v2 = p2.vertex;
+					auto v3 = p3.vertex;
+					auto v4 = p4.vertex;
 
-                    assert(v1 <= std::numeric_limits<std::uint16_t>::max());
-                    assert(v2 <= std::numeric_limits<std::uint16_t>::max());
-                    assert(v3 <= std::numeric_limits<std::uint16_t>::max());
-                    assert(v4 <= std::numeric_limits<std::uint16_t>::max());
+					assert(v1 <= std::numeric_limits<std::uint16_t>::max());
+					assert(v2 <= std::numeric_limits<std::uint16_t>::max());
+					assert(v3 <= std::numeric_limits<std::uint16_t>::max());
+					assert(v4 <= std::numeric_limits<std::uint16_t>::max());
 
-                    /*
+					/*
                          1 ----  2
                          | \     |
                          |  \    |
@@ -840,151 +830,179 @@ void PassScene::upload_mesh_from_path(blk::Buffer& staging_buffer, const fs::pat
                          4 ----  3
                     */
 
-                    // if constexpr (kTriangleFrontFace == VK_FRONT_FACE_COUNTER_CLOCKWISE)
-                    indices.push_back( static_cast<std::uint16_t>(v1) );
-                    indices.push_back( static_cast<std::uint16_t>(v2) );
-                    indices.push_back( static_cast<std::uint16_t>(v3) );
+					// if constexpr (kTriangleFrontFace == VK_FRONT_FACE_COUNTER_CLOCKWISE)
+					indices.push_back(static_cast<std::uint16_t>(v1));
+					indices.push_back(static_cast<std::uint16_t>(v2));
+					indices.push_back(static_cast<std::uint16_t>(v3));
 
-                    indices.push_back( static_cast<std::uint16_t>(v3) );
-                    indices.push_back( static_cast<std::uint16_t>(v4) );
-                    indices.push_back( static_cast<std::uint16_t>(v1) );
-                }
-            }
-        }
+					indices.push_back(static_cast<std::uint16_t>(v3));
+					indices.push_back(static_cast<std::uint16_t>(v4));
+					indices.push_back(static_cast<std::uint16_t>(v1));
+				}
+			}
+		}
 
-        {// Upload vertices -> Staging
-            void* mapped = nullptr;
-            CHECK(vkMapMemory(
-                mDevice,
-                *(mStagingBuffer.mMemory),
-                mStagingBuffer.mOffset,
-                mStagingBuffer.mRequirements.size,
-                0,
-                &mapped
-            ));
+		{ // Upload vertices -> Staging
+			void* mapped = nullptr;
+			CHECK(vkMapMemory(
+				mDevice,
+				*(mStagingBuffer.mMemory),
+				mStagingBuffer.mOffset,
+				mStagingBuffer.mRequirements.size,
+				0,
+				&mapped));
 
-            std::memcpy(mapped, indices.data(), indices_bytes_size);
+			std::memcpy(mapped, indices.data(), indices_bytes_size);
 
-            vkUnmapMemory(mDevice, *staging_buffer.mMemory);
-            mStagingBuffer.mOccupied = indices_bytes_size;
-        }
-        {// Command Buffer - Recording
-            constexpr VkCommandBufferBeginInfo info{
-                .sType            = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-                .pNext            = nullptr,
-                .flags            = 0,
-                .pInheritanceInfo = nullptr,
-            };
-            CHECK(vkBeginCommandBuffer(mStagingCommandBuffer, &info));
+			vkUnmapMemory(mDevice, *staging_buffer.mMemory);
+			mStagingBuffer.mOccupied = indices_bytes_size;
+		}
+		{ // Command Buffer - Recording
+			constexpr VkCommandBufferBeginInfo info{
+				.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+				.pNext = nullptr,
+				.flags = 0,
+				.pInheritanceInfo = nullptr,
+			};
+			CHECK(vkBeginCommandBuffer(mStagingCommandBuffer, &info));
 
-            {// Copy Staging Buffer -> Vertex Buffer
-                const VkBufferCopy region{
-                    .srcOffset = 0,
-                    .dstOffset = 0,
-                    .size      = indices_bytes_size,
-                };
-                vkCmdCopyBuffer(
-                    mStagingCommandBuffer,
-                    mStagingBuffer, mIndexBuffer,
-                    1, &region
-                );
-            }
-            CHECK(vkEndCommandBuffer(mStagingCommandBuffer));
-        }
-        {// Submit
-            const std::array infos{
-                VkSubmitInfo{
-                    .sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-                    .pNext                = nullptr,
-                    .waitSemaphoreCount   = 0,
-                    .pWaitSemaphores      = nullptr,
-                    .pWaitDstStageMask    = 0,
-                    .commandBufferCount   = 1,
-                    .pCommandBuffers      = &mStagingCommandBuffer,
-                    .signalSemaphoreCount = 0,
-                    .pSignalSemaphores    = nullptr,
-                }
-            };
-            CHECK(vkQueueSubmit(*mGraphicsQueue, infos.size(), infos.data(), mStagingFence));
-            CHECK(vkWaitForFences(mDevice, 1, &mStagingFence, VK_TRUE, UINT64_MAX));
-        }
-        mIndexBuffer.mOccupied = indices_bytes_size;
-    }
-    {// Reset
-        CHECK(vkResetFences(mDevice, 1, &mStagingFence));
-        CHECK(vkResetCommandPool(mDevice, mGraphicsCommandPoolTransient, 0));
-    }
-    {// Command Buffer - Deallocate
-        vkFreeCommandBuffers(mDevice, mGraphicsCommandPoolTransient, 1, &mStagingCommandBuffer);
-    }
+			{ // Copy Staging Buffer -> Vertex Buffer
+				const VkBufferCopy region{
+					.srcOffset = 0,
+					.dstOffset = 0,
+					.size = indices_bytes_size,
+				};
+				vkCmdCopyBuffer(mStagingCommandBuffer, mStagingBuffer, mIndexBuffer, 1, &region);
+			}
+			CHECK(vkEndCommandBuffer(mStagingCommandBuffer));
+		}
+		{ // Submit
+			const std::array infos{VkSubmitInfo{
+				.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+				.pNext = nullptr,
+				.waitSemaphoreCount = 0,
+				.pWaitSemaphores = nullptr,
+				.pWaitDstStageMask = 0,
+				.commandBufferCount = 1,
+				.pCommandBuffers = &mStagingCommandBuffer,
+				.signalSemaphoreCount = 0,
+				.pSignalSemaphores = nullptr,
+			}};
+			CHECK(vkQueueSubmit(*mGraphicsQueue, infos.size(), infos.data(), mStagingFence));
+			CHECK(vkWaitForFences(mDevice, 1, &mStagingFence, VK_TRUE, UINT64_MAX));
+		}
+		mIndexBuffer.mOccupied = indices_bytes_size;
+	}
+	{ // Reset
+		CHECK(vkResetFences(mDevice, 1, &mStagingFence));
+		CHECK(vkResetCommandPool(mDevice, mGraphicsCommandPoolTransient, 0));
+	}
+	{ // Command Buffer - Deallocate
+		vkFreeCommandBuffers(mDevice, mGraphicsCommandPoolTransient, 1, &mStagingCommandBuffer);
+	}
 }
 
 void PassScene::record_pass(VkCommandBuffer commandbuffer)
 {
-    if (mSharedData.mVisualizeMesh)
-    {
-        vkCmdBindPipeline(commandbuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelineOBJ);
+	if (mSharedData.mVisualizeMesh)
+	{
+		vkCmdBindPipeline(commandbuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelineOBJ);
 
-        mat4 view = look_at(
-            vec3{  0.0,  0.0, -5.0 },
-            vec3{  0.0,  0.0,  0.0 },
-            vec3{  0.0,  1.0,  0.0 }
-        );
+		mat4 view = look_at(vec3{0.0, 0.0, -5.0}, vec3{0.0, 0.0, 0.0}, vec3{0.0, 1.0, 0.0});
 
+		mat4 projection = perspective((22.5) * M_PI / 180.0, mResolution.width / (float)mResolution.height, 0.01, 10);
 
-        mat4 projection = perspective(
-            (22.5) * M_PI / 180.0,
-            mResolution.width / (float)mResolution.height,
-            0.01,
-            10
-        );
+		// column-major
+		UniformObjectTransformation transformation{
+			.model =
+				{
+					1.0,
+					0.0,
+					0.0,
+					0.0,
+					0.0,
+					1.0,
+					0.0,
+					0.0,
+					0.0,
+					0.0,
+					1.0,
+					0.0,
+					0.0,
+					0.0,
+					0.0,
+					1.0,
+				},
+			// TODO LookAt : https://www.3dgep.com/understanding-the-view-matrix/
+			.view =
+				{
+					view.m00,
+					view.m01,
+					view.m02,
+					view.m03,
+					view.m10,
+					view.m11,
+					view.m12,
+					view.m13,
+					view.m20,
+					view.m21,
+					view.m22,
+					view.m23,
+					view.m30,
+					view.m31,
+					view.m32,
+					view.m33,
+				},
+			.projection =
+				{
+					projection.m00,
+					projection.m01,
+					projection.m02,
+					projection.m03,
+					projection.m10,
+					projection.m11,
+					projection.m12,
+					projection.m13,
+					projection.m20,
+					projection.m21,
+					projection.m22,
+					projection.m23,
+					projection.m30,
+					projection.m31,
+					projection.m32,
+					projection.m33,
+				},
+		};
+		vkCmdPushConstants(
+			commandbuffer,
+			mPipelineLayout,
+			VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+			0,
+			sizeof(UniformObjectTransformation),
+			&transformation);
 
-        // column-major
-        UniformObjectTransformation transformation{
-            .model = {
-                1.0, 0.0, 0.0, 0.0,
-                0.0, 1.0, 0.0, 0.0,
-                0.0, 0.0, 1.0, 0.0,
-                0.0, 0.0, 0.0, 1.0,
-            },
-            // TODO LookAt : https://www.3dgep.com/understanding-the-view-matrix/
-            .view = {
-                view.m00, view.m01, view.m02, view.m03,
-                view.m10, view.m11, view.m12, view.m13,
-                view.m20, view.m21, view.m22, view.m23,
-                view.m30, view.m31, view.m32, view.m33,
-            },
-            .projection = {
-                projection.m00, projection.m01, projection.m02, projection.m03,
-                projection.m10, projection.m11, projection.m12, projection.m13,
-                projection.m20, projection.m21, projection.m22, projection.m23,
-                projection.m30, projection.m31, projection.m32, projection.m33,
-            },
-        };
-        vkCmdPushConstants(commandbuffer, mPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(UniformObjectTransformation), &transformation);
+		constexpr VkDeviceSize offset = 0;
+		vkCmdBindVertexBuffers(commandbuffer, kVertexInputBindingPositionOBJ, 1, &mVertexBuffer.mBuffer, &offset);
+		vkCmdBindIndexBuffer(commandbuffer, mIndexBuffer, offset, VK_INDEX_TYPE_UINT16);
 
-        constexpr VkDeviceSize offset = 0;
-        vkCmdBindVertexBuffers(commandbuffer, kVertexInputBindingPositionOBJ, 1, &mVertexBuffer.mBuffer, &offset);
-        vkCmdBindIndexBuffer(commandbuffer, mIndexBuffer, offset, VK_INDEX_TYPE_UINT16);
-
-        const std::uint32_t indices_count = mIndexBuffer.mOccupied / sizeof(std::uint16_t);
-        vkCmdDrawIndexed(commandbuffer, indices_count, 1, 0, 0, 0);
-    }
-    else
-    {
-        vkCmdBindPipeline(commandbuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelineDefault);
-        vkCmdDraw(commandbuffer, 3, 1, 0, 0);
-    }
+		const std::uint32_t indices_count = mIndexBuffer.mOccupied / sizeof(std::uint16_t);
+		vkCmdDrawIndexed(commandbuffer, indices_count, 1, 0, 0, 0);
+	}
+	else
+	{
+		vkCmdBindPipeline(commandbuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelineDefault);
+		vkCmdDraw(commandbuffer, 3, 1, 0, 0);
+	}
 }
 
 void PassScene::onResize(const VkExtent2D& resolution)
 {
-    mResolution = resolution;
-    vkDestroyPipeline(mDevice, mPipelineDefault, nullptr);
-    vkDestroyPipeline(mDevice, mPipelineOBJ, nullptr);
-    mPipelineDefault = VK_NULL_HANDLE;
-    mPipelineOBJ = VK_NULL_HANDLE;
-    initialize_graphic_pipelines();
+	mResolution = resolution;
+	vkDestroyPipeline(mDevice, mPipelineDefault, nullptr);
+	vkDestroyPipeline(mDevice, mPipelineOBJ, nullptr);
+	mPipelineDefault = VK_NULL_HANDLE;
+	mPipelineOBJ = VK_NULL_HANDLE;
+	initialize_graphic_pipelines();
 }
 
-}
+} // namespace blk::meshviewer

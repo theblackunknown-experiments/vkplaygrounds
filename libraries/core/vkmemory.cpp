@@ -99,7 +99,7 @@ bool MemoryType::supports(const Image& image) const
 
 const MemoryType* PhysicalDeviceMemories::find_compatible(const Buffer& buffer, VkMemoryPropertyFlags flags) const
 {
-	for (auto&& type : mTypes)
+	for (const MemoryType& type : mTypes)
 	{
 		if (type.supports(buffer))
 		{
@@ -107,12 +107,12 @@ const MemoryType* PhysicalDeviceMemories::find_compatible(const Buffer& buffer, 
 			{
 				if (type.supports(flags))
 				{
-					return std::addressof(type);
+					return &type;
 				}
 			}
 			else
 			{
-				return std::addressof(type);
+				return &type;
 			}
 		}
 	}
@@ -121,7 +121,7 @@ const MemoryType* PhysicalDeviceMemories::find_compatible(const Buffer& buffer, 
 
 const MemoryType* PhysicalDeviceMemories::find_compatible(const Image& image, VkMemoryPropertyFlags flags) const
 {
-	for (auto&& type : mTypes)
+	for (const MemoryType& type : mTypes)
 	{
 		if (type.supports(image))
 		{
@@ -129,12 +129,12 @@ const MemoryType* PhysicalDeviceMemories::find_compatible(const Image& image, Vk
 			{
 				if (type.supports(flags))
 				{
-					return std::addressof(type);
+					return &type;
 				}
 			}
 			else
 			{
-				return std::addressof(type);
+				return &type;
 			}
 		}
 	}
