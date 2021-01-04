@@ -87,11 +87,21 @@ VkResult _memory_bind_images(blk::Memory& memory, I&& first, S&& last)
 } // namespace
 namespace blk
 {
+bool MemoryType::supports(const Buffer& buffer) const
+{
+	return mBits & buffer.mRequirements.memoryTypeBits;
+}
+
+bool MemoryType::supports(const Image& image) const
+{
+	return mBits & image.mRequirements.memoryTypeBits;
+}
+
 const MemoryType* PhysicalDeviceMemories::find_compatible(const Buffer& buffer, VkMemoryPropertyFlags flags) const
 {
 	for (auto&& type : mTypes)
 	{
-		if (type.mBits & buffer.mRequirements.memoryTypeBits)
+		if (type.supports(buffer))
 		{
 			if (flags)
 			{
@@ -113,7 +123,7 @@ const MemoryType* PhysicalDeviceMemories::find_compatible(const Image& image, Vk
 {
 	for (auto&& type : mTypes)
 	{
-		if (type.mBits & image.mRequirements.memoryTypeBits)
+		if (type.supports(image))
 		{
 			if (flags)
 			{

@@ -66,7 +66,7 @@
 						"20",
 						"$file^"
 					],
-					"name": "Single File",
+					"name": "Current",
 					"selector": "source.c++"
 				},
                 {
@@ -77,6 +77,15 @@
                         "core"
                     ],
                     "name": "core"
+                },
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-v",
+                        "scene"
+                    ],
+                    "name": "scene"
                 },
 				{
 					"cmd":
@@ -229,7 +238,7 @@
 						"20",
 						"$file^"
 					],
-					"name": "Single File",
+					"name": "Current",
 					"selector": "source.c++"
 				},
                 {
@@ -240,6 +249,15 @@
                         "core"
                     ],
                     "name": "core"
+                },
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-v",
+                        "scene"
+                    ],
+                    "name": "scene"
                 },
 				{
 					"cmd":
@@ -427,15 +445,15 @@
 		{
 			"path": "C:/Program Files/CMake/share/cmake-3.17/Modules"
 		},
-		{
-			"path": "C:/devel/shade_runner"
-		},
+		// {
+		// 	"path": "C:/devel/shade_runner"
+		// },
 		{
 			"path": "C:/devel/imgui"
 		},
-		{
-			"path": "C:/devel/SaschaWillemsVulkanExamples"
-		},
+		// {
+		// 	"path": "C:/devel/SaschaWillemsVulkanExamples"
+		// },
 		{
 			"path": "C:/devel/Vulkan-Samples"
 		}

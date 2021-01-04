@@ -35,6 +35,9 @@ struct MemoryType
 	VkMemoryType mType;
 	MemoryHeap* mHeap;
 
+	CORE_EXPORT bool supports(const Buffer& buffer) const;
+	CORE_EXPORT bool supports(const Image& buffer) const;
+
 	constexpr bool supports(VkMemoryPropertyFlags flags) const { return mType.propertyFlags & flags; }
 
 	constexpr operator VkMemoryType() const { return mType; }

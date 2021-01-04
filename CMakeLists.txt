@@ -13,7 +13,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 ##         Options          ##
 ##############################
 
-option(BUILD_SHARED_LIBS "Build shared libraries"          ON)
+option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 
 ##############################
 ##        Includes          ##
@@ -33,54 +33,13 @@ find_package(glm CONFIG REQUIRED)
 find_package(tinyobjloader CONFIG REQUIRED)
 
 ##############################
-##     Imported Targets     ##
-##############################
-
-add_library(dearimgui INTERFACE)
-
-target_sources(dearimgui
-    INTERFACE
-        dearimgui/imconfig.h
-        dearimgui/imgui.cpp
-        dearimgui/imgui.h
-        dearimgui/imgui_demo.cpp
-        dearimgui/imgui_draw.cpp
-        dearimgui/imgui_internal.h
-        dearimgui/imgui_widgets.cpp
-        dearimgui/imstb_rectpack.h
-        dearimgui/imstb_textedit.h
-        dearimgui/imstb_truetype.h
-)
-
-target_include_directories(dearimgui
-    INTERFACE
-        dearimgui
-)
-
-target_compile_definitions(dearimgui
-    INTERFACE
-        IMGUI_DISABLE_OBSOLETE_FUNCTIONS
-)
-
-##############################
 ##         Targets          ##
 ##############################
 
-add_library(utilities INTERFACE)
-
-target_sources(utilities
-    INTERFACE
-        utilities/utilities.hpp
-        utilities/ziprange.hpp
-        utilities/enumeraterange.hpp
-)
-
-target_include_directories(utilities
-    INTERFACE
-        utilities
-)
+add_subdirectory(external)
 
 add_subdirectory(libraries/core)
+add_subdirectory(libraries/scene)
 add_subdirectory(libraries/xxx2mesh)
 
 # FIXME: NYI mesh serialization

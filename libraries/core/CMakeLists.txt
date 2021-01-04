@@ -25,9 +25,6 @@ target_sources(core
         vkdevice.hpp
         vkdevice.cpp
 
-        vkmesh.hpp
-        vkmesh.cpp
-
         $<$<PLATFORM_ID:Windows>:win32_vkdebug.cpp>
 )
 
