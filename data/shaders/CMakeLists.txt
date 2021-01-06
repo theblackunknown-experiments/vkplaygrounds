@@ -11,20 +11,26 @@ set(_SHADER_MODULE_NAMES
     obj
     triangle
     default-triangle
-    mesh
+    mesh-color
+    mesh-position
+    mesh-normal
 )
 
-set(_SHADER_MODULE_ENTRY_POINT_ui ui_main)
-set(_SHADER_MODULE_ENTRY_POINT_obj obj_main)
-set(_SHADER_MODULE_ENTRY_POINT_triangle triangle_main)
+set(_SHADER_MODULE_ENTRY_POINT_ui               ui_main)
+set(_SHADER_MODULE_ENTRY_POINT_obj              obj_main)
+set(_SHADER_MODULE_ENTRY_POINT_triangle         triangle_main)
 set(_SHADER_MODULE_ENTRY_POINT_default-triangle default_triangle_main)
-set(_SHADER_MODULE_ENTRY_POINT_mesh mesh_main)
+set(_SHADER_MODULE_ENTRY_POINT_mesh-color       mesh_color_main)
+set(_SHADER_MODULE_ENTRY_POINT_mesh-position    mesh_position_main)
+set(_SHADER_MODULE_ENTRY_POINT_mesh-normal      mesh_normal_main)
 
 set(_SHADER_MODULE_HEADER_CONSTANT_ui               kShaderUI)
 set(_SHADER_MODULE_HEADER_CONSTANT_obj              kShaderOBJ)
 set(_SHADER_MODULE_HEADER_CONSTANT_triangle         kShaderTriangle)
 set(_SHADER_MODULE_HEADER_CONSTANT_default-triangle kShaderDefaultTriangle)
-set(_SHADER_MODULE_HEADER_CONSTANT_mesh             kShaderMesh)
+set(_SHADER_MODULE_HEADER_CONSTANT_mesh-color       kShaderMeshColor)
+set(_SHADER_MODULE_HEADER_CONSTANT_mesh-position    kShaderMeshPosition)
+set(_SHADER_MODULE_HEADER_CONSTANT_mesh-normal      kShaderMeshNormal)
 
 set(_SHADER_MODULE_HEADERS )
 

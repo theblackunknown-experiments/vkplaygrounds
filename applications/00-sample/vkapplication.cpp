@@ -71,7 +71,7 @@ struct GraphicPipelineBuilder
 		VkRenderPass renderpass,
 		std::uint32_t subpass,
 		VkGraphicsPipelineCreateInfo& info,
-        const std::vector<std::uint32_t>& shader_code,
+        const std::span<const std::uint32_t>& shader_code,
         const char* entry_point,
 		VkPipeline base_handle = VK_NULL_HANDLE,
 		std::int32_t base_index = -1)
@@ -261,7 +261,7 @@ struct GraphicPipelineBuilderMesh
         VkRenderPass renderpass,
         std::uint32_t subpass,
         VkGraphicsPipelineCreateInfo& info,
-        const std::vector<std::uint32_t>& shader_code,
+        const std::span<const std::uint32_t>& shader_code,
         const char* entry_point,
         VkPipeline base_handle = VK_NULL_HANDLE,
         std::int32_t base_index = -1)
@@ -814,18 +814,7 @@ Application::Application(blk::Engine& vkengine, blk::Presentation& vkpresentatio
 	}
 #else
 	{ // Pipeline
-		VkGraphicsPipelineCreateInfo infos[1];
-
-		GraphicPipelineBuilderMesh builder2(
-			mDevice,
-			mResolution,
-			mPipelineLayoutMesh,
-			mRenderPass,
-			0,
-			infos[0],
-			std::vector<std::uint32_t>(std::begin(kShaderMesh), std::end(kShaderMesh)),
-			"mesh_main");
-		CHECK(vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, infos, nullptr, mPipelines.data()));
+		load_pipeline("mesh_main", kShaderMesh);
 	}
 	{ // Scene
 		load_default_mesh();
@@ -841,6 +830,12 @@ Application::~Application()
 
 	mTriangleMesh.mVertexBuffer.destroy();
 	mGeometryMemory->destroy();
+#else
+	if (mStorageMesh.mGPUMesh)
+		mStorageMesh.mGPUMesh.release();
+	if (mStorageMesh.mGeometryMemory)
+		mStorageMesh.mGeometryMemory.release();
+	vkDestroyPipeline(mDevice, mPipelineMesh, nullptr);
 #endif
 
 	for (auto&& pipeline : mPipelines)
@@ -913,6 +908,17 @@ void Application::load_default_mesh()
 void Application::load_obj_mesh(const fs::path& path)
 {
 	load_mesh(blk::meshes::obj::load(path));
+}
+
+void Application::load_pipeline(const char* entry_point, const std::span<const std::uint32_t>& shader)
+{
+	if (mPipelineMesh != VK_NULL_HANDLE)
+		vkDestroyPipeline(mDevice, mPipelineMesh, nullptr);
+
+	VkGraphicsPipelineCreateInfo info;
+	GraphicPipelineBuilderMesh builder2(
+		mDevice, mResolution, mPipelineLayoutMesh, mRenderPass, 0, info, shader, entry_point);
+	CHECK(vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &info, nullptr, &mPipelineMesh));
 }
 
 #if 0
@@ -1008,7 +1014,7 @@ void Application::draw()
 #if 0
 	record_renderables(mCommandBuffer, mRenderables.data(), mRenderables.size());
 #else
-	vkCmdBindPipeline(mCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelines[0]);
+	vkCmdBindPipeline(mCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelineMesh);
 
 	{
 		glm::vec3 eye{0.0, 0.0, -2.0};

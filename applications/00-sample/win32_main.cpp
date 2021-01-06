@@ -44,6 +44,10 @@
 
 #include <iostream>
 
+#include <mesh-color-shader.hpp>
+#include <mesh-position-shader.hpp>
+#include <mesh-normal-shader.hpp>
+
 namespace
 {
 constexpr const VkExtent2D kResolution = {1280, 720};
@@ -257,16 +261,43 @@ LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
 	case WM_KEYDOWN:
 		switch (wParam)
 		{
-		case VK_SPACE: {
-			application.mSelectedShader = (application.mSelectedShader + 1) % 4;
+		case 'O': {
 			if (userdata->default_mesh)
-				application.safe_call([&application] {
+				application.schedule_before_render_command([&application] {
 					application.load_obj_mesh(
 						fs::path("C:\\devel\\vkplaygrounds\\data\\models\\vulkan-guide\\monkey_smooth.obj"));
 				});
 			else
-				application.safe_call([&application] { application.load_default_mesh(); });
+				application.schedule_before_render_command([&application] { application.load_default_mesh(); });
 			userdata->default_mesh = !userdata->default_mesh;
+		}
+		break;
+		case 'S': {
+			static int sShader = -1;
+
+			sShader = (sShader + 1) % 3;
+
+			const char* entry_point;
+			std::span<const std::uint32_t> shader_code;
+			switch (sShader)
+			{
+			case 1:
+				entry_point = "mesh_position_main";
+				shader_code = kShaderMeshPosition;
+				break;
+			case 2:
+				entry_point = "mesh_normal_main";
+				shader_code = kShaderMeshNormal;
+				break;
+			case 0:
+			default:
+				entry_point = "mesh_color_main";
+				shader_code = kShaderMeshColor;
+				break;
+			}
+
+			application.schedule_before_render_command(
+				[&application, entry_point, shader_code] { application.load_pipeline(entry_point, shader_code); });
 		}
 		break;
 		}
@@ -278,16 +309,16 @@ LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
 			if (!userdata->resizing)
 				return blk::MinimalWindowProcedure(hWnd, uMsg, wParam, lParam);
 			// case SIZE_MAXIMIZED: {
-			// 	VkExtent2D new_resolution{.width = LOWORD(lParam), .height = HIWORD(lParam)};
+			//  VkExtent2D new_resolution{.width = LOWORD(lParam), .height = HIWORD(lParam)};
 
-			// 	// Ensure all operations on the device have been finished before destroying resources
-			// 	vkDeviceWaitIdle(engine.mDevice);
+			//  // Ensure all operations on the device have been finished before destroying resources
+			//  vkDeviceWaitIdle(engine.mDevice);
 
-			// 	presentation.onResize(new_resolution);
+			//  presentation.onResize(new_resolution);
 
-			// 	application.onResize(presentation.mResolution);
-			// 	application.recreate_backbuffers(presentation.mColorFormat, presentation.mImages);
-			// 	return 0;
+			//  application.onResize(presentation.mResolution);
+			//  application.recreate_backbuffers(presentation.mColorFormat, presentation.mImages);
+			//  return 0;
 			// }
 		}
 	case WM_GETMINMAXINFO: {

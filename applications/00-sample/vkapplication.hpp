@@ -42,15 +42,15 @@ namespace blk::sample00
 #if 0
 struct Material
 {
-	VkPipeline pipeline;
-	VkPipelineLayout pipeline_layout;
+    VkPipeline pipeline;
+    VkPipelineLayout pipeline_layout;
 };
 
 struct RenderObject
 {
-	blk::Mesh* mesh;
-	Material* material;
-	glm::mat4 transform;
+    blk::Mesh* mesh;
+    Material* material;
+    glm::mat4 transform;
 };
 #endif
 
@@ -104,15 +104,16 @@ struct Application
 	std::array<VkPipeline, 3> mPipelines{VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE};
 
 #if 0
-	blk::Mesh mTriangleMesh;
+    blk::Mesh mTriangleMesh;
 
-	std::unique_ptr<blk::Memory> mUserMemory;
-	blk::Mesh mUserMesh;
+    std::unique_ptr<blk::Memory> mUserMemory;
+    blk::Mesh mUserMesh;
 
-	std::vector<RenderObject> mRenderables;
-	std::unordered_map<std::string, Material> mMaterials;
-	std::unordered_map<std::string, Mesh> mMeshes;
+    std::vector<RenderObject> mRenderables;
+    std::unordered_map<std::string, Material> mMaterials;
+    std::unordered_map<std::string, Mesh> mMeshes;
 #else
+	VkPipeline mPipelineMesh = VK_NULL_HANDLE;
 	MeshStorage mStorageMesh;
 
 	std::vector<std::function<void()>> mPendingRequests;
@@ -122,18 +123,20 @@ struct Application
 	~Application();
 
 #if 0
-	void load_meshes();
-	void upload_mesh(blk::Mesh& mesh);
+    void load_meshes();
+    void upload_mesh(blk::Mesh& mesh);
 
-	Material* create_material(VkPipeline pipeline, VkPipelineLayout layout, const std::string& name);
-	void record_renderables(VkCommandBuffer commandBuffer, RenderObject* first, std::size_t count);
+    Material* create_material(VkPipeline pipeline, VkPipelineLayout layout, const std::string& name);
+    void record_renderables(VkCommandBuffer commandBuffer, RenderObject* first, std::size_t count);
 #else
 
 	void load_default_mesh();
 	void load_obj_mesh(const fs::path& path);
 	void load_mesh(const CPUMesh& mesh);
 
-	void safe_call(const std::function<void()>& call) { mPendingRequests.push_back(call); }
+	void load_pipeline(const char* entry_point, const std::span<const std::uint32_t>& shader);
+
+	void schedule_before_render_command(const std::function<void()>& call) { mPendingRequests.push_back(call); }
 #endif
 
 	void draw();
