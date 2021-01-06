@@ -10,9 +10,7 @@
 #include <vkengine.hpp>
 #include <vkpresentation.hpp>
 
-#include <triangle-shader.hpp>
-#include <default-triangle-shader.hpp>
-#include <mesh-shader.hpp>
+#include <mesh-color-shader.hpp>
 
 #include <obj2mesh.hpp>
 
@@ -41,194 +39,6 @@ constexpr std::array kPreferredDepthFormats{
 	VK_FORMAT_D32_SFLOAT_S8_UINT,
 	VK_FORMAT_D16_UNORM,
 	VK_FORMAT_D32_SFLOAT,
-};
-
-struct GraphicPipelineBuilder
-{
-	VkDevice mDevice;
-	VkGraphicsPipelineCreateInfo& mInfo;
-
-	VkViewport mArea;
-	VkRect2D mScissors;
-	std::array<VkPipelineColorBlendAttachmentState, 1> mBlendingAttachments;
-
-	VkPipelineVertexInputStateCreateInfo mVertexInput;
-	VkPipelineInputAssemblyStateCreateInfo mAssembly;
-	VkPipelineViewportStateCreateInfo mViewport;
-	VkPipelineRasterizationStateCreateInfo mRasterization;
-	VkPipelineMultisampleStateCreateInfo mMultisample;
-	VkPipelineDepthStencilStateCreateInfo mDepthStencil;
-	VkPipelineColorBlendStateCreateInfo mBlending;
-	VkPipelineDynamicStateCreateInfo mDynamics;
-
-	VkShaderModule mShader = VK_NULL_HANDLE;
-	std::array<VkPipelineShaderStageCreateInfo, 2> mStages;
-
-	explicit GraphicPipelineBuilder(
-		VkDevice vkdevice,
-		VkExtent2D resolution,
-		VkPipelineLayout layout,
-		VkRenderPass renderpass,
-		std::uint32_t subpass,
-		VkGraphicsPipelineCreateInfo& info,
-        const std::span<const std::uint32_t>& shader_code,
-        const char* entry_point,
-		VkPipeline base_handle = VK_NULL_HANDLE,
-		std::int32_t base_index = -1)
-        : mDevice(vkdevice)
-        , mInfo(info)
-
-
-        , mArea{
-            .x        = 0.0f,
-            .y        = 0.0f,
-            .width    = static_cast<float>(resolution.width),
-            .height   = static_cast<float>(resolution.height),
-            .minDepth = 0.0f,
-            .maxDepth = 1.0f,
-        }
-        , mScissors{
-            .offset = VkOffset2D{
-                .x = 0,
-                .y = 0,
-            },
-            .extent = resolution
-        }
-        , mBlendingAttachments{
-            VkPipelineColorBlendAttachmentState{
-                .blendEnable         = VK_FALSE,
-                .colorWriteMask      =
-                    VK_COLOR_COMPONENT_R_BIT |
-                    VK_COLOR_COMPONENT_G_BIT |
-                    VK_COLOR_COMPONENT_B_BIT |
-                    VK_COLOR_COMPONENT_A_BIT,
-            }
-        }
-
-        , mVertexInput{
-            .sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-            .pNext                           = nullptr,
-            .flags                           = 0,
-            .vertexBindingDescriptionCount   = 0,
-            .pVertexBindingDescriptions      = nullptr,
-            .vertexAttributeDescriptionCount = 0,
-            .pVertexAttributeDescriptions    = nullptr,
-        }
-        , mAssembly{
-            .sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-            .pNext                  = nullptr,
-            .flags                  = 0,
-            .topology               = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
-            .primitiveRestartEnable = VK_FALSE,
-        }
-        , mViewport{
-            .sType         = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
-            .pNext         = nullptr,
-            .flags         = 0,
-            .viewportCount = 1,
-            .pViewports    = &mArea,
-            .scissorCount  = 1,
-            .pScissors     = &mScissors,
-        }
-        , mRasterization{
-            .sType                   = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
-            .pNext                   = nullptr,
-            .flags                   = 0,
-            .depthClampEnable        = VK_FALSE,
-            .rasterizerDiscardEnable = VK_FALSE,
-            .polygonMode             = VK_POLYGON_MODE_FILL,
-            .cullMode                = VK_CULL_MODE_NONE,
-            .frontFace               = VK_FRONT_FACE_CLOCKWISE,
-            .depthBiasEnable         = VK_FALSE,
-            .lineWidth               = 1.0f,
-        }
-        , mMultisample{
-            .sType                 = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-            .pNext                 = nullptr,
-            .flags                 = 0,
-            .rasterizationSamples  = VK_SAMPLE_COUNT_1_BIT,
-            .sampleShadingEnable   = VK_FALSE,
-            .minSampleShading      = 0.0f,
-            .pSampleMask           = nullptr,
-            .alphaToCoverageEnable = VK_FALSE,
-            .alphaToOneEnable      = VK_FALSE,
-        }
-        , mDepthStencil{
-            .sType                 = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-            .pNext                 = nullptr,
-            .flags                 = 0,
-            .depthTestEnable       = VK_FALSE,
-            .depthWriteEnable      = VK_FALSE,
-            .depthBoundsTestEnable = VK_FALSE,
-            .stencilTestEnable     = VK_FALSE,
-        }
-        , mBlending{
-            .sType                   = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-            .pNext                   = nullptr,
-            .flags                   = 0,
-            .logicOpEnable           = VK_FALSE,
-            .logicOp                 = VK_LOGIC_OP_COPY,
-            .attachmentCount         = static_cast<std::uint32_t>(mBlendingAttachments.size()),
-            .pAttachments            = mBlendingAttachments.data(),
-            .blendConstants          = { 0.0f, 0.0f, 0.0f, 0.0f },
-        }
-        , mDynamics{
-            .sType                   = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-            .pNext                   = nullptr,
-            .flags                   = 0,
-            .dynamicStateCount       = 0,
-        }
-	{
-		{ // Shader
-			const VkShaderModuleCreateInfo info{
-				.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-				.pNext = nullptr,
-				.flags = 0,
-				.codeSize = shader_code.size() * sizeof(std::uint32_t),
-				.pCode = shader_code.data(),
-			};
-			CHECK(vkCreateShaderModule(mDevice, &info, nullptr, &mShader));
-		}
-
-		VkPipelineShaderStageCreateInfo& stage_vertex = mStages.at(0);
-		stage_vertex.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-		stage_vertex.pNext = nullptr;
-		stage_vertex.flags = 0;
-		stage_vertex.stage = VK_SHADER_STAGE_VERTEX_BIT;
-		stage_vertex.module = mShader;
-		stage_vertex.pName = entry_point;
-		stage_vertex.pSpecializationInfo = nullptr;
-
-		VkPipelineShaderStageCreateInfo& stage_fragment = mStages.at(1);
-		stage_fragment.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-		stage_fragment.pNext = nullptr;
-		stage_fragment.flags = 0;
-		stage_fragment.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-		stage_fragment.module = mShader;
-		stage_fragment.pName = entry_point;
-		stage_fragment.pSpecializationInfo = nullptr;
-
-		mInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-		mInfo.pNext = nullptr;
-		mInfo.flags = 0;
-		mInfo.stageCount = mStages.size();
-		mInfo.pStages = mStages.data();
-		mInfo.pVertexInputState = &mVertexInput;
-		mInfo.pInputAssemblyState = &mAssembly;
-		mInfo.pTessellationState = nullptr;
-		mInfo.pViewportState = &mViewport;
-		mInfo.pRasterizationState = &mRasterization;
-		mInfo.pMultisampleState = &mMultisample;
-		mInfo.pDepthStencilState = &mDepthStencil;
-		mInfo.pColorBlendState = &mBlending;
-		mInfo.pDynamicState = &mDynamics;
-		mInfo.layout = layout;
-		mInfo.renderPass = renderpass;
-		mInfo.subpass = subpass;
-		mInfo.basePipelineHandle = base_handle;
-		mInfo.basePipelineIndex = base_index;
-	}
-	~GraphicPipelineBuilder() { vkDestroyShaderModule(mDevice, mShader, nullptr); }
 };
 
 struct GraphicPipelineBuilderMesh
@@ -714,6 +524,7 @@ Application::Application(blk::Engine& vkengine, blk::Presentation& vkpresentatio
 		CHECK(vkCreateSemaphore(mDevice, &info, nullptr, &mSemaphoreRender));
 		CHECK(vkCreateSemaphore(mDevice, &info, nullptr, &mSemaphorePresent));
 	}
+#if 0
 	{ // Pipeline Layout - Default
 		const VkPipelineLayoutCreateInfo info{
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
@@ -725,6 +536,7 @@ Application::Application(blk::Engine& vkengine, blk::Presentation& vkpresentatio
 		};
 		CHECK(vkCreatePipelineLayout(mDevice, &info, nullptr, &mPipelineLayout));
 	}
+#endif
 	{ // Pipeline Layout - Mesh
 		VkPushConstantRange range{
 			.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
@@ -814,7 +626,7 @@ Application::Application(blk::Engine& vkengine, blk::Presentation& vkpresentatio
 	}
 #else
 	{ // Pipeline
-		load_pipeline("mesh_main", kShaderMesh);
+		load_pipeline("mesh_color_main", kShaderMeshColor);
 	}
 	{ // Scene
 		load_default_mesh();
@@ -830,6 +642,11 @@ Application::~Application()
 
 	mTriangleMesh.mVertexBuffer.destroy();
 	mGeometryMemory->destroy();
+
+    for (auto&& pipeline : mPipelines)
+        vkDestroyPipeline(mDevice, pipeline, nullptr);
+
+    vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
 #else
 	if (mStorageMesh.mGPUMesh)
 		mStorageMesh.mGPUMesh.release();
@@ -838,11 +655,7 @@ Application::~Application()
 	vkDestroyPipeline(mDevice, mPipelineMesh, nullptr);
 #endif
 
-	for (auto&& pipeline : mPipelines)
-		vkDestroyPipeline(mDevice, pipeline, nullptr);
-
 	vkDestroyPipelineLayout(mDevice, mPipelineLayoutMesh, nullptr);
-	vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
 
 	vkDestroySemaphore(mDevice, mSemaphorePresent, nullptr);
 	vkDestroySemaphore(mDevice, mSemaphoreRender, nullptr);

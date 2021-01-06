@@ -99,11 +99,10 @@ struct Application
 	VkSemaphore mSemaphoreRender = VK_NULL_HANDLE;
 	VkFence mFenceRender = VK_NULL_HANDLE;
 
+#if 0
 	VkPipelineLayout mPipelineLayout = VK_NULL_HANDLE;
-	VkPipelineLayout mPipelineLayoutMesh = VK_NULL_HANDLE;
 	std::array<VkPipeline, 3> mPipelines{VK_NULL_HANDLE, VK_NULL_HANDLE, VK_NULL_HANDLE};
 
-#if 0
     blk::Mesh mTriangleMesh;
 
     std::unique_ptr<blk::Memory> mUserMemory;
@@ -113,6 +112,7 @@ struct Application
     std::unordered_map<std::string, Material> mMaterials;
     std::unordered_map<std::string, Mesh> mMeshes;
 #else
+	VkPipelineLayout mPipelineLayoutMesh = VK_NULL_HANDLE;
 	VkPipeline mPipelineMesh = VK_NULL_HANDLE;
 	MeshStorage mStorageMesh;
 
