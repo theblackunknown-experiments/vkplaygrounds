@@ -21,6 +21,7 @@ namespace blk
 
 void upload_host_visible(const blk::Device& vkdevice, const CPUMesh& cpumesh, blk::Buffer& vertex_buffer)
 {
+	assert(vertex_buffer.mBuffer != VK_NULL_HANDLE);
 	assert(vertex_buffer.mMemory);
 
 	blk::Memory& memory = *(vertex_buffer.mMemory);
@@ -28,7 +29,9 @@ void upload_host_visible(const blk::Device& vkdevice, const CPUMesh& cpumesh, bl
 	assert(memory.mType->supports(vertex_buffer));
 
 	VkDeviceSize vertex_size = cpumesh.mVertices.size() * sizeof(Vertex);
-	assert(vertex_size <= memory.mFree);
+	assert(vertex_size <= vertex_buffer.mInfo.size);
+	assert(vertex_size <= vertex_buffer.mRequirements.size);
+	assert(vertex_size <= memory.mInfo.allocationSize);
 
 	{ // NOTE We store interleaved vertex attributes
 		void* data;
@@ -36,6 +39,8 @@ void upload_host_visible(const blk::Device& vkdevice, const CPUMesh& cpumesh, bl
 		std::memcpy(data, cpumesh.mVertices.data(), vertex_size);
 		vkUnmapMemory(vkdevice, memory);
 	}
+
+	vertex_buffer.mOccupied = vertex_size;
 }
 
 } // namespace blk

@@ -130,10 +130,7 @@ struct Application
     void record_renderables(VkCommandBuffer commandBuffer, RenderObject* first, std::size_t count);
 #else
 
-	void load_default_mesh();
-	void load_obj_mesh(const fs::path& path);
 	void load_mesh(const CPUMesh& mesh);
-
 	void load_pipeline(const char* entry_point, const std::span<const std::uint32_t>& shader);
 
 	void schedule_before_render_command(const std::function<void()>& call) { mPendingRequests.push_back(call); }

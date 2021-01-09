@@ -107,7 +107,7 @@ Launcher::~Launcher()
 	{
 		auto vkDestroyDebugUtilsMessengerEXT = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
 			vkGetInstanceProcAddr(mInstance, "vkDestroyDebugUtilsMessengerEXT"));
-		assert(vkCreateDebugUtilsMessengerEXT);
+		assert(vkDestroyDebugUtilsMessengerEXT);
 		vkDestroyDebugUtilsMessengerEXT(mInstance, mDebuggerMessenger, nullptr);
 		vkDestroyDebugUtilsMessengerEXT(mInstance, mStandardErrorMessenger, nullptr);
 	}

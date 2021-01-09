@@ -12,8 +12,6 @@
 
 #include <mesh-color-shader.hpp>
 
-#include <obj2mesh.hpp>
-
 #include <vulkan/vulkan_core.h>
 
 #include <span>
@@ -629,7 +627,11 @@ Application::Application(blk::Engine& vkengine, blk::Presentation& vkpresentatio
 		load_pipeline("mesh_color_main", kShaderMeshColor);
 	}
 	{ // Scene
-		load_default_mesh();
+		load_mesh(CPUMesh{.mVertices{
+			Vertex{.position = {+1.0, +1.0, +0.0}, .color = {0.0, 1.0, 0.0}},
+			Vertex{.position = {-1.0, +1.0, +0.0}, .color = {0.0, 1.0, 0.0}},
+			Vertex{.position = {+0.0, -1.0, +0.0}, .color = {0.0, 1.0, 0.0}},
+		}});
 	}
 #endif
 }
@@ -648,10 +650,8 @@ Application::~Application()
 
     vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
 #else
-	if (mStorageMesh.mGPUMesh)
-		mStorageMesh.mGPUMesh.release();
-	if (mStorageMesh.mGeometryMemory)
-		mStorageMesh.mGeometryMemory.release();
+	mStorageMesh.mGPUMesh.reset();
+	mStorageMesh.mGeometryMemory.reset();
 	vkDestroyPipeline(mDevice, mPipelineMesh, nullptr);
 #endif
 
@@ -675,12 +675,6 @@ Application::~Application()
 
 void Application::load_mesh(const CPUMesh& cpumesh)
 {
-	if (mStorageMesh.mGPUMesh)
-	{
-		mStorageMesh.mGPUMesh->mVertexBuffer.destroy();
-		mStorageMesh.mGPUMesh.release();
-	}
-
 	VkDeviceSize vertex_size = cpumesh.mVertices.size() * sizeof(Vertex);
 	mStorageMesh.mGPUMesh.reset(new blk::GPUMesh{
 		.mVertexCount = cpumesh.mVertices.size(),
@@ -700,27 +694,13 @@ void Application::load_mesh(const CPUMesh& cpumesh)
 
 		using namespace blk;
 
-		mStorageMesh.mGeometryMemory = std::make_unique<blk::Memory>(memory_type_geometry, 1_MB);
+		mStorageMesh.mGeometryMemory = std::make_unique<blk::Memory>(memory_type_geometry, 64_MB);
 		mStorageMesh.mGeometryMemory->allocate(mDevice);
 	}
 
 	mStorageMesh.mGeometryMemory->bind(vertex_buffer);
 
 	upload_host_visible(mDevice, cpumesh, vertex_buffer);
-}
-
-void Application::load_default_mesh()
-{
-	load_mesh(CPUMesh{.mVertices{
-		Vertex{.position = {+1.0, +1.0, +0.0}, .color = {0.0, 1.0, 0.0}},
-		Vertex{.position = {-1.0, +1.0, +0.0}, .color = {0.0, 1.0, 0.0}},
-		Vertex{.position = {+0.0, -1.0, +0.0}, .color = {0.0, 1.0, 0.0}},
-	}});
-}
-
-void Application::load_obj_mesh(const fs::path& path)
-{
-	load_mesh(blk::meshes::obj::load(path));
 }
 
 void Application::load_pipeline(const char* entry_point, const std::span<const std::uint32_t>& shader)

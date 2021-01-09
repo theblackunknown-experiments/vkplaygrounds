@@ -32,6 +32,8 @@
 #include "./vklauncher.hpp"
 #include "./vkapplication.hpp"
 
+#include <vkcpumesh.hpp>
+
 #include <range/v3/view/zip.hpp>
 
 #include <Windows.h>
@@ -47,6 +49,8 @@
 #include <mesh-color-shader.hpp>
 #include <mesh-position-shader.hpp>
 #include <mesh-normal-shader.hpp>
+
+#include <obj2mesh.hpp>
 
 namespace
 {
@@ -262,18 +266,43 @@ LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
 		switch (wParam)
 		{
 		case 'O': {
-			if (userdata->default_mesh)
+			static int sMesh = 0;
+
+			sMesh = (sMesh + 1) % 3;
+
+			const char* entry_point;
+			std::span<const std::uint32_t> shader_code;
+
+			switch (sMesh)
+			{
+			case 1:
 				application.schedule_before_render_command([&application] {
-					application.load_obj_mesh(
-						fs::path("C:\\devel\\vkplaygrounds\\data\\models\\vulkan-guide\\monkey_smooth.obj"));
+					application.load_mesh(blk::meshes::obj::load(
+						fs::path("C:\\devel\\vkplaygrounds\\data\\models\\vulkan-guide\\monkey_smooth.obj")));
 				});
-			else
-				application.schedule_before_render_command([&application] { application.load_default_mesh(); });
-			userdata->default_mesh = !userdata->default_mesh;
+				break;
+			case 2:
+				application.schedule_before_render_command([&application] {
+					application.load_mesh(
+						blk::meshes::obj::load(fs::path("C:\\Users\\machizau\\Downloads\\Donuts Tutorial.obj")));
+				});
+				break;
+			case 0:
+			default:
+				application.schedule_before_render_command([&application] {
+					application.load_mesh(blk::CPUMesh{.mVertices{
+						blk::Vertex{.position = {+1.0, +1.0, +0.0}, .color = {0.0, 1.0, 0.0}},
+						blk::Vertex{.position = {-1.0, +1.0, +0.0}, .color = {0.0, 1.0, 0.0}},
+						blk::Vertex{.position = {+0.0, -1.0, +0.0}, .color = {0.0, 1.0, 0.0}},
+					}});
+				});
+
+				break;
+			}
 		}
 		break;
 		case 'S': {
-			static int sShader = -1;
+			static int sShader = 0;
 
 			sShader = (sShader + 1) % 3;
 
