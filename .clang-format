@@ -7,7 +7,7 @@ DisableFormat: 'false'
 
 ColumnLimit: 120
 
-UseTab: ForContinuationAndIndentation
+UseTab: Never
 TabWidth: 4
 
 IndentWidth: 4
