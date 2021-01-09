@@ -52,112 +52,247 @@
 					"cmd":
 					[
 						"ninja",
+                        "-f", "build-Debug.ninja",
 						"-t",
 						"clean"
 					],
-					"name": "Clean"
+					"name": "Clean (Debug)"
 				},
 				{
 					"cmd":
 					[
 						"ninja",
+                        "-f", "build-Debug.ninja",
 						"-v",
 						"-k",
 						"20",
 						"$file^"
 					],
-					"name": "Current",
+					"name": "Current (Debug)",
 					"selector": "source.c++"
 				},
                 {
                     "cmd":
                     [
                         "ninja",
+                        "-f", "build-Debug.ninja",
                         "-v",
                         "core"
                     ],
-                    "name": "core"
+                    "name": "core (Debug)"
                 },
                 {
                     "cmd":
                     [
                         "ninja",
+                        "-f", "build-Debug.ninja",
                         "-v",
                         "scene"
                     ],
-                    "name": "scene"
+                    "name": "scene (Debug)"
                 },
 				{
 					"cmd":
 					[
 						"ninja",
+                        "-f", "build-Debug.ninja",
 						"-v",
 						"spirv2header"
 					],
-					"name": "spirv2header"
+					"name": "spirv2header (Debug)"
 				},
 				{
 					"cmd":
 					[
 						"ninja",
+                        "-f", "build-Debug.ninja",
 						"-v",
 						"shaders_compile_stages"
 					],
-					"name": "shaders_compile_stages"
+					"name": "shaders_compile_stages (Debug)"
 				},
 				{
 					"cmd":
 					[
 						"ninja",
+                        "-f", "build-Debug.ninja",
 						"-v",
 						"shaders_link_modules"
 					],
-					"name": "shaders_link_modules"
+					"name": "shaders_link_modules (Debug)"
 				},
 				{
 					"cmd":
 					[
 						"ninja",
+                        "-f", "build-Debug.ninja",
 						"-v",
 						"shaders_headers"
 					],
-					"name": "shaders_headers"
+					"name": "shaders_headers (Debug)"
 				},
 				{
 					"cmd":
 					[
 						"ninja",
+                        "-f", "build-Debug.ninja",
 						"-v",
 						"libobj2mesh"
 					],
-					"name": "libobj2mesh"
+					"name": "libobj2mesh (Debug)"
 				},
                 {
                     "cmd":
                     [
                         "ninja",
+                        "-f", "build-Debug.ninja",
                         "-v",
                         "obj2mesh"
                     ],
-                    "name": "obj2mesh"
+                    "name": "obj2mesh (Debug)"
                 },
                 {
                     "cmd":
                     [
                         "ninja",
+                        "-f", "build-Debug.ninja",
                         "-v",
                         "meshviewer"
                     ],
-                    "name": "meshviewer"
+                    "name": "meshviewer (Debug)"
                 },
                 {
                     "cmd":
                     [
                         "ninja",
+                        "-f", "build-Debug.ninja",
                         // "-v",
                         "00-sample"
                     ],
-                    "name": "00-sample"
+                    "name": "00-sample (Debug)"
+                },
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-f", "build-Release.ninja",
+                        "-t",
+                        "clean"
+                    ],
+                    "name": "Clean (Release)"
+                },
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-f", "build-Release.ninja",
+                        "-v",
+                        "-k",
+                        "20",
+                        "$file^"
+                    ],
+                    "name": "Current (Release)",
+                    "selector": "source.c++"
+                },
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-f", "build-Release.ninja",
+                        "-v",
+                        "core"
+                    ],
+                    "name": "core (Release)"
+                },
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-f", "build-Release.ninja",
+                        "-v",
+                        "scene"
+                    ],
+                    "name": "scene (Release)"
+                },
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-f", "build-Release.ninja",
+                        "-v",
+                        "spirv2header"
+                    ],
+                    "name": "spirv2header (Release)"
+                },
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-f", "build-Release.ninja",
+                        "-v",
+                        "shaders_compile_stages"
+                    ],
+                    "name": "shaders_compile_stages (Release)"
+                },
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-f", "build-Release.ninja",
+                        "-v",
+                        "shaders_link_modules"
+                    ],
+                    "name": "shaders_link_modules (Release)"
+                },
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-f", "build-Release.ninja",
+                        "-v",
+                        "shaders_headers"
+                    ],
+                    "name": "shaders_headers (Release)"
+                },
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-f", "build-Release.ninja",
+                        "-v",
+                        "libobj2mesh"
+                    ],
+                    "name": "libobj2mesh (Release)"
+                },
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-f", "build-Release.ninja",
+                        "-v",
+                        "obj2mesh"
+                    ],
+                    "name": "obj2mesh (Release)"
+                },
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-f", "build-Release.ninja",
+                        "-v",
+                        "meshviewer"
+                    ],
+                    "name": "meshviewer (Release)"
+                },
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-f", "build-Release.ninja",
+                        // "-v",
+                        "00-sample"
+                    ],
+                    "name": "00-sample (Release)"
                 }
 			],
 			"working_dir": "C:/builds/vkplaygrounds"
@@ -233,103 +368,227 @@
 					"cmd":
 					[
 						"ninja",
+                        "-f", "build-Debug.ninja",
 						"-v",
 						"-k",
 						"20",
 						"$file^"
 					],
-					"name": "Current",
+					"name": "Current (Debug)",
 					"selector": "source.c++"
 				},
                 {
                     "cmd":
                     [
                         "ninja",
+                        "-f", "build-Debug.ninja",
                         "-v",
                         "core"
                     ],
-                    "name": "core"
+                    "name": "core (Debug)"
                 },
                 {
                     "cmd":
                     [
                         "ninja",
+                        "-f", "build-Debug.ninja",
                         "-v",
                         "scene"
                     ],
-                    "name": "scene"
+                    "name": "scene (Debug)"
                 },
 				{
 					"cmd":
 					[
 						"ninja",
+                        "-f", "build-Debug.ninja",
 						"-v",
 						"spirv2header"
 					],
-					"name": "spirv2header"
+					"name": "spirv2header (Debug)"
 				},
 				{
 					"cmd":
 					[
 						"ninja",
+                        "-f", "build-Debug.ninja",
 						"-v",
 						"shaders_compile_stages"
 					],
-					"name": "shaders_compile_stages"
+					"name": "shaders_compile_stages (Debug)"
 				},
 				{
 					"cmd":
 					[
 						"ninja",
+                        "-f", "build-Debug.ninja",
 						"-v",
 						"shaders_link_modules"
 					],
-					"name": "shaders_link_modules"
+					"name": "shaders_link_modules (Debug)"
 				},
 				{
 					"cmd":
 					[
 						"ninja",
+                        "-f", "build-Debug.ninja",
 						"-v",
 						"shaders_headers"
 					],
-					"name": "shaders_headers"
+					"name": "shaders_headers (Debug)"
 				},
                 {
                     "cmd":
                     [
                         "ninja",
+                        "-f", "build-Debug.ninja",
                         "-v",
                         "libobj2mesh"
                     ],
-                    "name": "libobj2mesh"
+                    "name": "libobj2mesh (Debug)"
                 },
 				{
 					"cmd":
 					[
 						"ninja",
+                        "-f", "build-Debug.ninja",
 						"-v",
 						"obj2mesh"
 					],
-					"name": "obj2mesh"
+					"name": "obj2mesh (Debug)"
 				},
                 {
                     "cmd":
                     [
                         "ninja",
+                        "-f", "build-Debug.ninja",
                         "-v",
                         "meshviewer"
                     ],
-                    "name": "meshviewer"
+                    "name": "meshviewer (Debug)"
                 },
                 {
                     "cmd":
                     [
                         "ninja",
+                        "-f", "build-Debug.ninja",
                         // "-v",
                         "00-sample"
                     ],
-                    "name": "00-sample"
+                    "name": "00-sample (Debug)"
+                },
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-f", "build-Release.ninja",
+                        "-v",
+                        "-k",
+                        "20",
+                        "$file^"
+                    ],
+                    "name": "Current (Release)",
+                    "selector": "source.c++"
+                },
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-f", "build-Release.ninja",
+                        "-v",
+                        "core"
+                    ],
+                    "name": "core (Release)"
+                },
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-f", "build-Release.ninja",
+                        "-v",
+                        "scene"
+                    ],
+                    "name": "scene (Release)"
+                },
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-f", "build-Release.ninja",
+                        "-v",
+                        "spirv2header"
+                    ],
+                    "name": "spirv2header (Release)"
+                },
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-f", "build-Release.ninja",
+                        "-v",
+                        "shaders_compile_stages"
+                    ],
+                    "name": "shaders_compile_stages (Release)"
+                },
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-f", "build-Release.ninja",
+                        "-v",
+                        "shaders_link_modules"
+                    ],
+                    "name": "shaders_link_modules (Release)"
+                },
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-f", "build-Release.ninja",
+                        "-v",
+                        "shaders_headers"
+                    ],
+                    "name": "shaders_headers (Release)"
+                },
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-f", "build-Release.ninja",
+                        "-v",
+                        "libobj2mesh"
+                    ],
+                    "name": "libobj2mesh (Release)"
+                },
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-f", "build-Release.ninja",
+                        "-v",
+                        "obj2mesh"
+                    ],
+                    "name": "obj2mesh (Release)"
+                },
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-f", "build-Release.ninja",
+                        "-v",
+                        "meshviewer"
+                    ],
+                    "name": "meshviewer (Release)"
+                },
+                {
+                    "cmd":
+                    [
+                        "ninja",
+                        "-f", "build-Release.ninja",
+                        // "-v",
+                        "00-sample"
+                    ],
+                    "name": "00-sample (Release)"
                 }
 			],
 			"working_dir": "C:/builds/vkplaygrounds-windows-clang-x86-64"
