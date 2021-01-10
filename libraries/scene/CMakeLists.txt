@@ -10,6 +10,15 @@ target_sources(scene
 
         vkgpumesh.hpp
         vkgpumesh.cpp
+
+        vkcamera.hpp
+        vkcamera.cpp
+
+        vkmaterial.hpp
+        vkmaterial.cpp
+
+        vkrenderable.hpp
+        vkrenderable.cpp
 )
 
 target_include_directories(scene
@@ -21,7 +30,6 @@ target_include_directories(scene
 target_compile_definitions(scene
     PRIVATE
         $<$<PLATFORM_ID:Windows>:
-            VK_USE_PLATFORM_WIN32_KHR
             WIN32_LEAN_AND_MEAN
             NOMINMAX
             NOCOMM
@@ -30,14 +38,12 @@ target_compile_definitions(scene
 )
 
 target_link_libraries(scene
-    # PUBLIC
-    #     Vulkan::Vulkan
-    #     glm
-    PRIVATE
+    PUBLIC
         glm
+        Vulkan::Vulkan
 
+    PRIVATE
         core
-        # range-v3::range-v3
 )
 
 generate_export_header(scene)

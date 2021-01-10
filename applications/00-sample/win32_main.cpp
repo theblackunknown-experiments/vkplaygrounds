@@ -46,11 +46,14 @@
 
 #include <iostream>
 
+#include <obj2mesh.hpp>
+
 #include <mesh-color-shader.hpp>
 #include <mesh-position-shader.hpp>
 #include <mesh-normal-shader.hpp>
 
-#include <obj2mesh.hpp>
+#include <glm/gtx/transform.hpp>
+#include <glm/ext/matrix_transform.hpp>
 
 namespace
 {
@@ -211,6 +214,35 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
         blk::sample00::Application application(engine, presentation);
 
+        application.load_meshes(
+            {0, 1, 2},
+            std::array{
+                blk::CPUMesh{.mVertices{
+                    blk::Vertex{.position = {+1.0, +1.0, +0.0}, .color = {0.0, 1.0, 0.0}},
+                    blk::Vertex{.position = {-1.0, +1.0, +0.0}, .color = {0.0, 1.0, 0.0}},
+                    blk::Vertex{.position = {+0.0, -1.0, +0.0}, .color = {0.0, 1.0, 0.0}},
+                }},
+                blk::meshes::obj::load(
+                    fs::path("C:\\devel\\vkplaygrounds\\data\\models\\vulkan-guide\\monkey_smooth.obj")),
+                blk::meshes::obj::load(fs::path("C:\\Users\\machizau\\Downloads\\Donuts Tutorial.obj")),
+            });
+
+        application.load_pipelines(
+            {0, 1, 2},
+            std::array{"mesh_position_main", "mesh_normal_main", "mesh_color_main"},
+            std::array{
+                std::span<const std::uint32_t>(kShaderMeshPosition),
+                std::span<const std::uint32_t>(kShaderMeshNormal),
+                std::span<const std::uint32_t>(kShaderMeshColor)});
+
+        { // Setup 0
+            application.load_renderables(std::array{blk::Renderable{
+                .mMesh = application.mStorageMesh.mMeshes[0].get(),
+                .mMaterial = std::addressof(application.mStorageMaterial.mMaterials[0]),
+                .transform = glm::identity<glm::mat4>(),
+            }});
+        }
+
         bool shutting_down = false;
         bool resizing = false;
         WindowUserData user_data{engine, presentation, application, shutting_down, resizing};
@@ -272,63 +304,70 @@ LRESULT CALLBACK MainWindowProcedure(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM
 
             sMesh = (sMesh + 1) % 3;
 
-            const char* entry_point;
-            std::span<const std::uint32_t> shader_code;
-
             switch (sMesh)
             {
-            case 1:
-                application.schedule_before_render_command([&application] {
-                    application.load_mesh(blk::meshes::obj::load(
-                        fs::path("C:\\devel\\vkplaygrounds\\data\\models\\vulkan-guide\\monkey_smooth.obj")));
-                });
-                break;
-            case 2:
-                application.schedule_before_render_command([&application] {
-                    application.load_mesh(
-                        blk::meshes::obj::load(fs::path("C:\\Users\\machizau\\Downloads\\Donuts Tutorial.obj")));
-                });
-                break;
             case 0:
             default:
                 application.schedule_before_render_command([&application] {
-                    application.load_mesh(blk::CPUMesh{.mVertices{
-                        blk::Vertex{.position = {+1.0, +1.0, +0.0}, .color = {0.0, 1.0, 0.0}},
-                        blk::Vertex{.position = {-1.0, +1.0, +0.0}, .color = {0.0, 1.0, 0.0}},
-                        blk::Vertex{.position = {+0.0, -1.0, +0.0}, .color = {0.0, 1.0, 0.0}},
+                    constexpr std::uint32_t kTriangle = 0;
+
+                    constexpr std::uint32_t kPosition = 0;
+
+                    application.load_renderables(std::array{blk::Renderable{
+                        .mMesh = application.mStorageMesh.mMeshes[kTriangle].get(),
+                        .mMaterial = std::addressof(application.mStorageMaterial.mMaterials[kPosition]),
+                        .transform = glm::identity<glm::mat4>(),
                     }});
                 });
 
                 break;
             }
-        }
-        break;
-        case 'E': {
-            static int sShader = 0;
+        case 1:
+            application.schedule_before_render_command([&application] {
+                const blk::GPUMesh* mesh_triangle = application.mStorageMesh.mMeshes[0].get();
+                const blk::GPUMesh* mesh_monkey = application.mStorageMesh.mMeshes[1].get();
 
-            sShader = (sShader + 1) % 3;
+                const blk::Material* material_position = std::addressof(application.mStorageMaterial.mMaterials[0]);
 
-            const char* entry_point;
-            std::span<const std::uint32_t> shader_code;
-            switch (sShader)
-            {
-            case 1:
-                entry_point = "mesh_position_main";
-                shader_code = kShaderMeshPosition;
-                break;
-            case 2:
-                entry_point = "mesh_normal_main";
-                shader_code = kShaderMeshNormal;
-                break;
-            case 0:
-            default:
-                entry_point = "mesh_color_main";
-                shader_code = kShaderMeshColor;
-                break;
-            }
+                std::vector<blk::Renderable> renderables;
 
-            application.schedule_before_render_command(
-                [&application, entry_point, shader_code] { application.load_pipeline(entry_point, shader_code); });
+                renderables.push_back(blk::Renderable{
+                    .mMesh = mesh_monkey,
+                    .mMaterial = material_position,
+                    .transform = glm::identity<glm::mat4>(),
+                });
+
+                for (int x = -20; x <= 20; ++x)
+                {
+                    for (int y = -20; y <= 20; ++y)
+                    {
+                        glm::mat4 translation = glm::translate(glm::vec3(x, y, 0));
+                        glm::mat4 scale = glm::scale(glm::vec3(0.2));
+
+                        renderables.push_back(blk::Renderable{
+                            .mMesh = mesh_triangle,
+                            .mMaterial = material_position,
+                            .transform = translation * scale,
+                        });
+                    }
+                }
+
+                application.load_renderables(renderables);
+            });
+
+            break;
+            // case 1:
+            //     application.schedule_before_render_command([&application] {
+            //         application.load_mesh(blk::meshes::obj::load(
+            //             fs::path("C:\\devel\\vkplaygrounds\\data\\models\\vulkan-guide\\monkey_smooth.obj")));
+            //     });
+            //     break;
+            // case 2:
+            //     application.schedule_before_render_command([&application] {
+            //         application.load_mesh(
+            //             blk::meshes::obj::load(fs::path("C:\\Users\\machizau\\Downloads\\Donuts Tutorial.obj")));
+            //     });
+            //     break;
         }
         break;
         case 'W': {

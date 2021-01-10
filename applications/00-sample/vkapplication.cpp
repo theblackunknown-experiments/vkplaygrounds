@@ -10,8 +10,6 @@
 #include <vkengine.hpp>
 #include <vkpresentation.hpp>
 
-#include <mesh-color-shader.hpp>
-
 #include <vulkan/vulkan_core.h>
 
 #include <span>
@@ -21,6 +19,7 @@
 #include <vector>
 
 #include <range/v3/view/zip.hpp>
+#include <range/v3/view/take.hpp>
 
 #include <glm/glm.hpp>
 #include <glm/gtx/transform.hpp>
@@ -381,18 +380,6 @@ Application::Application(blk::Engine& vkengine, blk::Presentation& vkpresentatio
 
     , mQueue(vkengine.mGraphicsQueues.at(0))
 
-#if 0
-	// clang-format off
-	, mTriangleMesh{
-        .mVertices{
-            Vertex{ .position = {+1.0,+1.0,+0.0}, .color = {0.0, 1.0, 0.0} },
-            Vertex{ .position = {-1.0,+1.0,+0.0}, .color = {0.0, 1.0, 0.0} },
-            Vertex{ .position = {+0.0,-1.0,+0.0}, .color = {0.0, 1.0, 0.0} },
-        },
-        .mVertexBuffer = blk::Buffer(sizeof(Vertex) * 3, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)
-    }
-// clang-format on
-#endif
     , mCamera{
           .position = {0.0, 0.0, -2.0},
           .target = {0.0, 0.0, 0.0},
@@ -401,9 +388,6 @@ Application::Application(blk::Engine& vkengine, blk::Presentation& vkpresentatio
 {
     { // Resources
         mDepthImage.create(mDevice);
-#if 0
-		mTriangleMesh.mVertexBuffer.create(mDevice);
-#endif
     }
     { // Memories
         auto vkphysicaldevice = *(mDevice.mPhysicalDevice);
@@ -411,21 +395,10 @@ Application::Application(blk::Engine& vkengine, blk::Presentation& vkpresentatio
         auto memory_type_depth =
             vkphysicaldevice.mMemories.find_compatible(mDepthImage, 0 /*VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT*/);
         assert(memory_type_depth);
-#if 0
-		auto memory_type_geometry = vkphysicaldevice.mMemories.find_compatible(
-			mTriangleMesh.mVertexBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-		assert(memory_type_geometry);
-#endif
+
         mDepthMemory = std::make_unique<blk::Memory>(memory_type_depth, mDepthImage.mRequirements.size);
         mDepthMemory->allocate(mDevice);
         mDepthMemory->bind(mDepthImage);
-
-#if 0
-		mGeometryMemory =
-			std::make_unique<blk::Memory>(*memory_type_geometry, mTriangleMesh.mVertexBuffer.mRequirements.size);
-		mGeometryMemory->allocate(mDevice);
-		mGeometryMemory->bind(mTriangleMesh.mVertexBuffer);
-#endif
     }
     { // Image Views
         mDepthImageView = blk::ImageView(mDepthImage, VK_IMAGE_VIEW_TYPE_2D, mDepthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
@@ -527,19 +500,6 @@ Application::Application(blk::Engine& vkengine, blk::Presentation& vkpresentatio
         CHECK(vkCreateSemaphore(mDevice, &info, nullptr, &mSemaphoreRender));
         CHECK(vkCreateSemaphore(mDevice, &info, nullptr, &mSemaphorePresent));
     }
-#if 0
-	{ // Pipeline Layout - Default
-		const VkPipelineLayoutCreateInfo info{
-			.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-			.pNext = nullptr,
-			.flags = 0,
-			.setLayoutCount = 0,
-			.pushConstantRangeCount = 0,
-			.pPushConstantRanges = nullptr,
-		};
-		CHECK(vkCreatePipelineLayout(mDevice, &info, nullptr, &mPipelineLayout));
-	}
-#endif
     { // Pipeline Layout - Mesh
         VkPushConstantRange range{
             .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
@@ -555,112 +515,20 @@ Application::Application(blk::Engine& vkengine, blk::Presentation& vkpresentatio
             .pushConstantRangeCount = 1,
             .pPushConstantRanges = &range,
         };
-        CHECK(vkCreatePipelineLayout(mDevice, &info, nullptr, &mPipelineLayoutMesh));
+        CHECK(vkCreatePipelineLayout(mDevice, &info, nullptr, &(mStorageMaterial.mPipelineLayout)));
     }
-#if 0
-	{ // Pipeline
-		VkGraphicsPipelineCreateInfo infos[3];
-		GraphicPipelineBuilder builder0(
-			mDevice,
-			mResolution,
-			mPipelineLayout,
-			mRenderPass,
-			0,
-			infos[0],
-			std::vector<std::uint32_t>(std::begin(kShaderTriangle), std::end(kShaderTriangle)),
-			"triangle_main");
-		GraphicPipelineBuilder builder1(
-			mDevice,
-			mResolution,
-			mPipelineLayout,
-			mRenderPass,
-			0,
-			infos[1],
-			std::vector<std::uint32_t>(std::begin(kShaderDefaultTriangle), std::end(kShaderDefaultTriangle)),
-			"default_triangle_main");
-		GraphicPipelineBuilderMesh builder2(
-			mDevice,
-			mResolution,
-			mPipelineLayoutMesh,
-			mRenderPass,
-			0,
-			infos[2],
-			std::vector<std::uint32_t>(std::begin(kShaderMesh), std::end(kShaderMesh)),
-			"mesh_main");
-		CHECK(vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, std::size(infos), infos, nullptr, mPipelines.data()));
-
-		create_material(mPipelines[0], mPipelineLayout, "triangle");
-		create_material(mPipelines[1], mPipelineLayout, "default_triangle");
-		create_material(mPipelines[2], mPipelineLayoutMesh, "default_mesh");
-	}
-	upload_mesh(mTriangleMesh);
-	mMeshes["triangle"] = std::move(mTriangleMesh);
-	load_meshes();
-	{ // Scene
-		auto finder_monkey = mMeshes.find("monkey");
-		auto finder_triangle = mMeshes.find("triangle");
-		assert(finder_monkey != std::end(mMeshes));
-		assert(finder_triangle != std::end(mMeshes));
-
-		auto finder_mesh = mMaterials.find("default_mesh");
-		assert(finder_mesh != std::end(mMaterials));
-
-		RenderObject monkey;
-		monkey.mesh = &(finder_monkey->second);
-		monkey.material = &(finder_mesh->second);
-		monkey.transform = glm::mat4(1.0f);
-
-		mRenderables.push_back(monkey);
-
-		RenderObject triangle;
-		triangle.mesh = &(finder_triangle->second);
-		triangle.material = &(finder_mesh->second);
-		for (int x = -20; x <= 20; ++x)
-		{
-			for (int y = -20; y <= 20; ++y)
-			{
-				glm::mat4 translation = glm::translate(glm::vec3(x, 0, y));
-				glm::mat4 scale = glm::scale(glm::vec3(0.2));
-				triangle.transform = translation * scale;
-
-				mRenderables.push_back(triangle);
-			}
-		}
-	}
-#else
-    { // Pipeline
-        load_pipeline("mesh_color_main", kShaderMeshColor);
-    }
-    { // Scene
-        load_mesh(CPUMesh{.mVertices{
-            Vertex{.position = {+1.0, +1.0, +0.0}, .color = {0.0, 1.0, 0.0}},
-            Vertex{.position = {-1.0, +1.0, +0.0}, .color = {0.0, 1.0, 0.0}},
-            Vertex{.position = {+0.0, -1.0, +0.0}, .color = {0.0, 1.0, 0.0}},
-        }});
-    }
-#endif
 }
 
 Application::~Application()
 {
-#if 0
-	mUserMesh.mVertexBuffer.destroy();
-	mUserMemory->destroy();
+    for (auto&& mesh : mStorageMesh.mMeshes)
+        mesh.reset();
+    mStorageMesh.mGeometryMemory.reset();
 
-	mTriangleMesh.mVertexBuffer.destroy();
-	mGeometryMemory->destroy();
-
-    for (auto&& pipeline : mPipelines)
+    for (auto&& pipeline : mStorageMaterial.mPipelines)
         vkDestroyPipeline(mDevice, pipeline, nullptr);
 
-    vkDestroyPipelineLayout(mDevice, mPipelineLayout, nullptr);
-#else
-    mStorageMesh.mGPUMesh.reset();
-    mStorageMesh.mGeometryMemory.reset();
-    vkDestroyPipeline(mDevice, mPipelineMesh, nullptr);
-#endif
-
-    vkDestroyPipelineLayout(mDevice, mPipelineLayoutMesh, nullptr);
+    vkDestroyPipelineLayout(mDevice, mStorageMaterial.mPipelineLayout, nullptr);
 
     vkDestroySemaphore(mDevice, mSemaphorePresent, nullptr);
     vkDestroySemaphore(mDevice, mSemaphoreRender, nullptr);
@@ -678,16 +546,18 @@ Application::~Application()
         vkDestroyImageView(mDevice, view, nullptr);
 }
 
-void Application::load_mesh(const CPUMesh& cpumesh)
+void Application::load_mesh(std::uint32_t id, const CPUMesh& cpumesh)
 {
+    assert(id < mStorageMesh.mMeshes.size());
+
     VkDeviceSize vertex_size = cpumesh.mVertices.size() * sizeof(Vertex);
-    mStorageMesh.mGPUMesh.reset(new blk::GPUMesh{
+    mStorageMesh.mMeshes[id].reset(new blk::GPUMesh{
         .mVertexCount = cpumesh.mVertices.size(),
         .mVertexBuffer = blk::Buffer(vertex_size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)
 
     });
 
-    auto& vertex_buffer = mStorageMesh.mGPUMesh->mVertexBuffer;
+    auto& vertex_buffer = mStorageMesh.mMeshes[id]->mVertexBuffer;
     vertex_buffer.create(mDevice);
 
     if (!mStorageMesh.mGeometryMemory)
@@ -708,49 +578,65 @@ void Application::load_mesh(const CPUMesh& cpumesh)
     upload_host_visible(mDevice, cpumesh, vertex_buffer);
 }
 
-void Application::load_pipeline(const char* entry_point, const std::span<const std::uint32_t>& shader)
+void Application::load_meshes(const std::initializer_list<std::uint32_t>& ids, const std::span<const CPUMesh>& meshes)
 {
-    if (mPipelineMesh != VK_NULL_HANDLE)
-        vkDestroyPipeline(mDevice, mPipelineMesh, nullptr);
+    for (auto&& [id, mesh] : ranges::views::zip(ids, meshes))
+    {
+        load_mesh(id, mesh);
+    }
+}
+
+void Application::load_pipeline(std::uint32_t id, const char* entry_point, const std::span<const std::uint32_t>& shader)
+{
+    assert(id < mStorageMaterial.mPipelines.size());
+    if (mStorageMaterial.mPipelines[id] != VK_NULL_HANDLE)
+        vkDestroyPipeline(mDevice, mStorageMaterial.mPipelines[id], nullptr);
 
     VkGraphicsPipelineCreateInfo info;
     GraphicPipelineBuilderMesh builder2(
-        mDevice, mResolution, mPipelineLayoutMesh, mRenderPass, 0, info, shader, entry_point);
-    CHECK(vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &info, nullptr, &mPipelineMesh));
+        mDevice, mResolution, mStorageMaterial.mPipelineLayout, mRenderPass, 0, info, shader, entry_point);
+    CHECK(vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, 1, &info, nullptr, &mStorageMaterial.mPipelines[id]));
 }
 
-#if 0
-void Application::load_meshes()
+void Application::load_pipelines(
+    const std::initializer_list<std::uint32_t>& ids,
+    const std::span<const char* const>& entry_points,
+    const std::span<const std::span<const std::uint32_t>>& shaders)
 {
-	mUserMesh.load_obj("C:\\devel\\vkplaygrounds\\data\\models\\vulkan-guide\\monkey_smooth.obj");
-	// mUserMesh.load_obj("C:\\devel\\vkplaygrounds\\data\\models\\CornellBox\\CornellBox-Original.obj");
-	mUserMesh.mVertexBuffer =
-		blk::Buffer(sizeof(Vertex) * mUserMesh.mVertices.size(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-	mUserMesh.mVertexBuffer.create(mDevice);
+    for (auto&& id : ids)
+    {
+        assert(id < mStorageMaterial.mPipelines.size());
+        assert(id < mStorageMaterial.mMaterials.size());
+        if (mStorageMaterial.mPipelines[id] != VK_NULL_HANDLE)
+            vkDestroyPipeline(mDevice, mStorageMaterial.mPipelines[id], nullptr);
+    }
 
-	auto vkphysicaldevice = *(mDevice.mPhysicalDevice);
+    std::vector<VkGraphicsPipelineCreateInfo> infos(ids.size());
+    std::vector<GraphicPipelineBuilderMesh> builders;
+    builders.reserve(ids.size());
+    for (auto&& [info, entry_point, shader] : ranges::views::zip(infos, entry_points, shaders))
+    {
+        builders.emplace_back(
+            mDevice, mResolution, mStorageMaterial.mPipelineLayout, mRenderPass, 0, info, shader, entry_point);
+    }
 
-	auto memory_type_user = vkphysicaldevice.mMemories.find_compatible(
-		mUserMesh.mVertexBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-	assert(memory_type_user);
+    std::vector<VkPipeline> pipelines(ids.size(), VK_NULL_HANDLE);
+    CHECK(vkCreateGraphicsPipelines(mDevice, VK_NULL_HANDLE, infos.size(), infos.data(), nullptr, pipelines.data()));
 
-	mUserMemory = std::make_unique<blk::Memory>(*memory_type_user, mUserMesh.mVertexBuffer.mRequirements.size);
-	mUserMemory->allocate(mDevice);
-	mUserMemory->bind(mUserMesh.mVertexBuffer);
-
-	upload_mesh(mUserMesh);
-	mMeshes["monkey"] = std::move(mUserMesh);
+    for (auto&& [id, vkpipeline] : ranges::views::zip(ids, pipelines))
+    {
+        mStorageMaterial.mPipelines[id] = vkpipeline;
+        mStorageMaterial.mMaterials[id] =
+            blk::Material{.pipeline = vkpipeline, .pipeline_layout = mStorageMaterial.mPipelineLayout};
+    }
 }
 
-void Application::upload_mesh(blk::Mesh& mesh)
+void Application::load_renderables(const std::span<const blk::Renderable>& renderables)
 {
-	{
-		void* data = mesh.mVertexBuffer.mMemory->map(mesh.mVertexBuffer);
-		std::memcpy(data, mesh.mVertices.data(), mesh.mVertices.size() * sizeof(blk::Vertex));
-		mesh.mVertexBuffer.mMemory->unmap(mesh.mVertexBuffer);
-	}
+    assert(renderables.size() < mStorageRenderable.mRenderables.size());
+    std::copy(std::begin(renderables), std::end(renderables), std::begin(mStorageRenderable.mRenderables));
+    mStorageRenderable.mCount = renderables.size();
 }
-#endif
 
 void Application::draw()
 {
@@ -809,43 +695,36 @@ void Application::draw()
         vkCmdBeginRenderPass(mCommandBuffer, &info, VK_SUBPASS_CONTENTS_INLINE);
     }
 
-#if 0
-	record_renderables(mCommandBuffer, mRenderables.data(), mRenderables.size());
-#else
-    vkCmdBindPipeline(mCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, mPipelineMesh);
+    glm::mat4 view = glm::translate(glm::vec3{mCamera.position.x, mCamera.position.y, mCamera.position.z});
 
+    glm::mat4 projection =
+        glm::perspective(glm::radians(70.0), mResolution.width / (double)mResolution.height, 0.001, 200.0);
+    projection[1][1] *= -1.0;
+
+    glm::mat4 animation = glm::rotate(glm::radians(mFrameNumber / 0.4f), glm::vec3(0.0, 1.0, 0.0));
+
+    for (auto&& renderable : mStorageRenderable.mRenderables | ranges::views::take(mStorageRenderable.mCount))
     {
-#    if 0
-        glm::vec3 eye{0.0, 0.0, -2.0};
-        glm::mat4 view = glm::translate(eye);
-#    else
-        glm::mat4 view = glm::translate(glm::vec3{mCamera.position.x, mCamera.position.y, mCamera.position.z});
-#    endif
+        vkCmdBindPipeline(mCommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, renderable.mMaterial->pipeline);
 
-        glm::mat4 projection =
-            glm::perspective(glm::radians(70.0), mResolution.width / (double)mResolution.height, 0.001, 200.0);
-        projection[1][1] *= -1.0;
-
-        glm::mat4 model = glm::rotate(glm::radians(mFrameNumber / 0.4f), glm::vec3(0.0, 1.0, 0.0));
-
-        MeshPushConstants constants{.render_matrix = projection * view * model};
+        MeshPushConstants constants{.render_matrix = projection * view * (renderable.transform * animation)};
         vkCmdPushConstants(
             mCommandBuffer,
-            mPipelineLayoutMesh,
+            renderable.mMaterial->pipeline_layout,
             VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
             0,
             sizeof(MeshPushConstants),
             &constants);
-    }
 
-    if (mStorageMesh.mGPUMesh)
-    {
-        VkDeviceSize offset = 0;
-        VkBuffer vertex_buffer = mStorageMesh.mGPUMesh->mVertexBuffer;
-        vkCmdBindVertexBuffers(mCommandBuffer, 0, 1, &vertex_buffer, &offset);
-        vkCmdDraw(mCommandBuffer, mStorageMesh.mGPUMesh->mVertexCount, 1, 0, 0);
+        if (renderable.mMesh)
+        {
+            VkDeviceSize offset = 0;
+            VkBuffer vertex_buffer = renderable.mMesh->mVertexBuffer;
+            vkCmdBindVertexBuffers(mCommandBuffer, 0, 1, &vertex_buffer, &offset);
+
+            vkCmdDraw(mCommandBuffer, renderable.mMesh->mVertexCount, 1, 0, 0);
+        }
     }
-#endif
 
     vkCmdEndRenderPass(mCommandBuffer);
 
@@ -879,7 +758,6 @@ void Application::draw()
             .pResults = nullptr,
         };
         const VkResult result_present = vkQueuePresentKHR(*mQueue, &info);
-        CHECK(result_present);
         CHECK(
             (result_present == VK_SUCCESS) || (result_present == VK_SUBOPTIMAL_KHR) ||
             (result_present == VK_ERROR_OUT_OF_DATE_KHR));
@@ -889,12 +767,6 @@ void Application::draw()
 }
 
 #if 0
-Material* Application::create_material(VkPipeline pipeline, VkPipelineLayout layout, const std::string& name)
-{
-	auto [iterator, _] = mMaterials.emplace(name, Material{.pipeline = pipeline, .pipeline_layout = layout});
-	return &(iterator->second);
-}
-
 void Application::record_renderables(VkCommandBuffer commandbuffer, RenderObject* first, std::size_t count)
 {
 	glm::vec3 eye(0.0, -6.0, -10.0);
